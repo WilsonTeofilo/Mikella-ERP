@@ -1,0 +1,69 @@
+nosso sistema vai ser desktop, porém obviamente faremos uma landing page para as pessoas criarem conta e conseguirem baixar ele.
+é obrigatório o cara baixar pra iniciar o sistema e ver o caixa e cadastrar os dados da loja dele e coisas do tipo e etc.
+ele não é só um pdv genérico, ele é um ERP de lojas/comércio, porém sem muita viadagem , sem entupir de serviços inutéis igual a bling, a gente vai pegar de referência só o que é de bom da bling, pq ela tem muita coisa inutéis.
+se cair a internet e o cara desligar a luz, tem que ter um backup pra não fuder caixa do cara no dia é finalizar as sessão no foda-se, pq se não acontece de o operador de caixa toma no cú dele tanto na parte de valor que ele tem no caixa vs o inicial lá que tem no inicio do dia que o adm salvar, se o cara ta com 800 conto no caixa e ja passou uma penca de coisa e o caixa voltar nesse padrão de inicio de dia fudeu, tem que voltar exatamente de onde o caixa desligou/quebrou a sessão. ele tem que ser resistente contra queda de luz ou internet
+
+requisito funcionar normal sem travar em pc com processador i3-i5 de 5 geração e pc com ram ddr3 1333mhz 6 gb.
+como o banco de dados fica no pc do lojista, saber quando configurar o backup pra mandar pra nuvem do site pra caso o pc do cara queimar dar pra recuperar.
+1- colocando na nuvem do sistema na conta dele 
+2 - colocando um pc secundário que recupera os dados
+3 - as duas opçoesKKKKKJ.
+o que eu quero é economizar requisição e dados no meu lado, por isso o sistema é um exe que o usuário que se vire para ter a internet, sistema fechado no pc dele, e não algo aberto que qualquer hacker pode tentar molestar por brute force no navegador.
+
+
+
+meio que vai ter o modo free eterno , e a parada la se o cara não pagar ele volta pro free , o cara tem que  definir uma loja como default pq se o mano não pagar em até 15 dias a conta dele volta pro free, pagou > volta ao normal do jeito que tava.
+pro pessoal que usa free, é bom pedir donate / contribuição a cada 3 dias no primeiro login do dia e no logoff (do admin) se o cara tiver feito ja o donate mensal não obrigatório não ficar pedindo enchendo o saco
+
+nas conta de admin tanto pra entrar no desktop quando no navegador:  é necessário ter username/email + senha e 2FA por email.
+
+vamos fornecer um tal de freemium pro usuário:
+freemium pode ter:
+-estoque
+- apenas uma loja
+- direito a estoque
+- relatório e tudo do financeiro porém apenas dos últimos 6 meses, porém em caso dele pegar a versão paga, ele desbloqueia de conseguir ver atividade de tudo desde o inicio da loja... meio que fica ESCONDIDO do user porém se ele pagar ele tem os dados antigos,fluxo de caixa /vendas, lucro e prejuízo, faturamento.
+- cadastro de 85 produtos por mês, edição e exclusão limitada (verbalizar o contador de cota de produtos criados por mês) > se o cara tem muito produto na loja, ta de miséria pra comprar um sistema? ai ta tirando carai paga essa porra.
+deve-se ter muito cuidado aí, pois se por um acaso o usuário dizer que formatou o pc e precisa do backup a nuvem não enlouquecer e mandar o acesso DE TUDO pro cara, apenas dos últimos 6 meses certinhos...
+- +1 admin que acessa tudo sem ser ele (um gerente), ele pode configurar quais permissões quer dar a esse cara.
+- CONTAS A PAGAR E A RECEBER 
+- se produto perecível/estragável, colocar data de validade que o sistema dispara aviso pro admin/gerente que tal produto está a 2 meses de vencer (ou o tempo que o usuário configurar para avisar, tem que avisar até for detectado que o cara foi no estoque e confirmou que ja leu, recomendar fazer promoção do produto)
+
+(dito isso é bom salvar essas pica na conta do cara na web....  salvar o DB do cara, o sistema deve ter uma parada que o mano pode sincronizar o arquivo com o que tem salvo na conta dele.
+não seria interessante as lojas ficarem online igual um app anota ai da vida, mas o que acontece meio que ter o backup das parada do jeito certo, sem o sistema estar rodando 100% no mundo a fora , mas tipo ele rodar local pra ninguém conseguir invadir porém o backup da loja tem que subir pra algum lugar, e tipo assim se salvar no próprio pc e o disco corromper? ai fudeu, ai precisa ir pra algum lugar porém o problema é : e se alguém hackeia a conta e pega esse dado? qual é o melhor jeito pra essa porra funcionar? como as grandes empresas de pdv desktop fazem esse caralho? vamos adotar uma estratégia pra isso pois eu não faço idéia.
+ a idéia central aqui é fazer desktop nativo pra não molestar a ram, é feito pra rodar em pc fraco pique i5 de 2 geração com 4 gb de ram e Linux lubuntu / windows 7 da vida a otimização e segurança aqui é a prioridade porém quero fazer algo com um visual bonito e estiloso anti ia slop, anti monolítico, anti hardcoded, clean code, clean architeture e com bom design pattern e organização boa de pastas.)
+
+continuando sobre o freemium :
+-o admin só pode criar sessão no desktop em 1 único pc, se logar em outro pc da loja que tem o sistema, ele detecta e pergunta "pc (com nome do user do windows ou Linux) está conectado na conta, deseja finalizar sessão e iniciar nesse computador?
+
+
+a loja pode ter apenas 8 conexões totais de computador.fazer alguma criptografia que mostra se o cara ta tentando fazer bypass, tipo:
+pegou duas contas com 2 cpf diferente, ai ele quer meter o louco e trazer o banco de dados da loja dele do outro cpf/cpnj sendo que o plano dele é o free, no backup tem que ter uma criptografia que valida se o cara ta tentando fazer bypass ou não pique: essa conta ela é free e vai ter um arquivinho maroto aqui que não permite o cara botar esse banco de dados nessa outra conta pq são duas contas frees diferente.
+na vdd isso deve ser valido até pra conta premium, cada conta tem um limite e ponto final.
+
+esse freemium ta bem generoso agora o pago:
+o pago tem tudo que o freemium tem porém com plus extras
+pode ter até 8 lojas diferentes, cada loja pode ter 4 admins/gerente, o DONO da conta que define.
+tem o HOST bigode raul, e o gerente, o host bigode é o dono da conta, ele manda em tudo, ele pode apagar os outros admin/gerente, ja os outros gerente não pode apagar o dono da loja.
+e nem admin/gerente apagar gerente, eles manda nos cargo abaixo dele: operador de caixa, estoquista, vendedor e etc.
+
+além disso, cada loja pode ter cadastro novos de até 200 produtos por mês, CADA loja.
+produtos novo é uma entidade nova e não um estoque de 200 un de coca cola kkkkj.
+ o preemium vai conseguir verificar TODO o relatorio desde o surgimento da loja do financeiro e coisas do tipo.
+o premium vai poder configurar comissão de vendas para funcionarios para determinado produtos / categorias em cheio (pega uma categoria com todos os produtos específicos) exemplo: vitaminas da LAVITAM , todas vitaminas que o vendedor 23 vender, ele vai ganhar comissão.
+
+
+configurar venda por COMANDAS para poder identificar o vendedor que fez a venda da vitamina, aparecer no caixa quando o item for comossionavel> bipou > quem fez a venda > passa o codigo do user ( o caixa digita ou bipa algum codigo que identifica quem foi o vendedor correto) bom ter um anti fraude ai pro caixa não roubar a venda do vendedor kkjj.
+
+
+
+exemplo: no site o cara ve sobre o produto, seleciona o plano (ex:free) cadastra os dados dele, nome, cpf/CNPJ, numero de telefone, nome da loja, login , senha.
+esse login e senha é a LOJA dele, a MARCA dele.
+
+- parte da nota fiscal da fazenda, assim ele le a nota e ja pega todos os itens, depois o funcionario so conta e ve se bate de acordo com a nota, se tiver faltando coloca uma opção se tiver certo coloca a outra, pensaremos melhor essa parte.
+
+
+
+
+
+o sistema deve respeitar a risca LGPD

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mikella ERP — Financeiro</title>
+  <link rel="stylesheet" href="../shared/design/tokens.css" />
+  <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <link rel="stylesheet" href="../shared/ui/forms.css" />
+  <style>
+    [data-tema="caixa"] body { background: var(--branco); color: var(--preto); font-family: var(--fonte-texto); margin: 0; }
+    .corte-m { position: fixed; top: 0; right: 0; width: 0; height: 0; border-top: 64px solid var(--cobalto-600); border-left: 64px solid transparent; }
+    .wordmark { position: fixed; top: var(--espaco-6); left: var(--espaco-6); display: flex; gap: var(--espaco-1); font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; line-height: 1; z-index: 10; }
+    .wordmark .letra { display: inline-flex; align-items: center; justify-content: center; width: 2em; height: 2em; font-size: 1.1rem; color: var(--preto); background: var(--cobalto-600); border: 2px solid var(--preto); }
+    .wordmark .letra:nth-child(odd) { color: var(--branco); background: var(--preto); }
+
+    .app-container { min-height: 100vh; padding: var(--espaco-8) var(--espaco-6) var(--espaco-6) var(--espaco-6); box-sizing: border-box; }
+    .linha-topo { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--espaco-4); gap: var(--espaco-4); flex-wrap: wrap; }
+    .titulo-pagina { font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; margin: 0; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: var(--espaco-3); }
+    th, td { border-bottom: 1px solid var(--preto); padding: var(--espaco-3) var(--espaco-2); text-align: left; font-family: var(--fonte-texto); font-size: 0.95rem; }
+    th { font-weight: var(--peso-subtitulo); background: #f4f4f4; border-top: 2px solid var(--preto); }
+    td.direita, th.direita { text-align: right; }
+
+    .tag { display: inline-block; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--preto); }
+    .tag.pagar { background: #fee2e2; color: #991b1b; }
+    .tag.receber { background: #dcfce7; color: #166534; }
+
+    .barra-botoes { display: flex; gap: var(--espaco-2); margin-top: var(--espaco-5); flex-wrap: wrap; }
+    .botao { display: inline-flex; align-items: center; justify-content: center; font-family: var(--fonte-texto); font-weight: var(--peso-subtitulo); padding: var(--espaco-3) var(--espaco-4); min-height: 48px; min-width: 96px; background: var(--branco); color: var(--preto); border: 2px solid var(--preto); cursor: pointer; text-decoration: none; }
+    .botao:hover { background: var(--cobalto-600); color: var(--branco); }
+    .botao.primario { background: var(--preto); color: var(--branco); }
+    .botao.primario:hover { background: var(--cobalto-600); }
+    .tecla { font-weight: var(--peso-titulo); margin-right: var(--espaco-2); }
+
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .modal-conteudo { background: var(--branco); color: var(--preto); border: 2px solid var(--preto); padding: var(--espaco-6); max-width: 480px; width: calc(100% - var(--espaco-4)); position: relative; }
+    .modal-titulo { font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; margin: 0 0 var(--espaco-4); }
+    .modal-conteudo::after { content: ""; position: absolute; top: 0; right: 0; width: 48px; height: 48px; background: var(--cobalto-600); clip-path: polygon(0 0, 0 100%, 100% 0); }
+
+    .campo { margin-bottom: var(--espaco-3); }
+    .campo label { display: block; font-weight: var(--peso-subtitulo); margin-bottom: var(--espaco-1); }
+    .campo input, .campo select { width: 100%; padding: var(--espaco-2); border: 2px solid var(--preto); font-family: var(--fonte-texto); font-size: 1rem; box-sizing: border-box; }
+
+    .toast { position: fixed; bottom: var(--espaco-6); right: var(--espaco-6); background: var(--preto); color: var(--branco); padding: var(--espaco-3) var(--espaco-5); font-family: var(--fonte-texto); font-weight: var(--peso-subtitulo); border: 2px solid var(--preto); display: none; z-index: 300; }
+    .toast.visivel { display: block; }
+  </style>
+</head>
+<body data-tema="caixa">
+  <div class="corte-m"></div>
+  <div class="wordmark" aria-label="Mikella">
+    <span class="letra" aria-hidden="true">M</span>
+    <span class="letra" aria-hidden="true">i</span>
+    <span class="letra" aria-hidden="true">k</span>
+    <span class="letra" aria-hidden="true">e</span>
+    <span class="letra" aria-hidden="true">l</span>
+    <span class="letra" aria-hidden="true">l</span>
+    <span class="letra" aria-hidden="true">a</span>
+  </div>
+
+  <main class="app-container">
+    <div class="linha-topo">
+      <div>
+        <h1 class="titulo-pagina">Financeiro — Contas em Aberto</h1>
+        <p style="margin:var(--espaco-1) 0 0 0; color:#555;">Contas a pagar, a receber e liquidação de parcelas</p>
+      </div>
+      <div id="saldo-resumo" style="font-weight:bold; font-size:1.1rem; padding:var(--espaco-2); border:2px solid var(--preto);">
+        Total Aberto: R$ 0,00
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Descrição</th>
+          <th>Vencimento</th>
+          <th>Parcela</th>
+          <th class="direita">Valor</th>
+          <th class="direita">Ação</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-contas-corpo">
+        <tr><td colspan="6" style="text-align:center;">Carregando contas...</td></tr>
+      </tbody>
+    </table>
+
+    <div class="barra-botoes">
+      <button id="btn-nova-conta" class="botao primario"><span class="tecla">F1</span> Nova Conta</button>
+      <button id="btn-backup" class="botao"><span class="tecla">F2</span> Gerar Backup Local</button>
+      <button id="btn-voltar" class="botao"><span class="tecla">Esc</span> Voltar ao Menu</button>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal: Nova Conta -->
+  <div id="modal-conta" class="modal" style="display:none;">
+    <div class="modal-conteudo">
+      <h2 class="modal-titulo">Lançar Nova Conta</h2>
+      <form id="form-conta">
+        <div class="campo">
+          <label for="conta-tipo">Tipo de Conta *</label>
+          <select id="conta-tipo">
+            <option value="PAGAR">Conta a Pagar (Saída)</option>
+            <option value="RECEBER">Conta a Receber (Entrada)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="conta-desc">Descrição / Fornecedor / Cliente *</label>
+          <input id="conta-desc" type="text" required placeholder="Ex: Fornecedor Café Torrado" autocomplete="off" />
+        </div>
+        <div style="display:flex; gap:var(--espaco-2);">
+          <div class="campo" style="flex:1;">
+            <label for="conta-valor">Valor Total (R$) *</label>
+            <input id="conta-valor" type="text" required placeholder="0,00" style="text-align:right;" />
+          </div>
+          <div class="campo" style="flex:1;">
+            <label for="conta-parcelas">Nº Parcelas</label>
+            <input id="conta-parcelas" type="number" value="1" min="1" max="60" />
+          </div>
+        </div>
+        <div class="campo">
+          <label for="conta-vencimento">Primeiro Vencimento *</label>
+          <input id="conta-vencimento" type="date" required />
+        </div>
+        <div style="margin-top:var(--espaco-4); display:flex; gap:var(--espaco-2);">
+          <button type="submit" class="botao primario" style="flex:1;">Registrar Conta</button>
+          <button type="button" id="btn-cancelar-conta" class="botao" style="flex:1;">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Liquidar Parcela -->
+  <div id="modal-liquidar" class="modal" style="display:none;">
+    <div class="modal-conteudo">
+      <h2 class="modal-titulo">Liquidar Parcela</h2>
+      <p id="liquidar-info" style="font-weight:bold; margin-bottom:var(--espaco-3);"></p>
+      <form id="form-liquidar">
+        <input type="hidden" id="liq-id" />
+        <input type="hidden" id="liq-tipo" />
+        <input type="hidden" id="liq-idx" />
+        <div class="campo">
+          <label for="liq-forma">Forma de Pagamento *</label>
+          <select id="liq-forma">
+            <option value="DINHEIRO">Dinheiro</option>
+            <option value="PIX">Pix</option>
+            <option value="DEBITO">Cartão de Débito</option>
+            <option value="CREDITO">Cartão de Crédito</option>
+            <option value="OUTRO">Outro / Boleto</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="liq-valor">Valor a Liquidar (R$) *</label>
+          <input id="liq-valor" type="text" required style="text-align:right;" />
+        </div>
+        <div style="margin-top:var(--espaco-4); display:flex; gap:var(--espaco-2);">
+          <button type="submit" class="botao primario" style="flex:1;">Confirmar Liquidação</button>
+          <button type="button" id="btn-cancelar-liq" class="botao" style="flex:1;">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
+    const token = localStorage.getItem("mikella_token");
+    if (!token) { window.location.href = "landing.html"; }
+    const authHeaders = { "Authorization": `Bearer ${token}` };
+
+    const Money = {
+      fmt(c) {
+        const v = (c < 0 ? "-" : "") + "R$ " + (Math.abs(c)/100).toFixed(2).replace(".", ",");
+        return v;
+      },
+      parse(str) {
+        const digitos = (str || "").replace(/\D/g, "");
+        return parseInt(digitos, 10) || 0;
+      }
+    };
+
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("visivel");
+      setTimeout(() => t.classList.remove("visivel"), 2500);
+    }
+
+    async function fetchJSON(path, opts = {}) {
+      const res = await fetch(`${API_URL}${path}`, {
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data };
+    }
+
+    async function carregarContas() {
+      const { ok, data } = await fetchJSON("/v1/finance/contas-abertas");
+      if (!ok) {
+        toast(data.erro || "Falha ao carregar contas abertas.");
+        return;
+      }
+
+      const contas = data.contas || [];
+      renderTabela(contas);
+    }
+
+    function renderTabela(contas) {
+      const tbody = document.getElementById("tabela-contas-corpo");
+      tbody.innerHTML = "";
+
+      let totalAbertoCentavos = 0;
+
+      if (contas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:var(--espaco-6);">Nenhuma conta em aberto no momento.</td></tr>';
+        document.getElementById("saldo-resumo").textContent = "Total Aberto: R$ 0,00";
+        return;
+      }
+
+      contas.forEach(c => {
+        const tr = document.createElement("tr");
+        const tipoClass = c.tipo === "PAGAR" ? "pagar" : "receber";
+        const valorCents = c.valor_centavos || 0;
+        totalAbertoCentavos += valorCents;
+
+        tr.innerHTML = `
+          <td><span class="tag ${tipoClass}">${c.tipo}</span></td>
+          <td><strong>${c.descricao}</strong></td>
+          <td>${c.vencimento}</td>
+          <td>${c.parcela_numero || 1}</td>
+          <td class="direita">${Money.fmt(valorCents)}</td>
+          <td class="direita">
+            <button class="botao" style="min-height:36px; min-width:72px; padding:var(--espaco-1) var(--espaco-2);" 
+              data-liquidar-id="${c.id}" data-liquidar-tipo="${c.tipo}" data-liquidar-idx="${c.parcela_numero || 1}" data-liquidar-valor="${valorCents}" data-liquidar-desc="${c.descricao}">
+              Liquidar
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("saldo-resumo").textContent = `Total Aberto: ${Money.fmt(totalAbertoCentavos)}`;
+
+      tbody.querySelectorAll("[data-liquidar-id]").forEach(btn => {
+        btn.onclick = () => abrirModalLiquidar(
+          btn.dataset.liquidarId,
+          btn.dataset.liquidarTipo,
+          btn.dataset.liquidarIdx,
+          parseInt(btn.dataset.liquidarValor, 10),
+          btn.dataset.liquidarDesc
+        );
+      });
+    }
+
+    // Modal Nova Conta
+    const modalConta = document.getElementById("modal-conta");
+    const btnNovaConta = document.getElementById("btn-nova-conta");
+    const btnCancelaConta = document.getElementById("btn-cancelar-conta");
+    const formConta = document.getElementById("form-conta");
+
+    btnNovaConta.onclick = () => {
+      formConta.reset();
+      document.getElementById("conta-vencimento").value = new Date().toISOString().slice(0, 10);
+      modalConta.style.display = "flex";
+      document.getElementById("conta-desc").focus();
+    };
+
+    btnCancelaConta.onclick = () => {
+      modalConta.style.display = "none";
+    };
+
+    document.getElementById("conta-valor").addEventListener("input", (e) => {
+      const v = e.target.value.replace(/\D/g, "");
+      if (v.length > 0) {
+        e.target.value = (parseInt(v, 10) / 100).toFixed(2).replace(".", ",");
+      }
+    });
+
+    formConta.onsubmit = async (e) => {
+      e.preventDefault();
+      const tipo = document.getElementById("conta-tipo").value;
+      const endpoint = tipo === "PAGAR" ? "/v1/finance/contas-pagar" : "/v1/finance/contas-receber";
+
+      const totalCentavos = Money.parse(document.getElementById("conta-valor").value);
+      const qtdParcelas = parseInt(document.getElementById("conta-parcelas").value, 10) || 1;
+      const primeiroVenc = document.getElementById("conta-vencimento").value;
+
+      // Gera parcelas
+      const valorBaseParcela = Math.floor(totalCentavos / qtdParcelas);
+      const resto = totalCentavos % qtdParcelas;
+
+      const parcelas = [];
+      const d = new Date(primeiroVenc + "T12:00:00Z");
+
+      for (let i = 0; i < qtdParcelas; i++) {
+        const vcto = new Date(d);
+        vcto.setMonth(vcto.getMonth() + i);
+        const valorParc = i === 0 ? valorBaseParcela + resto : valorBaseParcela;
+        parcelas.push({
+          numero: i + 1,
+          vencimento: vcto.toISOString().slice(0, 10),
+          valor_centavos: valorParc,
+        });
+      }
+
+      const payload = {
+        descricao: document.getElementById("conta-desc").value.trim(),
+        pessoa_id: null,
+        plano_contas_id: null,
+        parcelas: parcelas,
+      };
+
+      const { ok, data } = await fetchJSON(endpoint, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      if (ok) {
+        toast("Conta registrada com sucesso!");
+        modalConta.style.display = "none";
+        carregarContas();
+      } else {
+        toast(data.erro || "Falha ao registrar conta.");
+      }
+    };
+
+    // Modal Liquidar
+    const modalLiq = document.getElementById("modal-liquidar");
+    const formLiq = document.getElementById("form-liquidar");
+    const btnCancelaLiq = document.getElementById("btn-cancelar-liq");
+
+    function abrirModalLiquidar(id, tipo, idx, valorCents, desc) {
+      document.getElementById("liq-id").value = id;
+      document.getElementById("liq-tipo").value = tipo;
+      document.getElementById("liq-idx").value = idx;
+      document.getElementById("liquidar-info").textContent = `${tipo}: ${desc} — Parcela ${idx}`;
+      document.getElementById("liq-valor").value = (valorCents / 100).toFixed(2).replace(".", ",");
+      modalLiq.style.display = "flex";
+      document.getElementById("liq-forma").focus();
+    }
+
+    btnCancelaLiq.onclick = () => { modalLiq.style.display = "none"; };
+
+    formLiq.onsubmit = async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("liq-id").value;
+      const tipo = document.getElementById("liq-tipo").value;
+      const idx = document.getElementById("liq-idx").value;
+      const forma = document.getElementById("liq-forma").value;
+      const valorCentavos = Money.parse(document.getElementById("liq-valor").value);
+
+      const endpoint = tipo === "PAGAR"
+        ? `/v1/finance/contas-pagar/${id}/parcelas/${idx}/liquidar`
+        : `/v1/finance/contas-receber/${id}/parcelas/${idx}/liquidar`;
+
+      const payload = {
+        forma_pagamento: forma,
+        valor_centavos: valorCentavos,
+      };
+
+      const { ok, data } = await fetchJSON(endpoint, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      if (ok) {
+        toast("Parcela liquidada com sucesso!");
+        modalLiq.style.display = "none";
+        carregarContas();
+      } else {
+        toast(data.erro || "Falha ao liquidar parcela.");
+      }
+    };
+
+    // Backup Local
+    document.getElementById("btn-backup").onclick = async () => {
+      toast("Gerando cópia de segurança local...");
+      const { ok, data } = await fetchJSON("/v1/sistema/backup-local", { 
+        method: "POST",
+        body: JSON.stringify({})
+      });
+      if (ok) {
+        toast(`Backup gerado: ${data.arquivo} (${data.tamanho_bytes} bytes).`);
+      } else {
+        toast(data.erro || "Falha ao gerar backup.");
+      }
+    };
+
+    // Voltar
+    document.getElementById("btn-voltar").onclick = () => { window.location.href = "main-menu.html"; };
+
+    // Teclas de atalho
+    document.addEventListener("keydown", (e) => {
+      if (modalConta.style.display === "flex" || modalLiq.style.display === "flex") {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          modalConta.style.display = "none";
+          modalLiq.style.display = "none";
+        }
+        return;
+      }
+
+      if (e.key === "F1") { e.preventDefault(); btnNovaConta.click(); }
+      else if (e.key === "F2") { e.preventDefault(); document.getElementById("btn-backup").click(); }
+      else if (e.key === "Escape") { e.preventDefault(); document.getElementById("btn-voltar").click(); }
+    });
+
+    carregarContas();
+  </script>
+</body>
+</html>

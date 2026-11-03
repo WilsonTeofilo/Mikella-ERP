@@ -1,0 +1,108 @@
+[workspace]
+resolver = "2"
+members = [
+    "tools/seed",
+    "crates/shared-kernel",
+    "crates/domain-sales",
+    "crates/domain-cash",
+    "crates/domain-inventory",
+    "crates/domain-finance",
+    "crates/domain-people",
+    "crates/domain-commission",
+    "crates/domain-licensing",
+    "crates/app-sales",
+    "crates/app-cash",
+    "crates/app-inventory",
+    "crates/app-finance",
+    "crates/app-people",
+    "crates/app-licensing",
+    "crates/infra-sqlite",
+    "crates/infra-crypto",
+    "crates/infra-cloud",
+    "crates/infra-hardware",
+    "crates/store-server",
+    "crates/desktop-shell",
+]
+
+[workspace.package]
+version     = "0.1.0"
+edition     = "2021"
+authors     = ["Mikella ERP"]
+license     = "UNLICENSED"
+rust-version = "1.80"
+
+# Dependências compartilhadas — versões fixadas aqui, cada crate opta por `workspace = true`
+[workspace.dependencies]
+# Serialização
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+csv         = "1"
+
+# Async runtime (enxuto — poucos threads)
+tokio       = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }
+
+# Web framework (servidor local)
+axum        = { version = "0.7", features = ["http2"] }
+tower       = "0.4"
+tower-http  = { version = "0.5", features = ["cors", "trace"] }
+
+# TLS
+rustls          = "0.23"
+rustls-pemfile  = "2"
+rcgen           = "0.13"   # gerar cert autoassinado na rede local
+tokio-rustls    = "0.26"
+
+# Banco de dados
+rusqlite    = { version = "0.32", features = ["bundled", "hooks"] }
+
+# Criptografia — sem implementação própria
+aes-gcm     = "0.10"       # AES-256-GCM (backup)
+chacha20poly1305 = "0.10"  # XChaCha20-Poly1305 (alternativa)
+argon2      = "0.5"        # KDF para senha/PIN e frase de recuperação
+password-hash = "0.5"      # trait PasswordVerifier (argon2::verify_encoded)
+ed25519-dalek = "2"        # assinatura do token de licença
+rand        = "0.8"
+zeroize     = { version = "1", features = ["derive"] }
+
+# IDs e tempo
+uuid        = { version = "1", features = ["v4", "serde"] }
+ulid        = "1"
+chrono      = { version = "0.4", features = ["serde"] }
+
+# Erros
+thiserror   = "2"
+anyhow      = "1"
+
+# Logging / tracing (sem PII nos logs)
+tracing         = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Tauri (desktop shell)
+tauri       = { version = "2", features = ["protocol-asset"] }
+tauri-build = "2"
+
+# HTTP client (nuvem)
+reqwest     = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Hash
+blake3      = "1"
+async-trait = "0.1"
+
+# Configuração
+config      = "0.14"
+
+[profile.release]
+opt-level       = "z"       # minimizar tamanho
+lto             = true
+codegen-units   = 1
+strip           = true
+panic           = "abort"   # no cliente; store-server usa perfil separado
+
+# Servidor da loja: preferir unwind para isolar falhas por request
+[profile.server-release]
+inherits    = "release"
+opt-level   = 3
+panic       = "unwind"
+
+[profile.dev]
+opt-level   = 1             # builds mais rápidos em dev sem ser lentíssimo

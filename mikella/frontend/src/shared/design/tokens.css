@@ -1,0 +1,191 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Mikella Design System — Tokens de núcleo
+   Baseado em 08_IDENTIDADE_VISUAL_E_UX.md §5.2, §6.4, §7.1, §7.8
+
+   REGRA (VIS-110): Nenhum valor de cor, tamanho de fonte ou espaçamento
+   hardcoded fora deste arquivo. Toda variação usa estas variáveis.
+
+   Paleta fechada: cobalto / preto / branco / papel / cinza-500 +
+   estados funcionais (amarelo, vermelho, verde). Nada de neon, rosa,
+   roxo, ou gradientes (VIS-007, §4.1).
+
+   Fontes: Archivo (Display) + Source Sans 3 (Texto).
+   As fontes reais são carregadas via fontes.css (woff2 local).
+   Estas variáveis são o stack de fallback (VIS-032: texto aparece
+   imediatamente e troca sem mudar layout).
+───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ════════════════════════════════════════════════════════════════════
+     CORES — Paleta fechada (5.2)
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* Cor-assinatura */
+  --azul-600:  #0040D8;   /* cor da marca, ações primárias, bloco do total */
+  --azul-700:  #0030A8;   /* estado pressionado/hover sobre azul-600 */
+
+  /* Azul em fundos escuros */
+  --azul-300:  #7DA2FF;   /* texto e ícone azul no modo Noite */
+  --azul-100:  #DCE6FF;   /* fundo de linha selecionada */
+
+  /* Preto / branco / papel (base) */
+  --preto:     #000000;   /* tinta: texto, contornos, trilho de navegação */
+  --branco:    #FFFFFF;   /* papel: fundo de trabalho */
+  --papel:     #EEF0F6;   /* fundo de área no modo Dia, painéis laterais */
+
+  /* Cinza e linha (texto secundário + réguas do livro) */
+  --cinza-500: #5E6377;   /* texto secundário e bordas de campo */
+  --linha:     #C9CCD8;   /* APENAS réguas decorativas do livro (VIS-073) */
+
+  /* Modo Noite */
+  --noite-2:   #141623;   /* painéis no modo Noite */
+
+  /* Estados funcionais — sempre com texto + forma ao lado (VIS-300) */
+  --amarelo:          #FFD21F;  /* aviso / validade a vencer */
+  --vermelho:         #C81E16;  /* perigo / diferença de caixa / estoque crítico */
+  --verde:            #07733C;  /* confirmação / conferido */
+  --vermelho-claro:   #FF6B5E;  /* perigo no modo Noite */
+  --verde-claro:      #3DD68C;  /* sucesso no modo Noite */
+
+  /* ════════════════════════════════════════════════════════════════════
+     CORTES (45°) — Assinatura visual (7.1)
+     Sempre canto superior direito cortado a 45°. Zero border-radius (VIS-040).
+     ════════════════════════════════════════════════════════════════════ */
+
+  --corte-s: 6px;   /* botões, campos, marcas de estado */
+  --corte-m: 12px;  /* painéis, diálogos, bloco do total */
+  --corte-l: 24px;  /* painéis de destaque no modo Rua */
+
+  /* ════════════════════════════════════════════════════════════════════
+     ESPAÇAMENTO — Escala de 4px (7.8)
+     ════════════════════════════════════════════════════════════════════ */
+
+  --espaco-0: 0;
+  --espaco-1: 4px;
+  --espaco-2: 8px;
+  --espaco-3: 12px;
+  --espaco-4: 16px;
+  --espaco-5: 24px;
+  --espaco-6: 32px;
+  --espaco-7: 48px;
+  --espaco-8: 64px;
+  --espaco-9: 96px;
+
+  /* ════════════════════════════════════════════════════════════════════
+     TIPOGRAFIA — Escala (6.4)
+     Display: Archivo (condensada, extra-pesada, industrial)
+     Texto: Source Sans 3 (neutra, aberta, legível)
+     Fontes locais via fontes.css; fallback do sistema via tokens (VIS-032).
+     ════════════════════════════════════════════════════════════════════ */
+
+  --fonte-display: "Archivo", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --fonte-texto:   "Source Sans 3", "Segoe UI", "Noto Sans", sans-serif;
+
+  --tamanho-numero-caixa: 5rem;   /* 80px em 16px base */
+  --tamanho-display-l:    2.75rem; /* 44px */
+  --tamanho-display-m:    2rem;    /* 32px */
+  --tamanho-titulo:       1.25rem; /* 20px */
+  --tamanho-subtitulo:    1rem;    /* 16px */
+  --tamanho-texto:        0.875rem;/* 14px — padrão da interface */
+  --tamanho-texto-caixa:  1rem;    /* 16px — lista de itens da venda */
+  --tamanho-auxiliar:     0.8125rem; /* 13px — legendas, metadados */
+
+  --peso-display: 800;
+  --peso-titulo:  700;
+  --peso-subtitulo: 600;
+  --peso-texto:   400;
+  --peso-texto-negrito: 700;
+  --peso-numero-caixa: 900;
+
+  /* ════════════════════════════════════════════════════════════════════
+     FORMAS (5 formas do sistema — 7)
+     Cada forma é uma classe utilitária. VIS-040: raio de borda zero.
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* Corte-D, Corte-M, Corte-L: retângulo com canto superior direito cortado 45° */
+  /* Selo: pentágono (ponta à direita) — definido em ui/selo/ */
+  /* Marca de estado: pílula retangular com Corte-S — definida em ui/marca-estado/ */
+  /* Régua: linha 1px — definida em ui/tabela-fita/ */
+  /* Letreiro: letras-bloco — definida em ui/letreiro/ */
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TEMA DIA — padrão operacional (5.3, VIS-010)
+   75% branco/papel, 18% preto, 6% azul, 1% estados
+   ════════════════════════════════════════════════════════════════════════ */
+[data-tema="dia"] {
+  --fundo:   var(--branco);
+  --painel:  var(--papel);
+  --texto:   var(--preto);
+  --texto-2: var(--cinza-500);
+  --destaque: var(--azul-600);
+  --borda:   var(--cinza-500);
+  --selecao-bg: var(--azul-100);
+  --rifa-status: var(--preto);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TEMA NOITE — uso prolongado em ambiente escuro (5.3)
+   Fundo preto + noite-2, texto branco, azul-300 para destaque
+   ════════════════════════════════════════════════════════════════════════ */
+[data-tema="noite"] {
+  --fundo:   var(--preto);
+  --painel:  var(--noite-2);
+  --texto:   var(--branco);
+  --texto-2: var(--cinza-500);
+  --destaque: var(--azul-300);
+  --borda:   var(--cinza-500);
+  --selecao-bg: var(--azul-100);
+  --rifa-status: var(--preto);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TEMA RUA — landing, portal, ativação (5.3)
+   55% azul, 25% preto, 20% branco
+   ════════════════════════════════════════════════════════════════════════ */
+[data-tema="rua"] {
+  --fundo:   var(--azul-600);
+  --painel:  var(--azul-600);
+  --texto:   var(--branco);
+  --texto-2: var(--branco);
+  --destaque: var(--amarelo);
+  --borda:   var(--preto);
+  --selecao-bg: var(--azul-100);
+  --rifa-status: var(--preto);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ESTILOS BASE (6.1, 6.2, 6.25)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Fonte do sistema como fallback até fontes locais carregar (VIS-032) */
+html {
+  font-size: 16px;
+  scroll-behavior: manual; /* sem parallax (§4.1) */
+}
+
+body {
+  margin: 0;
+  font-family: var(--fonte-texto);
+  font-size: var(--tamanho-texto);
+  font-weight: var(--peso-texto);
+  line-height: 1.4;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* Algarismos tabulares + lining em todos os lugares (VIS-021) */
+*, *::before, *::after {
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Zero border-radius em todo o sistema (VIS-040) */
+* {
+  border-radius: 0;
+}
+
+/* Sem sombra difusa (VIS-072, §4.1) */
+* {
+  --shadow-soft: none;
+  box-shadow: none;
+}

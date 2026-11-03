@@ -1,0 +1,15 @@
+<!-- Halftone SVG estático — VIS-055
+     Padrão de pontos em uma cor para o modo Rua.
+     Abaixo de 2KB. Não aparece em telas operacionais.
+     Desligável pelo Modo Desempenho (VIS-081). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <defs>
+    <pattern id="halftone-amarelo" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#FFD21F"/>
+    </pattern>
+    <pattern id="halftone-branco" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#FFFFFF"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(%23halftone-amarelo)"/>
+</svg>

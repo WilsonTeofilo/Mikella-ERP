@@ -1,0 +1,21 @@
+﻿[package]
+name    = "mikella-app-inventory"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }
+tracing    = { workspace = true }
+csv        = { workspace = true }
+mikella-shared-kernel    = { path = "../shared-kernel" }
+mikella-domain-inventory = { path = "../domain-inventory" }
+
+[dev-dependencies]
+mikella-infra-sqlite = { path = "../infra-sqlite" }
+

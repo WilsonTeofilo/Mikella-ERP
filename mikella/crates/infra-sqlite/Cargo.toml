@@ -1,0 +1,24 @@
+﻿[package]
+name    = "mikella-infra-sqlite"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }
+tracing    = { workspace = true }
+mikella-shared-kernel    = { path = "../shared-kernel" }
+mikella-domain-cash      = { path = "../domain-cash" }
+mikella-domain-sales     = { path = "../domain-sales" }
+mikella-domain-inventory = { path = "../domain-inventory" }
+mikella-domain-finance   = { path = "../domain-finance" }
+mikella-domain-people    = { path = "../domain-people" }
+mikella-domain-licensing = { path = "../domain-licensing" }
+rusqlite    = { workspace = true }
+blake3      = { workspace = true }
+

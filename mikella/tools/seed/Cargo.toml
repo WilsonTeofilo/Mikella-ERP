@@ -1,0 +1,12 @@
+
+[package]
+name = "seed"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+argon2 = { workspace = true, features = ["password-hash"] }
+rusqlite = { workspace = true }
+rand = { workspace = true }
+uuid = { workspace = true }
+mikella-infra-sqlite = { path = "../../crates/infra-sqlite" }

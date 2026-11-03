@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mikella ERP — Login</title>
+  <link rel="stylesheet" href="../shared/design/tokens.css" />
+  <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #009FE3; /* Azul elétrico sólido da referência */
+      color: #000000;
+      font-family: var(--fonte-display), sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Assinatura angular de fundo estilo Persona / Corte-M */
+    .fundo-angular {
+      position: absolute;
+      top: -20%;
+      right: -10%;
+      width: 60%;
+      height: 140%;
+      background: rgba(255, 255, 255, 0.08);
+      transform: rotate(25deg);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .fundo-faixa {
+      position: absolute;
+      bottom: -15%;
+      left: -20%;
+      width: 80%;
+      height: 40%;
+      background: rgba(0, 40, 150, 0.25);
+      transform: rotate(-15deg);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 440px;
+      padding: var(--espaco-6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .marca-titulo {
+      font-size: 2.25rem;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #000000;
+      margin-bottom: var(--espaco-8);
+      text-shadow: 2px 2px 0px rgba(255, 255, 255, 0.6);
+    }
+
+    .form-bloco {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--espaco-6);
+    }
+
+    .campo-grupo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .campo-label {
+      font-size: 1.75rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      color: #000000;
+      margin-bottom: var(--espaco-2);
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* Caixas retangulares pretas sólidas como no rascunho do usuário */
+    .campo-input {
+      width: 100%;
+      height: 64px;
+      background: #FFFFFF;
+      border: 4px solid #000000;
+      padding: 0 var(--espaco-4);
+      font-family: var(--fonte-texto), sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #000000;
+      text-align: center;
+      outline: none;
+      box-shadow: 4px 4px 0px #000000;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .campo-input:focus {
+      background: #FFFFFF;
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000000;
+    }
+
+    .btn-entrar {
+      width: 100%;
+      height: 64px;
+      margin-top: var(--espaco-4);
+      background: #000000;
+      color: #FFFFFF;
+      border: 4px solid #000000;
+      font-family: var(--fonte-display), sans-serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 4px 4px 0px #FFFFFF;
+      transition: transform 0.1s ease, background 0.1s ease, color 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-entrar:hover:not(:disabled) {
+      background: #FFFFFF;
+      color: #000000;
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000000;
+    }
+
+    .btn-entrar:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .feedback-msg {
+      margin-top: var(--espaco-3);
+      padding: var(--espaco-2) var(--espaco-3);
+      font-family: var(--fonte-texto);
+      font-weight: 700;
+      font-size: 1rem;
+      text-align: center;
+      border: 2px solid #000000;
+      width: 100%;
+    }
+    .feedback-erro {
+      background: #FF3344;
+      color: #FFFFFF;
+    }
+    .feedback-ok {
+      background: #00FF88;
+      color: #000000;
+    }
+
+    .rodape-info {
+      position: absolute;
+      bottom: var(--espaco-4);
+      font-size: 0.85rem;
+      font-family: var(--fonte-texto);
+      font-weight: 700;
+      color: #000000;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="fundo-angular"></div>
+  <div class="fundo-faixa"></div>
+
+  <main class="login-container">
+    <div class="marca-titulo">MIKELLA ERP</div>
+
+    <form id="form-login" class="form-bloco" autocomplete="on">
+      <div id="grupo-user" class="campo-grupo">
+        <label for="input-user" class="campo-label">USER</label>
+        <input id="input-user" class="campo-input" type="text" autocomplete="username" autofocus required />
+      </div>
+
+      <div id="grupo-senha" class="campo-grupo">
+        <label id="label-senha" for="input-senha" class="campo-label">SENHA</label>
+        <input id="input-senha" class="campo-input" type="password" autocomplete="current-password" required />
+      </div>
+
+      <div id="msg-erro" class="feedback-msg feedback-erro" style="display: none;"></div>
+      <div id="msg-ok" class="feedback-msg feedback-ok" style="display: none;"></div>
+
+      <button id="btn-submit" class="btn-entrar" type="submit">ENTRAR</button>
+    </form>
+  </main>
+
+  <div class="rodape-info">127.0.0.1:47823 · LOCAL FIRST · TECLADO [ENTER]</div>
+
+  <script type="module">
+    const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
+
+    const form = document.getElementById("form-login");
+    const inputUser = document.getElementById("input-user");
+    const inputSenha = document.getElementById("input-senha");
+    const labelSenha = document.getElementById("label-senha");
+    const grupoUser = document.getElementById("grupo-user");
+    const btnSubmit = document.getElementById("btn-submit");
+    const msgErro = document.getElementById("msg-erro");
+    const msgOk = document.getElementById("msg-ok");
+
+    let etapa = "login"; // "login" | "2fa"
+    let usernameSalvo = "";
+
+    function mostrarErro(texto) {
+      msgErro.textContent = texto;
+      msgErro.style.display = "block";
+      msgOk.style.display = "none";
+    }
+
+    function mostrarOk(texto) {
+      msgOk.textContent = texto;
+      msgOk.style.display = "block";
+      msgErro.style.display = "none";
+    }
+
+    function limparMsgs() {
+      msgErro.style.display = "none";
+      msgOk.style.display = "none";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      limparMsgs();
+
+      if (etapa === "login") {
+        const username = inputUser.value.trim();
+        const senha = inputSenha.value;
+
+        if (!username || !senha) {
+          mostrarErro("Preencha USER e SENHA.");
+          return;
+        }
+
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = "VERIFICANDO...";
+
+        try {
+          // Prepara URL encoded form para o store-server
+          const body = new URLSearchParams();
+          body.append("username", username);
+          body.append("senha", senha);
+
+          const res = await fetch(`${API_URL}/v1/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString()
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (res.ok && data.token_pending) {
+            usernameSalvo = data.username || username;
+            etapa = "2fa";
+            grupoUser.style.display = "none";
+            labelSenha.textContent = "CÓDIGO 2FA";
+            inputSenha.type = "text";
+            inputSenha.maxLength = 6;
+            inputSenha.placeholder = "000000";
+            btnSubmit.textContent = "VERIFICAR CÓDIGO (ENTER)";
+
+            if (data.codigo_debug) {
+              inputSenha.value = data.codigo_debug;
+              mostrarOk(`Código 2FA gerado: ${data.codigo_debug} (Aperte Enter para confirmar)`);
+            } else {
+              inputSenha.value = "";
+              mostrarOk("Código 2FA enviado! Digite os 6 números.");
+            }
+            inputSenha.focus();
+            inputSenha.select();
+          } else {
+            mostrarErro(data.erro || "Usuário ou senha incorretos.");
+          }
+        } catch (err) {
+          mostrarErro("Servidor não responde em 127.0.0.1:47823.");
+        } finally {
+          btnSubmit.disabled = false;
+          if (etapa === "login") btnSubmit.textContent = "ENTRAR";
+        }
+      } else if (etapa === "2fa") {
+        const codigo = inputSenha.value.trim();
+        if (codigo.length < 6) {
+          mostrarErro("Digite o código de 6 dígitos.");
+          return;
+        }
+
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = "VALIDANDO...";
+
+        try {
+          const body = new URLSearchParams();
+          body.append("username", usernameSalvo);
+          body.append("codigo", codigo);
+
+          const res = await fetch(`${API_URL}/v1/2fa/verificar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString()
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (res.ok && data.token) {
+            localStorage.setItem("mikella_token", data.token);
+            if (data.usuario) {
+              localStorage.setItem("mikella_usuario", JSON.stringify(data.usuario));
+            }
+            mostrarOk("Acesso autorizado!");
+            setTimeout(() => {
+              window.location.href = "main-menu.html";
+            }, 400);
+          } else {
+            mostrarErro(data.erro || "Código inválido ou expirado.");
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = "VERIFICAR CÓDIGO";
+          }
+        } catch (err) {
+          mostrarErro("Falha de conexão com a API local.");
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = "VERIFICAR CÓDIGO";
+        }
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && etapa === "2fa") {
+        etapa = "login";
+        grupoUser.style.display = "flex";
+        labelSenha.textContent = "SENHA";
+        inputSenha.type = "password";
+        inputSenha.placeholder = "";
+        inputSenha.value = "";
+        btnSubmit.textContent = "ENTRAR";
+        limparMsgs();
+        inputSenha.focus();
+      }
+    });
+  </script>
+</body>
+</html>

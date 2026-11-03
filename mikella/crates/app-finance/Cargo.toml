@@ -1,0 +1,19 @@
+﻿[package]
+name    = "mikella-app-finance"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }
+tracing    = { workspace = true }
+mikella-shared-kernel  = { path = "../shared-kernel" }
+mikella-domain-finance = { path = "../domain-finance" }
+mikella-domain-cash    = { path = "../domain-cash" }
+async-trait = { workspace = true }
+

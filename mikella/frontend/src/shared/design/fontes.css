@@ -1,0 +1,70 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Mikella Design System — Carregamento de fontes
+   08_IDENTIDADE_VISUAL_E_UX.md §6, §14.1
+
+   Fontes (SIL OFL 1.1 — licença livre, verificada):
+   - Archivo (Display): fontealternativa.com / github.com/google/fonts
+   - Source Sans 3 (Texto): github.com/adobe-fonts/source-sans
+
+   VIS-030: fontes locais em woff2, subconjunto latino (inclui ç, ã, õ, R$, −)
+   VIS-031: orçamento ~120 KB — 7 arquivos = 103 KB ✓
+   VIS-032: font-display: swap — texto aparece imediato na fonte de sistema,
+            troca sem mudar layout (size-adjust para reservar métricas)
+   VIS-033: licença OFL no repositório oficial, algarismos tabulares ✓
+
+   A ordem do fallback: Archivo → Arial Narrow; Source Sans 3 → Segoe UI.
+   font-feature-settings forçado globalmente em tokens.css ("tnum" 1, "lnum" 1).
+───────────────────────────────────────────────────────────────────────── */
+
+/* ─── Archivo (Display) — pesos usados: 800 (extra-bold), 900 (black) ─── */
+
+@font-face {
+  font-family: "Archivo";
+  src: url("../fontes/Archivo-800.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Archivo";
+  src: url("../fontes/Archivo-900.woff2") format("woff2");
+  font-weight: 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Archivo";
+  src: url("../fontes/Archivo-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* ─── Source Sans 3 (Texto) — pesos usados: 400, 600, 700, 900 ─── */
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fontes/SourceSans3-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fontes/SourceSans3-600.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fontes/SourceSans3-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fontes/SourceSans3-900.woff2") format("woff2");
+  font-weight: 900;
+  font-display: swap;
+}

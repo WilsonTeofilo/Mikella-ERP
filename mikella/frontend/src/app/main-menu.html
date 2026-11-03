@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mikella ERP — Menu Principal</title>
+  <!--
+    Menu Principal — Estilo Persona 3 Reload.
+    - Fundo azul profundo com atmosfera oceânica e corte diagonal branco
+    - Menu dinâmico em ângulo (skew/rotate)
+    - Item ativo destacado em bloco angular de alto impacto
+    - Filtragem estrita por papel (DONO, GERENTE, OPERADOR_CAIXA, ESTOQUISTA, VENDEDOR)
+    - Navegação 100% via teclado (W/S, Setas, Enter, Esc)
+  -->
+  <link rel="stylesheet" href="../shared/design/tokens.css" />
+  <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 75% 30%, #0077D4 0%, #004299 50%, #001E54 100%);
+      color: #FFFFFF;
+      font-family: var(--fonte-display), sans-serif;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+      user-select: none;
+    }
+
+    /* Gráficos angulares dinâmicos estilo Persona 3 Reload */
+    .p3-faixa-branca {
+      position: absolute;
+      top: -20%;
+      left: -15%;
+      width: 48%;
+      height: 140%;
+      background: #FFFFFF;
+      transform: rotate(18deg);
+      box-shadow: 15px 0px 40px rgba(0, 0, 0, 0.45);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .p3-faixa-sombra {
+      position: absolute;
+      top: -20%;
+      left: -18%;
+      width: 52%;
+      height: 140%;
+      background: #000000;
+      transform: rotate(18deg);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .p3-silhueta-letreiro {
+      position: absolute;
+      top: 15%;
+      left: 2%;
+      font-size: 5rem;
+      font-weight: 900;
+      color: #000000;
+      transform: rotate(18deg) skewX(-10deg);
+      line-height: 0.85;
+      letter-spacing: -0.05em;
+      opacity: 0.12;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /* HUD Superior Esquerdo: Carteira / Caixa (como no Persona 3 Reload) */
+    .hud-carteira {
+      position: absolute;
+      top: var(--espaco-6);
+      left: var(--espaco-6);
+      background: #FFFFFF;
+      border: 3px solid #000000;
+      padding: var(--espaco-2) var(--espaco-4);
+      box-shadow: 4px 4px 0px #000000;
+      z-index: 20;
+      min-width: 180px;
+    }
+    .hud-carteira-label {
+      font-family: var(--fonte-texto);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #555555;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .hud-carteira-valor {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #000000;
+      letter-spacing: -0.02em;
+    }
+
+    /* HUD Superior Direito: Perfil do Usuário */
+    .hud-perfil {
+      position: absolute;
+      top: var(--espaco-6);
+      right: var(--espaco-6);
+      display: flex;
+      align-items: center;
+      gap: var(--espaco-3);
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid #00B4FF;
+      padding: var(--espaco-2) var(--espaco-4);
+      box-shadow: 3px 3px 0px #000000;
+      z-index: 20;
+      transform: skewX(-10deg);
+    }
+    .hud-perfil-info {
+      text-align: right;
+    }
+    .hud-perfil-nome {
+      font-size: 1.125rem;
+      font-weight: 900;
+      color: #FFFFFF;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .hud-perfil-papel {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 900;
+      padding: 1px 6px;
+      background: #00B4FF;
+      color: #000000;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Conteúdo Principal do Menu: Lista Diagonal */
+    .p3-menu-container {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-left: 28%;
+      transform: skewX(-14deg) rotate(-2deg);
+    }
+
+    .p3-menu-lista {
+      display: flex;
+      flex-direction: column;
+      gap: var(--espaco-2);
+    }
+
+    /* Item do Menu */
+    .p3-menu-item {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      padding: var(--espaco-1) var(--espaco-4);
+      transition: transform 0.12s ease, opacity 0.12s ease;
+      position: relative;
+      width: fit-content;
+    }
+
+    .p3-menu-texto {
+      font-size: 2.75rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #90D5FF;
+      text-shadow: 3px 3px 0px #001844;
+      transition: color 0.12s ease, font-size 0.12s ease;
+    }
+
+    .p3-menu-item:hover .p3-menu-texto {
+      color: #FFFFFF;
+    }
+
+    /* Item ATIVO / SELECIONADO (Estilo Persona 3 Reload 'ITEM') */
+    .p3-menu-item.ativo {
+      transform: translateX(24px) scale(1.06);
+    }
+
+    .p3-menu-item.ativo::before {
+      content: "";
+      position: absolute;
+      inset: -4px -18px;
+      background: #FFFFFF;
+      clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+      box-shadow: 6px 6px 0px #FF0055, 10px 10px 0px #000000;
+      z-index: -1;
+    }
+
+    .p3-menu-item.ativo .p3-menu-texto {
+      color: #E6003A;
+      font-size: 3.25rem;
+      text-shadow: none;
+      letter-spacing: 0.08em;
+    }
+
+    .p3-menu-atalho {
+      display: inline-block;
+      font-family: var(--fonte-texto);
+      font-size: 0.9rem;
+      font-weight: 900;
+      color: #000000;
+      background: #FFDD00;
+      padding: 2px 8px;
+      margin-left: var(--espaco-3);
+      vertical-align: middle;
+      border: 2px solid #000000;
+      transform: skewX(10deg);
+      display: none;
+    }
+
+    .p3-menu-item.ativo .p3-menu-atalho {
+      display: inline-block;
+    }
+
+    /* HUD Inferior Direito: Comandos de Jogo */
+    .hud-comandos {
+      position: absolute;
+      bottom: var(--espaco-6);
+      right: var(--espaco-6);
+      display: flex;
+      align-items: center;
+      gap: var(--espaco-4);
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid #FFFFFF;
+      padding: var(--espaco-2) var(--espaco-5);
+      z-index: 20;
+      transform: skewX(-10deg);
+      box-shadow: 4px 4px 0px #000000;
+    }
+    .hud-cmd-item {
+      display: flex;
+      align-items: center;
+      gap: var(--espaco-2);
+      font-size: 1rem;
+      font-weight: 900;
+      color: #FFFFFF;
+    }
+    .hud-btn-tag {
+      background: #00B4FF;
+      color: #000000;
+      padding: 2px 8px;
+      font-size: 0.85rem;
+      font-weight: 900;
+      border: 1px solid #000000;
+    }
+
+    /* Modal de Diálogo Técnico / Ação */
+    .modal-dialogo {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-box {
+      background: #FFFFFF;
+      color: #000000;
+      border: 4px solid #000000;
+      padding: var(--espaco-6);
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 8px 8px 0px #00B4FF;
+      transform: skewX(-4deg);
+    }
+    .modal-box h2 {
+      font-size: 1.75rem;
+      font-weight: 900;
+      margin-bottom: var(--espaco-3);
+      text-transform: uppercase;
+    }
+    .modal-box p {
+      font-family: var(--fonte-texto);
+      font-size: 1.05rem;
+      line-height: 1.4;
+      margin-bottom: var(--espaco-4);
+    }
+    .modal-botoes {
+      display: flex;
+      gap: var(--espaco-3);
+      justify-content: flex-end;
+    }
+    .modal-btn {
+      padding: var(--espaco-2) var(--espaco-4);
+      font-family: var(--fonte-display);
+      font-size: 1rem;
+      font-weight: 900;
+      cursor: pointer;
+      border: 3px solid #000000;
+      text-transform: uppercase;
+    }
+    .modal-btn-confirm {
+      background: #E6003A;
+      color: #FFFFFF;
+    }
+    .modal-btn-cancel {
+      background: #EEEEEE;
+      color: #000000;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: var(--espaco-6);
+      left: var(--espaco-6);
+      background: #000000;
+      color: #FFFFFF;
+      border: 3px solid #00B4FF;
+      padding: var(--espaco-3) var(--espaco-5);
+      font-family: var(--fonte-texto);
+      font-weight: 700;
+      font-size: 1.1rem;
+      display: none;
+      z-index: 200;
+      box-shadow: 4px 4px 0px #00B4FF;
+    }
+  </style>
+</head>
+<body>
+  <div class="p3-faixa-sombra"></div>
+  <div class="p3-faixa-branca"></div>
+  <div class="p3-silhueta-letreiro">MIKELLA<br>SYSTEM</div>
+
+  <!-- HUD Superior Esquerdo: Caixa / Saldo -->
+  <div class="hud-carteira">
+    <div class="hud-carteira-label">Terminal Local</div>
+    <div id="hud-caixa-status" class="hud-carteira-valor">MIKELLA POS</div>
+  </div>
+
+  <!-- HUD Superior Direito: Perfil do Jogador / Operador -->
+  <div class="hud-perfil">
+    <div class="hud-perfil-info">
+      <div id="usuario-nome" class="hud-perfil-nome">CARREGANDO...</div>
+      <div id="usuario-papel" class="hud-perfil-papel">AUTH</div>
+    </div>
+  </div>
+
+  <!-- Lista de Menu Diagonal Persona 3 Reload -->
+  <main class="p3-menu-container">
+    <nav class="p3-menu-lista" id="menu-lista">
+      <!-- Itens gerados dinamicamente com base nas permissões -->
+    </nav>
+  </main>
+
+  <!-- HUD Inferior Direito: Comandos de Jogo -->
+  <footer class="hud-comandos">
+    <div class="hud-cmd-item">
+      <span class="hud-btn-tag">W / S / ↑↓</span> Navegar
+    </div>
+    <div class="hud-cmd-item">
+      <span class="hud-btn-tag">ENTER</span> Selecionar
+    </div>
+    <div class="hud-cmd-item">
+      <span class="hud-btn-tag">ESC</span> Desconectar
+    </div>
+  </footer>
+
+  <!-- Toast de Notificação -->
+  <div id="toast"></div>
+
+  <!-- Modal Genérico de Confirmação de Ação (Backup / Diagnóstico) -->
+  <div id="modal-acao" class="modal-dialogo" style="display: none;">
+    <div class="modal-box">
+      <h2 id="modal-titulo">CONFIRMAÇÃO</h2>
+      <p id="modal-descricao">Deseja executar esta ação?</p>
+      <div class="modal-botoes">
+        <button id="modal-btn-confirmar" class="modal-btn modal-btn-confirm">EXECUTAR</button>
+        <button id="modal-btn-cancelar" class="modal-btn modal-btn-cancel">VOLTAR (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
+    const token = localStorage.getItem("mikella_token");
+
+    if (!token) {
+      window.location.href = "landing.html";
+    }
+
+    const authHeaders = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    };
+
+    let usuarioAtual = null;
+    let indiceSelecionado = 0;
+    let itensVisiveis = [];
+
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.style.display = "block";
+      setTimeout(() => { el.style.display = "none"; }, 2500);
+    }
+
+    // Catálogo mestre de seções do sistema
+    const TODAS_SECOES = [
+      {
+        id: "caixa",
+        titulo: "CAIXA",
+        subtitulo: "PDV / VENDER",
+        rota: "pos.html",
+        permissao: ["DONO", "GERENTE", "OPERADOR_CAIXA", "VENDEDOR"]
+      },
+      {
+        id: "produtos",
+        titulo: "PRODUTOS",
+        subtitulo: "ESTOQUE & CSV",
+        rota: "produtos.html",
+        permissao: ["DONO", "GERENTE", "ESTOQUISTA"]
+      },
+      {
+        id: "financeiro",
+        titulo: "FINANCEIRO",
+        subtitulo: "PAGAR & RECEBER",
+        rota: "financeiro.html",
+        permissao: ["DONO", "GERENTE"]
+      },
+      {
+        id: "backup",
+        titulo: "BACKUP LOCAL",
+        subtitulo: "CÓPIA 1-CLIQUE",
+        acao: executarBackupLocal,
+        permissao: ["DONO", "GERENTE"]
+      },
+      {
+        id: "diagnostico",
+        titulo: "DIAGNÓSTICO",
+        subtitulo: "SAÚDE DO SISTEMA",
+        acao: executarDiagnostico,
+        permissao: ["DONO"]
+      },
+      {
+        id: "sair",
+        titulo: "DESCONECTAR",
+        subtitulo: "TROCAR USUÁRIO",
+        acao: desconectar,
+        permissao: ["DONO", "GERENTE", "OPERADOR_CAIXA", "ESTOQUISTA", "VENDEDOR"]
+      }
+    ];
+
+    async function carregarDadosUsuario() {
+      // Tenta recuperar do localStorage primeiro
+      const local = localStorage.getItem("mikella_usuario");
+      if (local) {
+        try {
+          usuarioAtual = JSON.parse(local);
+          atualizarHUD();
+          construirMenu();
+        } catch (_) {}
+      }
+
+      // Valida e atualiza com o backend via /v1/auth/me
+      try {
+        const res = await fetch(`${API_URL}/v1/auth/me`, { headers: authHeaders });
+        if (res.ok) {
+          usuarioAtual = await res.json();
+          localStorage.setItem("mikella_usuario", JSON.stringify(usuarioAtual));
+          atualizarHUD();
+          construirMenu();
+        } else if (res.status === 401) {
+          localStorage.removeItem("mikella_token");
+          window.location.href = "landing.html";
+        }
+      } catch (e) {
+        if (!usuarioAtual) {
+          toast("Sem conexão com o servidor local.");
+        }
+      }
+    }
+
+    function atualizarHUD() {
+      if (!usuarioAtual) return;
+      document.getElementById("usuario-nome").textContent = usuarioAtual.nome || usuarioAtual.username;
+      document.getElementById("usuario-papel").textContent = usuarioAtual.papel || "OPERADOR";
+    }
+
+    function construirMenu() {
+      const papel = (usuarioAtual && usuarioAtual.papel) ? usuarioAtual.papel.toUpperCase() : "OPERADOR_CAIXA";
+      const container = document.getElementById("menu-lista");
+      container.innerHTML = "";
+
+      // Filtra as seções de acordo com a permissão estrita
+      itensVisiveis = TODAS_SECOES.filter(secao => secao.permissao.includes(papel));
+
+      itensVisiveis.forEach((secao, idx) => {
+        const itemEl = document.createElement("div");
+        itemEl.className = `p3-menu-item ${idx === indiceSelecionado ? "ativo" : ""}`;
+        itemEl.dataset.idx = idx;
+
+        itemEl.innerHTML = `
+          <span class="p3-menu-texto">${secao.titulo}</span>
+          <span class="p3-menu-atalho">${secao.subtitulo}</span>
+        `;
+
+        itemEl.addEventListener("mouseenter", () => {
+          selecionarItem(idx);
+        });
+
+        itemEl.addEventListener("click", () => {
+          selecionarItem(idx);
+          confirmarSelecao();
+        });
+
+        container.appendChild(itemEl);
+      });
+
+      atualizarSelecaoVisual();
+    }
+
+    function selecionarItem(idx) {
+      if (itensVisiveis.length === 0) return;
+      indiceSelecionado = (idx + itensVisiveis.length) % itensVisiveis.length;
+      atualizarSelecaoVisual();
+    }
+
+    function atualizarSelecaoVisual() {
+      const elementos = document.querySelectorAll(".p3-menu-item");
+      elementos.forEach((el, i) => {
+        if (i === indiceSelecionado) {
+          el.classList.add("ativo");
+        } else {
+          el.classList.remove("ativo");
+        }
+      });
+    }
+
+    function confirmarSelecao() {
+      if (!itensVisiveis[indiceSelecionado]) return;
+      const secao = itensVisiveis[indiceSelecionado];
+
+      if (secao.rota) {
+        window.location.href = secao.rota;
+      } else if (secao.acao) {
+        secao.acao();
+      }
+    }
+
+    function desconectar() {
+      localStorage.removeItem("mikella_token");
+      localStorage.removeItem("mikella_usuario");
+      localStorage.removeItem("mikella_sessao_id");
+      window.location.href = "landing.html";
+    }
+
+    // Ações dos painéis administrativos
+    async function executarBackupLocal() {
+      abrirModal(
+        "GERAR CÓPIA DE SEGURANÇA",
+        "Esta ação criará um arquivo de backup consistente com hash BLAKE3 na pasta de dados da loja.",
+        async () => {
+          toast("Gerando cópia de segurança...");
+          try {
+            const res = await fetch(`${API_URL}/v1/sistema/backup-local`, {
+              method: "POST",
+              headers: authHeaders,
+              body: JSON.stringify({})
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+              toast(`Backup gerado com sucesso! Arquivo: ${data.arquivo}`);
+            } else {
+              toast(data.erro || "Falha ao gerar backup.");
+            }
+          } catch (e) {
+            toast("Erro de comunicação com a API.");
+          }
+        }
+      );
+    }
+
+    async function executarDiagnostico() {
+      abrirModal(
+        "DIAGNÓSTICO TÉCNICO",
+        "Verifica integridade física do SQLite e a cadeia criptográfica do livro caixa.",
+        async () => {
+          toast("Executando diagnóstico...");
+          try {
+            const res = await fetch(`${API_URL}/v1/sistema/diagnostico`, {
+              method: "GET",
+              headers: authHeaders
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+              toast(`Diagnóstico: Banco ${data.integridade_banco} | Livro-caixa: ${data.cadeia_livro_caixa}`);
+            } else {
+              toast(data.erro || "Falha ao executar diagnóstico.");
+            }
+          } catch (e) {
+            toast("Erro de comunicação com a API.");
+          }
+        }
+      );
+    }
+
+    // Modal de diálogo
+    const modalAcao = document.getElementById("modal-acao");
+    const modalTitulo = document.getElementById("modal-titulo");
+    const modalDescricao = document.getElementById("modal-descricao");
+    const modalBtnConfirmar = document.getElementById("modal-btn-confirmar");
+    const modalBtnCancelar = document.getElementById("modal-btn-cancelar");
+    let acaoModalAtual = null;
+
+    function abrirModal(titulo, desc, onConfirm) {
+      modalTitulo.textContent = titulo;
+      modalDescricao.textContent = desc;
+      acaoModalAtual = onConfirm;
+      modalAcao.style.display = "flex";
+      modalBtnConfirmar.focus();
+    }
+
+    function fecharModal() {
+      modalAcao.style.display = "none";
+      acaoModalAtual = null;
+    }
+
+    modalBtnConfirmar.onclick = () => {
+      if (acaoModalAtual) acaoModalAtual();
+      fecharModal();
+    };
+
+    modalBtnCancelar.onclick = fecharModal;
+
+    // Controles de Teclado Estilo Jogo Persona
+    window.addEventListener("keydown", (e) => {
+      // Se modal estiver aberto
+      if (modalAcao.style.display === "flex") {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          fecharModal();
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          modalBtnConfirmar.click();
+        }
+        return;
+      }
+
+      if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        selecionarItem(indiceSelecionado + 1);
+      } else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+        e.preventDefault();
+        selecionarItem(indiceSelecionado - 1);
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        confirmarSelecao();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        desconectar();
+      }
+    });
+
+    carregarDadosUsuario();
+  </script>
+</body>
+</html>

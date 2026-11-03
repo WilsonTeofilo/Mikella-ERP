@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mikella ERP — Caixa (PDV)</title>
+  <!--
+    Mikella ERP — Caixa (PDV).
+    Identidade "Letreiro e Livro-caixa" conforme 08_IDENTIDADE_VISUAL_E_UX.md:
+    - Modo Balcão (Dia): 75% papel/branco, 18% preto, 6% cobalto sólido
+    - Bloco do total dominante: azul cobalto sólido, número 72px branco, Corte-M a 45°
+    - Zero border-radius em todo o sistema
+    - Tabela em fita: réguas 1px linha, números tabulares à direita
+    - Zero gradientes, zero sombras suaves, zero AI-slop
+  -->
+  <link rel="stylesheet" href="../shared/design/tokens.css" />
+  <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <link rel="stylesheet" href="../shared/ui/forms.css" />
+  <style>
+    [data-tema="caixa"] body {
+      background: var(--branco);
+      color: var(--preto);
+      font-family: var(--fonte-texto);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Barra de status superior (§9.3) */
+    .barra-status-caixa {
+      display: flex;
+      align-items: center;
+      gap: var(--espaco-4);
+      background: var(--papel);
+      border-bottom: 2px solid var(--preto);
+      padding: var(--espaco-2) var(--espaco-5);
+      font-family: var(--fonte-texto);
+      font-size: var(--tamanho-auxiliar);
+      font-weight: var(--peso-subtitulo);
+      flex-wrap: wrap;
+    }
+    .barra-status-caixa .item {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--espaco-1);
+    }
+    .marca-estado {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      font-weight: var(--peso-titulo);
+      text-transform: uppercase;
+      border: 1px solid var(--preto);
+      background: var(--branco);
+      color: var(--preto);
+    }
+    .marca-aberta { background: var(--preto); color: var(--branco); }
+    .marca-protegido { background: var(--cobalto-600); color: var(--branco); border-color: var(--cobalto-600); }
+
+    /* Layout principal de 2 colunas (§10.1) */
+    .caixa-layout {
+      display: flex;
+      flex: 1;
+      min-height: calc(100vh - 80px);
+      background: var(--preto);
+      gap: 2px;
+    }
+
+    /* Coluna esquerda: Operador (Busca + Fita de Itens) */
+    .caixa-operador {
+      flex: 1.6;
+      background: var(--branco);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .busca-container {
+      padding: var(--espaco-4);
+      border-bottom: 2px solid var(--preto);
+      display: flex;
+      gap: var(--espaco-3);
+    }
+    .busca-container .campo {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .busca-container label {
+      font-size: var(--tamanho-auxiliar);
+      font-weight: var(--peso-subtitulo);
+      color: var(--cinza-500);
+      text-transform: uppercase;
+    }
+    .busca-campo {
+      height: 48px;
+      font-family: var(--fonte-texto);
+      font-size: 1.125rem;
+      padding: 0 var(--espaco-3);
+      border: 2px solid var(--preto);
+      background: var(--branco);
+      color: var(--preto);
+      box-sizing: border-box;
+    }
+    .busca-campo:focus {
+      outline: 3px solid var(--cobalto-600);
+      outline-offset: 0;
+    }
+
+    /* Fita de itens em bobina contínua (§7.4) */
+    .fita-itens-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 var(--espaco-4);
+    }
+    .fita-tabela {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--fonte-texto);
+    }
+    .fita-tabela th {
+      border-bottom: 2px solid var(--preto);
+      padding: var(--espaco-2) var(--espaco-1);
+      text-align: left;
+      font-size: var(--tamanho-auxiliar);
+      font-weight: var(--peso-subtitulo);
+      color: var(--cinza-500);
+      text-transform: uppercase;
+    }
+    .fita-tabela td {
+      border-bottom: 1px solid var(--linha);
+      padding: var(--espaco-2) var(--espaco-1);
+      font-size: 0.95rem;
+    }
+    .fita-tabela th.direita, .fita-tabela td.direita {
+      text-align: right;
+      font-feature-settings: "tnum" 1, "lnum" 1;
+    }
+    .fita-tabela tr.selecionada td {
+      background: var(--azul-100);
+    }
+
+    /* Coluna direita: Total Dominante + Pagamento (§10.1) */
+    .caixa-total {
+      flex: 1;
+      background: var(--branco);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Bloco do Total: Cobalto sólido, Corte-M 45°, número 72px branco */
+    .bloco-total {
+      background: var(--cobalto-600);
+      color: var(--branco);
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+      padding: var(--espaco-5);
+      margin: var(--espaco-4);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      min-height: 180px;
+      box-sizing: border-box;
+    }
+    .bloco-total .label {
+      font-family: var(--fonte-texto);
+      font-size: 0.875rem;
+      font-weight: var(--peso-subtitulo);
+      letter-spacing: 0.1em;
+      opacity: 0.85;
+      margin-bottom: var(--espaco-1);
+    }
+    .bloco-total .valor {
+      font-family: var(--fonte-display);
+      font-size: 4rem; /* 64-72px */
+      font-weight: 900;
+      line-height: 1;
+      color: var(--branco);
+      display: inline-flex;
+      align-items: baseline;
+    }
+    .bloco-total .meta {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-top: var(--espaco-2);
+      font-family: var(--fonte-texto);
+    }
+
+    .resumo-itens {
+      background: var(--papel);
+      border-top: 2px solid var(--preto);
+      border-bottom: 2px solid var(--preto);
+      padding: var(--espaco-3) var(--espaco-4);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.95rem;
+      font-weight: var(--peso-subtitulo);
+    }
+
+    .area-pagamento {
+      padding: var(--espaco-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--espaco-3);
+      margin-top: auto;
+    }
+    .btn-finalizar {
+      height: 56px;
+      font-family: var(--fonte-texto);
+      font-size: 1.25rem;
+      font-weight: var(--peso-titulo);
+      background: var(--cobalto-600);
+      color: var(--branco);
+      border: 2px solid var(--preto);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--espaco-2);
+      transition: background 0.1s ease;
+    }
+    .btn-finalizar:hover {
+      background: #0030A8;
+    }
+
+    /* Rodapé de atalhos (§9.4) */
+    .rodape-atalhos {
+      display: flex;
+      background: var(--preto);
+      color: var(--branco);
+      font-family: var(--fonte-texto);
+      font-size: var(--tamanho-auxiliar);
+      flex-wrap: wrap;
+    }
+    .rodape-atalhos .item {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--espaco-1);
+      padding: var(--espaco-2) var(--espaco-3);
+      border-right: 1px solid #333;
+      cursor: pointer;
+    }
+    .rodape-atalhos .item:hover {
+      background: #222;
+    }
+    .tecla-atalho {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 22px;
+      border: 1px solid var(--branco);
+      color: var(--branco);
+      font-weight: var(--peso-titulo);
+      font-size: 0.75rem;
+      clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+    }
+
+    /* Modais com assinatura Corte-M (§12.5) */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .modal-conteudo {
+      background: var(--branco);
+      color: var(--preto);
+      border: 2px solid var(--preto);
+      padding: var(--espaco-6);
+      max-width: 480px;
+      width: calc(100% - var(--espaco-4));
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    }
+    .modal-titulo {
+      font-family: var(--fonte-display);
+      font-weight: var(--peso-display);
+      font-size: 1.5rem;
+      margin: 0 0 var(--espaco-3);
+    }
+    .botao {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--fonte-texto);
+      font-weight: var(--peso-subtitulo);
+      padding: var(--espaco-3) var(--espaco-4);
+      min-height: 44px;
+      background: var(--branco);
+      color: var(--preto);
+      border: 2px solid var(--preto);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .botao:hover { background: var(--cobalto-600); color: var(--branco); }
+    .botao.danger { border-color: #b00020; }
+    .botao.danger:hover { background: #b00020; color: var(--branco); }
+
+    .toast {
+      position: fixed;
+      bottom: var(--espaco-6);
+      right: var(--espaco-6);
+      background: var(--preto);
+      color: var(--branco);
+      padding: var(--espaco-3) var(--espaco-5);
+      font-family: var(--fonte-texto);
+      font-weight: var(--peso-subtitulo);
+      border: 2px solid var(--preto);
+      display: none;
+      z-index: 300;
+    }
+    .toast.visivel { display: block; }
+  </style>
+</head>
+<body data-tema="caixa">
+
+  <!-- Barra de status superior (§9.3) -->
+  <div class="barra-status-caixa">
+    <span class="item"><span class="marca-estado marca-aberta">Aberta</span> Caixa 01</span>
+    <span class="item"><span class="marca-estado marca-protegido">Protegido</span> Livro imutável com cadeia BLAKE3</span>
+    <span class="item" style="margin-left: auto;"><span class="marca-estado">Local</span> 127.0.0.1:47823</span>
+  </div>
+
+  <main class="caixa-layout">
+    <!-- Coluna esquerda: Operador (Busca + Fita de Itens) -->
+    <div class="caixa-operador">
+      <div class="busca-container">
+        <div class="campo" style="flex: 1; max-width: 220px;">
+          <label for="cpf-input">CPF Cliente (Opcional)</label>
+          <input id="cpf-input" class="busca-campo" type="text" inputmode="numeric" placeholder="000.000.000-00" autocomplete="off" />
+        </div>
+        <div class="campo" style="flex: 2;">
+          <label for="produto-input">Bipe o código de barras ou digite o produto (Enter)</label>
+          <input id="produto-input" class="busca-campo" type="text" placeholder="Nome, SKU ou código..." autocomplete="off" autofocus />
+        </div>
+      </div>
+
+      <div class="fita-itens-container">
+        <table class="fita-tabela">
+          <thead>
+            <tr>
+              <th style="width: 32px;">#</th>
+              <th>Produto</th>
+              <th class="direita" style="width: 60px;">Qtd</th>
+              <th class="direita" style="width: 100px;">Unitário</th>
+              <th class="direita" style="width: 80px;">Desc.</th>
+              <th class="direita" style="width: 110px;">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="itens-lista">
+            <!-- Linhas dinâmicas -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Coluna direita: Total Dominante + Pagamento (§10.1) -->
+    <div class="caixa-total">
+      <div class="bloco-total">
+        <span class="label">TOTAL DA VENDA</span>
+        <div class="valor" id="total-valor">R$ 0,00</div>
+        <div class="meta" id="total-meta">0 itens na comanda</div>
+      </div>
+
+      <div class="resumo-itens">
+        <div><span>Subtotal:</span> <strong id="resumo-subtotal">R$ 0,00</strong></div>
+        <div><span>Desconto:</span> <strong id="resumo-desconto">R$ 0,00</strong></div>
+      </div>
+
+      <div class="area-pagamento">
+        <button id="f7-pg" class="btn-finalizar" type="button">
+          <span class="tecla-atalho">F7</span> PAGAR E FINALIZAR
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Rodapé de atalhos (§9.4) -->
+  <div class="rodape-atalhos">
+    <div class="item" id="btn-atalho-busca"><span class="tecla-atalho">F2</span> Buscar Produto</div>
+    <div class="item" id="btn-atalho-cancelar"><span class="tecla-atalho">F5</span> Cancelar Venda</div>
+    <div class="item" id="btn-atalho-fechar"><span class="tecla-atalho">F6</span> Fechar Caixa</div>
+    <div class="item" id="btn-atalho-pagar"><span class="tecla-atalho">F7</span> Pagar</div>
+    <div class="item" id="btn-atalho-sair" style="margin-left: auto;"><span class="tecla-atalho">Esc</span> Menu Principal</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal: buscar / selecionar produto -->
+  <div id="modal-prods" class="modal" style="display:none;">
+    <div class="modal-conteudo">
+      <h2 class="modal-titulo">Produtos no Catálogo</h2>
+      <p style="margin:0 0 var(--espaco-3); font-size: 0.9rem;">Digite para filtrar. Clique ou aperte Enter para selecionar.</p>
+      <input id="prod-search" class="busca-campo" style="width: 100%; margin-bottom: var(--espaco-3);" type="text" placeholder="Filtrar por nome ou código..." autocomplete="off" />
+      <div id="grid-prods" style="display: flex; flex-direction: column; gap: var(--espaco-1); max-height: 260px; overflow-y: auto;"></div>
+      <div style="margin-top:var(--espaco-4); display:flex; justify-content: flex-end;">
+        <button id="cancela-busca" class="botao">Cancelar (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: pagamento -->
+  <div id="modal-pagamento" class="modal" style="display:none;">
+    <div class="modal-conteudo">
+      <h2 class="modal-titulo">Recebimento — <span id="pg-total" style="color: var(--cobalto-600);">R$ 0,00</span></h2>
+      <p style="font-size: 0.85rem; margin:0 0 var(--espaco-3);">F1 Dinheiro, F2 Débito, F3 Crédito, F4 Pix, F5 Outro.</p>
+
+      <div id="formas-lista" style="display:flex; flex-direction:column; gap:var(--espaco-2); margin-bottom:var(--espaco-4);"></div>
+
+      <div style="display:flex; gap:var(--espaco-1); flex-wrap:wrap; margin-bottom: var(--espaco-4);">
+        <button data-forma="dinheiro" class="botao"><span class="tecla-atalho" style="color:var(--preto); border-color:var(--preto);">F1</span> Dinheiro</button>
+        <button data-forma="debito" class="botao"><span class="tecla-atalho" style="color:var(--preto); border-color:var(--preto);">F2</span> Débito</button>
+        <button data-forma="credito" class="botao"><span class="tecla-atalho" style="color:var(--preto); border-color:var(--preto);">F3</span> Crédito</button>
+        <button data-forma="pix" class="botao"><span class="tecla-atalho" style="color:var(--preto); border-color:var(--preto);">F4</span> Pix</button>
+        <button data-forma="outro" class="botao"><span class="tecla-atalho" style="color:var(--preto); border-color:var(--preto);">F5</span> Outro</button>
+      </div>
+
+      <button id="pg-finalizar" class="btn-finalizar" style="width:100%; height: 48px;">Confirmar Pagamento (Enter)</button>
+    </div>
+  </div>
+
+  <!-- Modal: venda concluída / comprovante -->
+  <div id="modal-concluida" class="modal" style="display:none;">
+    <div class="modal-conteudo" style="text-align: center;">
+      <h2 class="modal-titulo" style="color: var(--cobalto-600);">Venda Finalizada!</h2>
+      <div style="background: var(--papel); padding: var(--espaco-4); border: 2px solid var(--preto); margin-bottom: var(--espaco-4);">
+        <div style="font-size: 0.9rem; text-transform: uppercase;">Troco a Devolver</div>
+        <div id="concluida-troco-valor" style="font-size: 2.5rem; font-weight: 900; color: var(--preto);">R$ 0,00</div>
+      </div>
+      <div style="display: flex; gap: var(--espaco-2);">
+        <button id="btn-imprimir-cupom" class="btn-finalizar" style="flex: 1; height: 48px; font-size: 1rem;">Imprimir Cupom (Enter)</button>
+        <button id="btn-nova-venda" class="botao" style="flex: 1; height: 48px;">Nova Venda (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: fechar caixa (F6) -->
+  <div id="modal-fechar-caixa" class="modal" style="display:none;">
+    <div class="modal-conteudo">
+      <h2 class="modal-titulo">Fechar Sessão de Caixa</h2>
+      <p style="font-size: 0.9rem; margin-bottom: var(--espaco-3);">Informe o valor total em dinheiro contado na gaveta:</p>
+      <div style="margin-bottom: var(--espaco-4);">
+        <label style="font-size: var(--tamanho-auxiliar); font-weight: var(--peso-subtitulo);">Valor Contado em Gaveta (R$)</label>
+        <input id="fechar-contado" class="busca-campo" style="width: 100%; font-size: 1.5rem; text-align: right;" type="text" placeholder="0,00" autocomplete="off" />
+      </div>
+      <div id="fechar-resultado" style="display: none; padding: var(--espaco-2); background: var(--papel); border: 1px solid var(--preto); margin-bottom: var(--espaco-3); font-weight: var(--peso-titulo);"></div>
+      <div style="display: flex; gap: var(--espaco-2);">
+        <button id="fechar-confirmar" class="btn-finalizar" style="flex: 1; height: 44px; font-size: 1rem;">Confirmar Fechamento</button>
+        <button id="fechar-cancelar" class="botao" style="flex: 1; height: 44px;">Cancelar (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: cancelar venda (F5) -->
+  <div id="modal-cancela" class="modal" style="display:none;">
+    <div class="modal-conteudo">
+      <h2 class="modal-titulo">Cancelar Venda</h2>
+      <p style="font-size: 0.9rem; margin-bottom: var(--espaco-3);">Tem certeza que deseja cancelar todos os itens desta venda?</p>
+      <div style="display: flex; gap: var(--espaco-2); margin-top: var(--espaco-4);">
+        <button id="cancel-confirm" class="botao danger" style="flex: 1;">Sim, Cancelar</button>
+        <button id="cancel-fechar" class="botao" style="flex: 1;">Voltar (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
+    const token = localStorage.getItem("mikella_token");
+    if (!token) { window.location.href = "landing.html"; }
+    const authHeaders = { "Authorization": `Bearer ${token}` };
+
+    const Money = {
+      fmt(c) {
+        return (c < 0 ? "-" : "") + "R$ " + (Math.abs(c)/100).toFixed(2).replace(".", ",");
+      },
+      parse(v) {
+        const dig = (v || "").replace(/\D/g, "");
+        return parseInt(dig, 10) || 0;
+      }
+    };
+
+    const VENDA = {
+      itens: [],
+      cliente: null,
+      pagamentos: [],
+      total_centavos: 0
+    };
+
+    let PRODUTOS_CACHE = [];
+
+    async function fetchJSON(path, opts = {}) {
+      const res = await fetch(`${API_URL}${path}`, {
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data };
+    }
+
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("visivel");
+      setTimeout(() => t.classList.remove("visivel"), 2000);
+    }
+
+    const cpfInput = document.getElementById("cpf-input");
+    const produtoInput = document.getElementById("produto-input");
+
+    cpfInput.addEventListener("input", () => {
+      let v = cpfInput.value.replace(/\D/g, "").slice(0, 11);
+      if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+      else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+      else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, "$1.$2");
+      cpfInput.value = v;
+    });
+
+    cpfInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        produtoInput.focus();
+      }
+    });
+
+    produtoInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        abrirBuscaProdutos();
+      }
+    });
+
+    async function carregarProdutos() {
+      const { ok, data } = await fetchJSON("/v1/produtos");
+      if (ok && data.produtos) {
+        PRODUTOS_CACHE = data.produtos;
+      }
+    }
+
+    function abrirBuscaProdutos() {
+      const termo = produtoInput.value.trim().toLowerCase();
+      if (!termo) {
+        exibirModalProdutos(PRODUTOS_CACHE);
+        return;
+      }
+      const filtrados = PRODUTOS_CACHE.filter(p => 
+        p.nome.toLowerCase().includes(termo) || 
+        (p.codigo_barras && p.codigo_barras.includes(termo)) ||
+        (p.sku && p.sku.toLowerCase().includes(termo))
+      );
+      if (filtrados.length === 1) {
+        adicionarProduto(filtrados[0]);
+      } else {
+        exibirModalProdutos(filtrados);
+      }
+    }
+
+    function exibirModalProdutos(lista) {
+      const grid = document.getElementById("grid-prods");
+      grid.innerHTML = "";
+      lista.forEach(p => {
+        const item = document.createElement("button");
+        item.className = "botao";
+        item.style.textAlign = "left";
+        item.style.justifyContent = "space-between";
+        item.innerHTML = `<strong>${p.nome}</strong> <span>${Money.fmt(p.preco_centavos)}</span>`;
+        item.onclick = () => {
+          adicionarProduto(p);
+          fecharModal(document.getElementById("modal-prods"));
+        };
+        grid.appendChild(item);
+      });
+      document.getElementById("modal-prods").style.display = "flex";
+      document.getElementById("prod-search").value = "";
+      document.getElementById("prod-search").focus();
+    }
+
+    document.getElementById("prod-search").addEventListener("input", (e) => {
+      const t = e.target.value.toLowerCase();
+      document.querySelectorAll("#grid-prods button").forEach(b => {
+        b.style.display = b.textContent.toLowerCase().includes(t) ? "flex" : "none";
+      });
+    });
+
+    document.getElementById("cancela-busca").onclick = () => {
+      fecharModal(document.getElementById("modal-prods"));
+      produtoInput.focus();
+    };
+
+    function adicionarProduto(p) {
+      const existente = VENDA.itens.find(i => i.id === p.id);
+      if (existente) {
+        existente.quantidade += 1;
+      } else {
+        VENDA.itens.push({
+          id: p.id,
+          nome: p.nome,
+          quantidade: 1,
+          preco_centavos: p.preco_centavos,
+          desconto_centavos: 0
+        });
+      }
+      produtoInput.value = "";
+      produtoInput.focus();
+      renderItens();
+    }
+
+    function renderItens() {
+      const tbody = document.getElementById("itens-lista");
+      tbody.innerHTML = "";
+      let subtotalTotal = 0;
+      let descontoTotal = 0;
+      let qtdTotal = 0;
+
+      VENDA.itens.forEach((item, idx) => {
+        const subtotal = (item.preco_centavos * item.quantidade) - item.desconto_centavos;
+        subtotalTotal += (item.preco_centavos * item.quantidade);
+        descontoTotal += item.desconto_centavos;
+        qtdTotal += item.quantidade;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td><strong>${item.nome}</strong></td>
+          <td class="direita">${item.quantidade}</td>
+          <td class="direita">${Money.fmt(item.preco_centavos)}</td>
+          <td class="direita">${Money.fmt(item.desconto_centavos)}</td>
+          <td class="direita"><strong>${Money.fmt(subtotal)}</strong></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const total = subtotalTotal - descontoTotal;
+      VENDA.total_centavos = total;
+
+      document.getElementById("total-valor").textContent = Money.fmt(total);
+      document.getElementById("total-meta").textContent = `${qtdTotal} itens na comanda`;
+      document.getElementById("resumo-subtotal").textContent = Money.fmt(subtotalTotal);
+      document.getElementById("resumo-desconto").textContent = Money.fmt(descontoTotal);
+    }
+
+    function fecharModal(el) {
+      if (el) el.style.display = "none";
+    }
+
+    // Pagamento
+    const btnPagar = document.getElementById("f7-pg");
+    btnPagar.onclick = abrirPagamento;
+
+    function abrirPagamento() {
+      if (!VENDA.total_centavos || VENDA.total_centavos <= 0) {
+        toast("Adicione produtos antes de abrir o pagamento.");
+        return;
+      }
+      document.getElementById("pg-total").textContent = Money.fmt(VENDA.total_centavos);
+      document.getElementById("formas-lista").innerHTML = "";
+      VENDA.pagamentos = [];
+      document.getElementById("modal-pagamento").style.display = "flex";
+      adicionarForma("dinheiro", VENDA.total_centavos);
+    }
+
+    document.querySelectorAll("[data-forma]").forEach(b => {
+      b.onclick = () => adicionarForma(b.dataset.forma);
+    });
+
+    function adicionarForma(forma, valorInicialCentavos) {
+      let somaJaInformada = 0;
+      document.querySelectorAll("#formas-lista input[data-forma]").forEach(inp => {
+        somaJaInformada += Money.parse(inp.value);
+      });
+      const restante = valorInicialCentavos !== undefined ? valorInicialCentavos : Math.max(0, VENDA.total_centavos - somaJaInformada);
+
+      const linha = document.createElement("div");
+      linha.style.display = "flex";
+      linha.style.gap = "var(--espaco-2)";
+      linha.style.alignItems = "center";
+
+      linha.innerHTML = `
+        <span style="font-weight: var(--peso-titulo); width: 90px; text-transform: uppercase;">${forma}</span>
+        <input class="busca-campo" data-forma="${forma}" type="text" style="flex:1; text-align:right;" value="${(restante / 100).toFixed(2).replace(".", ",")}" />
+        <button class="botao" type="button" style="min-width: 38px; min-height: 38px; padding: 0;">×</button>
+      `;
+
+      const inp = linha.querySelector("input");
+      linha.querySelector("button").onclick = () => linha.remove();
+
+      inp.addEventListener("input", () => {
+        const c = Money.parse(inp.value);
+        inp.value = (c / 100).toFixed(2).replace(".", ",");
+      });
+
+      inp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          finalizarPagamento();
+        }
+      });
+
+      document.getElementById("formas-lista").appendChild(linha);
+      inp.focus();
+      inp.select();
+    }
+
+    document.getElementById("pg-finalizar").onclick = finalizarPagamento;
+
+    async function finalizarPagamento() {
+      const inputs = document.querySelectorAll("#formas-lista input[data-forma]");
+      VENDA.pagamentos = [];
+      let soma = 0;
+      inputs.forEach(inp => {
+        const c = Money.parse(inp.value);
+        if (c > 0) {
+          VENDA.pagamentos.push({ forma: inp.dataset.forma.toUpperCase(), valor_centavos: c });
+          soma += c;
+        }
+      });
+
+      if (VENDA.pagamentos.length === 0) {
+        toast("Informe ao menos uma forma de pagamento.");
+        return;
+      }
+      if (soma < VENDA.total_centavos) {
+        toast("Valor informado menor que o total da venda.");
+        return;
+      }
+
+      const troco = Math.max(0, soma - VENDA.total_centavos);
+      const venda_id = crypto.randomUUID();
+      const sessao_id = localStorage.getItem("mikella_sessao_id") || "00000000-0000-4000-8000-0000000000c1";
+      const dispositivo_id = "00000000-0000-4000-8000-0000000000d1";
+
+      const payload = {
+        venda_id,
+        sessao_id,
+        dispositivo_id,
+        itens: VENDA.itens.map(i => ({ produto_id: i.id, lote_id: null, quantidade: i.quantidade })),
+        pagamentos: VENDA.pagamentos,
+        desconto_centavos: VENDA.itens.reduce((s,i) => s + i.desconto_centavos, 0)
+      };
+
+      toast("Gravando venda...");
+      const { ok, data } = await fetchJSON("/v1/vendas", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      if (ok) {
+        const finalId = data.venda_id || venda_id;
+        fecharModal(document.getElementById("modal-pagamento"));
+        document.getElementById("concluida-troco-valor").textContent = Money.fmt(troco);
+        document.getElementById("modal-concluida").style.display = "flex";
+
+        document.getElementById("btn-imprimir-cupom").onclick = async () => {
+          await fetchJSON(`/v1/vendas/${finalId}/imprimir`, { method: "POST" });
+          fecharModal(document.getElementById("modal-concluida"));
+          resetarVenda();
+        };
+
+        document.getElementById("btn-nova-venda").onclick = () => {
+          fecharModal(document.getElementById("modal-concluida"));
+          resetarVenda();
+        };
+      } else {
+        toast(data.erro || "Falha ao gravar venda.");
+      }
+    }
+
+    function resetarVenda() {
+      VENDA.itens = [];
+      VENDA.cliente = null;
+      VENDA.pagamentos = [];
+      VENDA.total_centavos = 0;
+      cpfInput.value = "";
+      produtoInput.value = "";
+      renderItens();
+      produtoInput.focus();
+    }
+
+    // Fechar Caixa (F6)
+    const modalFecharCaixa = document.getElementById("modal-fechar-caixa");
+    const inputFecharContado = document.getElementById("fechar-contado");
+
+    inputFecharContado.addEventListener("input", () => {
+      const c = Money.parse(inputFecharContado.value);
+      inputFecharContado.value = (c / 100).toFixed(2).replace(".", ",");
+    });
+
+    document.getElementById("btn-atalho-fechar").onclick = () => {
+      inputFecharContado.value = "";
+      modalFecharCaixa.style.display = "flex";
+      inputFecharContado.focus();
+    };
+
+    document.getElementById("fechar-cancelar").onclick = () => {
+      fecharModal(modalFecharCaixa);
+      produtoInput.focus();
+    };
+
+    document.getElementById("fechar-confirmar").onclick = async () => {
+      const sessao_id = localStorage.getItem("mikella_sessao_id") || "00000000-0000-4000-8000-0000000000c1";
+      const contado = Money.parse(inputFecharContado.value);
+
+      const formBody = new URLSearchParams();
+      formBody.append("sessao_id", sessao_id);
+      formBody.append("saldo_contado_centavos", contado.toString());
+
+      toast("Fechando caixa...");
+      const res = await fetch(`${API_URL}/v1/caixa/fechar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", ...authHeaders },
+        body: formBody.toString()
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        toast(`Caixa fechado! Diferença: ${data.diferenca}`);
+        await fetch(`${API_URL}/v1/caixa/fechamento/${sessao_id}/imprimir`, {
+          method: "POST",
+          headers: { ...authHeaders }
+        }).catch(() => {});
+        localStorage.removeItem("mikella_sessao_id");
+        setTimeout(() => { window.location.href = "main-menu.html"; }, 1000);
+      } else {
+        toast(data.erro || "Falha ao fechar caixa.");
+      }
+    };
+
+    // Cancelar Venda (F5)
+    document.getElementById("btn-atalho-cancelar").onclick = () => {
+      document.getElementById("modal-cancela").style.display = "flex";
+    };
+    document.getElementById("cancel-fechar").onclick = () => {
+      fecharModal(document.getElementById("modal-cancela"));
+      produtoInput.focus();
+    };
+    document.getElementById("cancel-confirm").onclick = () => {
+      fecharModal(document.getElementById("modal-cancela"));
+      resetarVenda();
+      toast("Venda cancelada.");
+    };
+
+    // Atalhos
+    document.getElementById("btn-atalho-busca").onclick = () => abrirBuscaProdutos();
+    document.getElementById("btn-atalho-pagar").onclick = () => abrirPagamento();
+    document.getElementById("btn-atalho-sair").onclick = () => { window.location.href = "main-menu.html"; };
+
+    window.addEventListener("keydown", (e) => {
+      const k = e.key;
+      const modalConcluida = document.getElementById("modal-concluida").style.display === "flex";
+      if (modalConcluida) {
+        if (k === "Enter") { e.preventDefault(); document.getElementById("btn-imprimir-cupom").click(); return; }
+        if (k === "Escape") { e.preventDefault(); document.getElementById("btn-nova-venda").click(); return; }
+      }
+
+      if (k === "Escape") {
+        const modais = document.querySelectorAll(".modal");
+        let algumAberto = false;
+        modais.forEach(m => {
+          if (m.style.display === "flex") { m.style.display = "none"; algumAberto = true; }
+        });
+        if (!algumAberto) {
+          window.location.href = "main-menu.html";
+        } else {
+          produtoInput.focus();
+        }
+        return;
+      }
+
+      if (k === "F2") { e.preventDefault(); abrirBuscaProdutos(); }
+      if (k === "F5") { e.preventDefault(); document.getElementById("btn-atalho-cancelar").click(); }
+      if (k === "F6") { e.preventDefault(); document.getElementById("btn-atalho-fechar").click(); }
+      if (k === "F7") { e.preventDefault(); abrirPagamento(); }
+    });
+
+    carregarProdutos();
+  </script>
+</body>
+</html>

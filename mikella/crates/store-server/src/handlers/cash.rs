@@ -1,0 +1,281 @@
+//! Handlers de caixa (MVP-1): status, abertura e fechamento.
+//!
+//! Todos os handlers aqui usam transações SQLite e o caso de uso do domínio
+//! (`app_cash::abrir_caixa` / `app_cash::fechar_caixa`).
+//! `operador_id` é sempre derivado do usuário autenticado — nunca do cliente.
+
+use axum::extract::{Form, State};
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::Json;
+
+use mikella_app_cash::{abrir_caixa, fechar_caixa, AbrirCaixaCmd, CaixaRepos, FecharCaixaCmd};
+use mikella_infra_sqlite::ports::SessaoRepository;
+use mikella_infra_sqlite::{Blake3HashChain, LivroRepo, SessaoRepo};
+use mikella_shared_kernel::clock::SystemClock;
+use mikella_shared_kernel::ids::{DispositivoId, SessaoId};
+use mikella_shared_kernel::money::Money;
+
+use crate::dto::{AbrirCaixaForm, FecharCaixaForm};
+use crate::exigir;
+use crate::middleware::Ator;
+use crate::state::AppState;
+use crate::util::{bad_request, error_para_http, garantir_dispositivo};
+
+/// `GET /v1/caixa/status` — status da sessão de caixa aberta (se houver).
+///
+/// Usa `SessaoRepo` (infra) implementando a porta `SessaoRepository`
+/// (domínio cash). Apenas leitura — não altera estado.
+pub async fn caixa_status(State(state): State<AppState>, ator: Ator) -> impl IntoResponse {
+    exigir!(ator, "caixa.ver");
+    tracing::debug!(usuario = %ator.0.username, "consultando status da caixa");
+
+    let db = state.db.lock().await;
+    let sessoes = SessaoRepo::novo(db.conn());
+
+    let abertas = match sessoes.buscar_sessoes_abertas() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!(erro = %e, "erro ao buscar sessões abertas");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"erro": "falha ao consultar caixa"})),
+            );
+        }
+    };
+
+    match abertas.first() {
+        Some(sessao) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "aberta": true,
+                "sessao_id": sessao.id.to_string(),
+                "numero_caixa": sessao.numero_caixa,
+                "saldo_esperado_centavos": sessao.saldo_esperado_centavos.centavos(),
+                "saldo_esperado": sessao.saldo_esperado_centavos.to_string(),
+                "estado": sessao.estado.as_str(),
+                "aberta_em": sessao.aberta_em.to_rfc3339(),
+                "operador_id": sessao.operador_id.to_string(),
+            })),
+        ),
+        None => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "aberta": false,
+                "sessao_id": null,
+                "numero_caixa": null,
+                "saldo_esperado_centavos": 0,
+                "saldo_esperado": Money::ZERO.to_string(),
+                "estado": "FECHADA",
+                "aberta_em": null,
+                "operador_id": null,
+            })),
+        ),
+    }
+}
+
+/// `POST /v1/caixa/abrir` — abre uma sessão de caixa.
+///
+/// Usa `app_cash::abrir_caixa` com repositórios SQLite dentro de uma transação.
+/// Idempotente: reenviar o mesmo `sessao_id` devolve a sessão existente.
+#[allow(clippy::too_many_lines)]
+pub async fn abrir_caixa_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    Form(form): Form<AbrirCaixaForm>,
+) -> impl IntoResponse {
+    exigir!(ator, "caixa.abrir");
+
+    let sessao_id: SessaoId = match form.sessao_id.parse() {
+        Ok(id) => id,
+        Err(_) => return bad_request("sessao_id inválido (UUID esperado)"),
+    };
+    let dispositivo_id: DispositivoId = match form.dispositivo_id.parse() {
+        Ok(id) => id,
+        Err(_) => return bad_request("dispositivo_id inválido (UUID esperado)"),
+    };
+
+    // operador_id é derivado do usuário autenticado, nunca do cliente.
+    let operador_id = ator.id();
+
+    let saldo_inicial = Money::from_centavos(form.saldo_inicial_centavos);
+
+    let mut db = state.db.lock().await;
+
+    // MVP-1: auto-provisioning do dispositivo. Em produção (MVP-2), o
+    // dispositivo é criado durante o pareamento TLS e já existe aqui.
+    let dispositivo_id_str = form.dispositivo_id.clone();
+    if let Err(e) = garantir_dispositivo(&db, &dispositivo_id_str) {
+        tracing::error!(erro = %e, "falha ao garantir dispositivo");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"erro": "falha de banco"})),
+        );
+    }
+
+    let tx = match db.transacao() {
+        Ok(tx) => tx,
+        Err(e) => {
+            tracing::error!(erro = %e, "falha ao iniciar transação");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"erro": "falha de banco"})),
+            );
+        }
+    };
+
+    let sessoes = SessaoRepo::novo(&tx);
+    let livro = LivroRepo::novo(&tx);
+    let hash = Blake3HashChain;
+    let clock = SystemClock;
+    let repos = CaixaRepos {
+        sessoes: &sessoes,
+        livro: &livro,
+        hash: &hash,
+        clock: &clock,
+    };
+
+    let cmd = AbrirCaixaCmd {
+        sessao_id,
+        numero_caixa: form.numero_caixa,
+        dispositivo_id,
+        operador_id,
+        saldo_inicial,
+        fechamento_cego: form.fechamento_cego,
+    };
+
+    match abrir_caixa(&repos, cmd) {
+        Ok(sessao) => {
+            if tx.commit().is_err() {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"erro": "falha ao confirmar caixa"})),
+                );
+            }
+            tracing::info!(
+                usuario = %ator.0.username,
+                sessao_id = %sessao.id,
+                numero_caixa = sessao.numero_caixa,
+                "caixa aberto"
+            );
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "sessao_id": sessao.id.to_string(),
+                    "numero_caixa": sessao.numero_caixa,
+                    "estado": sessao.estado.as_str(),
+                    "saldo_inicial": sessao.saldo_inicial_centavos.to_string(),
+                })),
+            )
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            error_para_http(e)
+        }
+    }
+}
+
+/// `POST /v1/caixa/fechar` — fecha uma sessão de caixa aberta.
+///
+/// Usa `app_cash::fechar_caixa` com transação atômica. Verifica a cadeia de
+/// hashes do livro antes de permitir o fechamento — se alguém alterou o banco
+/// diretamente, o fechamento é recusado.
+pub async fn fechar_caixa_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    Form(form): Form<FecharCaixaForm>,
+) -> impl IntoResponse {
+    exigir!(ator, "caixa.fechar");
+
+    let sessao_id: SessaoId = match form.sessao_id.parse() {
+        Ok(id) => id,
+        Err(_) => return bad_request("sessao_id inválido (UUID esperado)"),
+    };
+    let saldo_contado = Money::from_centavos(form.saldo_contado_centavos);
+
+    let operador_id = ator.id();
+
+    let mut db = state.db.lock().await;
+    let tx = match db.transacao() {
+        Ok(tx) => tx,
+        Err(e) => {
+            tracing::error!(erro = %e, "falha ao iniciar transação");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"erro": "falha de banco"})),
+            );
+        }
+    };
+
+    let sessoes = SessaoRepo::novo(&tx);
+    let livro = LivroRepo::novo(&tx);
+    let hash = Blake3HashChain;
+    let clock = SystemClock;
+
+    // RF-012/RF-014: a sessão pertence a um operador. O próprio operador
+    // fecha a sessão; apenas gerente/dono fecham sessão de terceiros.
+    match sessoes.buscar_por_id(sessao_id) {
+        Ok(Some(sessao)) => {
+            if sessao.operador_id != ator.id() && ator.papel().nivel() < 2 {
+                let _ = tx.rollback();
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(serde_json::json!({ "erro": "sessão pertence a outro operador" })),
+                );
+            }
+        }
+        Ok(None) => {
+            let _ = tx.rollback();
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "erro": "sessão de caixa não encontrada" })),
+            );
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            return error_para_http(e);
+        }
+    }
+
+    let repos = CaixaRepos {
+        sessoes: &sessoes,
+        livro: &livro,
+        hash: &hash,
+        clock: &clock,
+    };
+
+    let cmd = FecharCaixaCmd {
+        sessao_id,
+        usuario_id: operador_id,
+        saldo_contado,
+    };
+
+    match fechar_caixa(&repos, cmd) {
+        Ok(diferenca) => {
+            if tx.commit().is_err() {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"erro": "falha ao confirmar fechamento"})),
+                );
+            }
+            tracing::info!(
+                usuario = %ator.0.username,
+                sessao_id = %sessao_id,
+                "caixa fechado"
+            );
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "esperado": diferenca.esperado.to_string(),
+                    "contado": diferenca.contado.to_string(),
+                    "diferenca": diferenca.diferenca.to_string(),
+                    "tem_diferenca": diferenca.tem_diferenca(),
+                })),
+            )
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            error_para_http(e)
+        }
+    }
+}

@@ -1,0 +1,18 @@
+﻿[package]
+name    = "mikella-app-cash"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }
+tracing    = { workspace = true }
+mikella-shared-kernel = { path = "../shared-kernel" }
+mikella-domain-cash   = { path = "../domain-cash" }
+mikella-domain-sales  = { path = "../domain-sales" }
+

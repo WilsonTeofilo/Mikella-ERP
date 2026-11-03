@@ -1,0 +1,36 @@
+{
+  "$schema": "https://tauri.studio/schema/tauri.json",
+  "product-name": "mikella",
+  "version": "0.1.0",
+  "identifier": "com.mikella.pos",
+  "build": {
+    "frontendDist": "../../frontend/src"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Mikella POS",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": false,
+        "url": "index.html"
+      }
+    ],
+    "security": {
+      "assetProtocol": {
+        "enable": true
+      },
+      "capabilities": [
+        {
+          "identifier": "mikella.main",
+          "name": "mikella-capabilities",
+          "description": "Minimal allowlist per SEG-060",
+          "permissions": ["core:window:default"]
+        }
+      ]
+    }
+  }
+}

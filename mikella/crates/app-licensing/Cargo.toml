@@ -1,0 +1,18 @@
+﻿[package]
+name    = "mikella-app-licensing"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }
+tracing    = { workspace = true }
+mikella-shared-kernel    = { path = "../shared-kernel" }
+mikella-domain-licensing = { path = "../domain-licensing" }
+async-trait = { workspace = true }
+

@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="../shared/design/tokens.css" />
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/forms.css" />
+  <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <style>
     [data-tema="caixa"] body { background: var(--branco); color: var(--preto); font-family: var(--fonte-texto); margin: 0; }
     .corte-m { position: fixed; top: 0; right: 0; width: 0; height: 0; border-top: 64px solid var(--cobalto-600); border-left: 64px solid transparent; }
@@ -150,6 +151,9 @@
   </div>
 
   <script type="module">
+    import { inicializarControlesJanela } from "../shared/ui/window-controls.js";
+    inicializarControlesJanela();
+
     const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
     const token = localStorage.getItem("mikella_token");
     if (!token) { window.location.href = "landing.html"; }

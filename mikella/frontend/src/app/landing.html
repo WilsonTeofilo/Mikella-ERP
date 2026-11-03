@@ -6,6 +6,7 @@
   <title>Mikella ERP — Login</title>
   <link rel="stylesheet" href="../shared/design/tokens.css" />
   <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <style>
     /* ============================================================
        LANDING — tela de login
@@ -107,42 +108,58 @@
       align-items: stretch;
     }
 
-    /* ─── LETREIRO — título principal (§1, §6.3) ───────────────────
-       Inspiração: letreiro de vitrine, blocos recortados.
-       Cor: preto sobre branco em blocos alternados (inversão).
-       Sem spans individuais por letra — isso é padrão Cartoon Network,
-       NÃO é o estilo do Mikella. Aqui é um bloco único com -webkit-text-stroke.
-       ─────────────────────────────────────────────────────────────── */
-    .marca-bloco {
+    /* ─── LETREIRO QUADRICULADO — Estilo Stickers / Bloco de Rua ─── */
+    .marca-letreiro-grid {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 32px;
+      user-select: none;
+    }
+
+    .letreiro-linha {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0px;
+      box-shadow: 6px 6px 0px #000000;
+    }
+
+    .letra-bloco {
       display: inline-flex;
-      align-self: center;
-      margin-bottom: 40px;
-      background: #000;
-      padding: 10px 20px;
-      /* Corte 45° canto superior direito — assinatura visual §7.1 */
-      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-    }
-
-    .marca-titulo {
-      font-family: var(--fonte-display, "Archivo"), "Arial Narrow", sans-serif;
-      font-size: clamp(2.1rem, 8vw, 3rem);
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 48px;
+      font-family: var(--fonte-display, "Archivo", sans-serif);
+      font-size: 1.85rem;
       font-weight: 900;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: #fff;
       line-height: 1;
-      white-space: nowrap;
-      /* Contorno preto — assinatura de letreiro (§6.3) */
-      -webkit-text-stroke: 0px transparent;
+      text-transform: uppercase;
+      border: 3px solid #000000;
+      border-right-width: 0;
+      box-sizing: border-box;
+      transition: transform 80ms ease;
     }
 
-    .marca-titulo .mk-sep {
-      display: inline-block;
-      width: 3px;
-      background: var(--azul-600, #0040D8);
-      height: 0.75em;
-      vertical-align: middle;
-      margin: 0 10px;
+    .letreiro-linha .letra-bloco:last-child {
+      border-right-width: 3px;
+    }
+
+    /* Alternância de blocos estilo Cartoon Network / Persona */
+    .letra-bloco.preta {
+      background: #000000;
+      color: #FFFFFF;
+    }
+
+    .letra-bloco.branca {
+      background: #FFFFFF;
+      color: #000000;
+    }
+
+    .marca-letreiro-grid:hover .letra-bloco {
+      transform: translateY(-2px);
     }
 
     /* ─── Formulário ─── */
@@ -303,9 +320,22 @@
   </nav>
 
   <main class="login-container">
-    <!-- LETREIRO — título em bloco com corte 45° (voz "Rua") -->
-    <div class="marca-bloco" aria-hidden="true">
-      <span class="marca-titulo">MIKELLA<span class="mk-sep"></span>ERP</span>
+    <!-- LETREIRO QUADRICULADO — Estilo Stickers / Bloco de Rua (Cartoon Network / Persona) -->
+    <div class="marca-letreiro-grid" aria-label="MIKELLA ERP">
+      <div class="letreiro-linha">
+        <span class="letra-bloco preta">M</span>
+        <span class="letra-bloco branca">I</span>
+        <span class="letra-bloco preta">K</span>
+        <span class="letra-bloco branca">E</span>
+        <span class="letra-bloco preta">L</span>
+        <span class="letra-bloco branca">L</span>
+        <span class="letra-bloco preta">A</span>
+      </div>
+      <div class="letreiro-linha" style="margin-top: 4px;">
+        <span class="letra-bloco branca">E</span>
+        <span class="letra-bloco preta">R</span>
+        <span class="letra-bloco branca">P</span>
+      </div>
     </div>
     <h1 class="sr-only">Mikella ERP — Sistema de Gestão para Pequeno Comércio</h1>
 
@@ -393,26 +423,34 @@
 
     btnMin.addEventListener("click", async () => {
       const win = tauriWin();
-      if (win) await win.minimize();
+      if (win) {
+        await win.minimize();
+      } else {
+        mostrarErro("Minimizar ativo na versão desktop nativa.");
+      }
     });
 
     btnFch.addEventListener("click", async () => {
       const win = tauriWin();
-      if (win) await win.close();
+      if (win) {
+        await win.close();
+      } else if (confirm("Deseja realmente sair do Mikella ERP?")) {
+        window.close();
+      }
     });
 
-    // Oculta minimizar/fechar fora do Tauri
-    if (!emDesktop()) {
-      btnMin.hidden = true;
-      btnFch.hidden = true;
-    }
+    // Mantém botões sempre visíveis para controle ergonômico
+    btnMin.hidden = false;
+    btnFch.hidden = false;
 
     // Atualiza label do botão de tela cheia
-    document.addEventListener("fullscreenchange", () => {
+    const syncFullscreenState = () => {
       const fs = Boolean(document.fullscreenElement);
       btnFS.textContent = fs ? "SAIR TELA CHEIA" : "TELA CHEIA";
       btnFS.setAttribute("aria-label", fs ? "Sair da tela cheia" : "Abrir tela cheia (F11)");
-    });
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    syncFullscreenState();
 
     /* ── Formulário de login / 2FA ── */
     const form       = document.getElementById("form-login");

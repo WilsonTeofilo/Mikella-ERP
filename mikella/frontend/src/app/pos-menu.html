@@ -6,6 +6,7 @@
   <title>Mikella ERP — Menu Operacional do PDV</title>
   <link rel="stylesheet" href="../shared/design/tokens.css" />
   <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <style>
     * {
       box-sizing: border-box;
@@ -763,6 +764,15 @@
             <label for="cli-end">Endereço Completo (Opcional — Usado para Entregas)</label>
             <input id="cli-end" class="form-input" type="text" placeholder="Rua, Número, Bairro, Ponto de Referência" style="height: 42px;" />
           </div>
+
+          <!-- Termo de Privacidade e Proteção de Dados (Art. 7º, I e 8º da Lei nº 13.709/2018 - LGPD) -->
+          <div style="background: #FFFFFF; border: 2px solid #000; padding: 10px; margin-top: var(--espaco-2); font-size: 0.82rem; line-height: 1.3;">
+            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: 700;">
+              <input type="checkbox" id="cli-lgpd-consentimento" checked required style="margin-top: 3px;" />
+              <span><strong>Conformidade LGPD:</strong> O titular autoriza a coleta e o armazenamento de seus dados exclusivamente para identificação no cupom fiscal, emissão de crediário/cobrança e entregas de pedidos pela loja.</span>
+            </label>
+          </div>
+
           <div style="display: flex; gap: var(--espaco-3); margin-top: var(--espaco-3);">
             <button type="submit" class="btn-acao" style="height: 46px;">Salvar Cliente (Enter)</button>
             <button type="button" id="btn-cancelar-cliente" class="btn-acao secundario" style="height: 46px;">Cancelar e Voltar</button>
@@ -927,6 +937,9 @@
   </div>
 
   <script type="module">
+    import { inicializarControlesJanela } from "../shared/ui/window-controls.js";
+    inicializarControlesJanela();
+
     const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
     const token = localStorage.getItem("mikella_token");
     if (!token) { window.location.href = "landing.html"; }

@@ -23,6 +23,8 @@
   /* Cor-assinatura */
   --azul-600:  #0040D8;   /* cor da marca, ações primárias, bloco do total */
   --azul-700:  #0030A8;   /* estado pressionado/hover sobre azul-600 */
+  --cobalto-600: var(--azul-600); /* alias canônico citado na especificação */
+  --cobalto-700: var(--azul-700);
 
   /* Azul em fundos escuros */
   --azul-300:  #7DA2FF;   /* texto e ícone azul no modo Noite */

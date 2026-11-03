@@ -14,7 +14,7 @@
     }
 
     body {
-      background: #009FE3; /* Azul elétrico sólido da referência */
+      background: var(--azul-600, #0040D8); /* Cobalto sólido da especificação */
       color: #000000;
       font-family: var(--fonte-display), sans-serif;
       min-height: 100vh;
@@ -33,7 +33,7 @@
       right: -10%;
       width: 60%;
       height: 140%;
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.12);
       transform: rotate(25deg);
       pointer-events: none;
       z-index: 1;
@@ -45,7 +45,7 @@
       left: -20%;
       width: 80%;
       height: 40%;
-      background: rgba(0, 40, 150, 0.25);
+      background: var(--azul-700, #0030A8);
       transform: rotate(-15deg);
       pointer-events: none;
       z-index: 1;
@@ -162,12 +162,12 @@
       width: 100%;
     }
     .feedback-erro {
-      background: #FF3344;
+      background: var(--vermelho, #C81E16);
       color: #FFFFFF;
     }
     .feedback-ok {
-      background: #00FF88;
-      color: #000000;
+      background: var(--verde, #07733C);
+      color: #FFFFFF;
     }
 
     .rodape-info {
@@ -181,7 +181,7 @@
     }
   </style>
 </head>
-<body>
+<body data-tema="rua">
   <div class="fundo-angular"></div>
   <div class="fundo-faixa"></div>
 

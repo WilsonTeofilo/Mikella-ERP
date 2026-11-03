@@ -23,9 +23,9 @@
     th { font-weight: var(--peso-subtitulo); background: #f4f4f4; border-top: 2px solid var(--preto); }
     td.direita, th.direita { text-align: right; }
 
-    .tag { display: inline-block; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--preto); }
-    .tag.pagar { background: #fee2e2; color: #991b1b; }
-    .tag.receber { background: #dcfce7; color: #166534; }
+    .tag { display: inline-block; padding: 2px 8px; font-size: 0.8rem; font-weight: var(--peso-titulo); border: 1px solid var(--preto); text-transform: uppercase; }
+    .tag.pagar { background: var(--vermelho, #C81E16); color: var(--branco, #FFFFFF); }
+    .tag.receber { background: var(--verde, #07733C); color: var(--branco, #FFFFFF); }
 
     .barra-botoes { display: flex; gap: var(--espaco-2); margin-top: var(--espaco-5); flex-wrap: wrap; }
     .botao { display: inline-flex; align-items: center; justify-content: center; font-family: var(--fonte-texto); font-weight: var(--peso-subtitulo); padding: var(--espaco-3) var(--espaco-4); min-height: 48px; min-width: 96px; background: var(--branco); color: var(--preto); border: 2px solid var(--preto); cursor: pointer; text-decoration: none; }

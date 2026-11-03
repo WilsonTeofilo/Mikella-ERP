@@ -22,7 +22,7 @@
     }
 
     body {
-      background: radial-gradient(circle at 75% 30%, #0077D4 0%, #004299 50%, #001E54 100%);
+      background: var(--azul-600, #0040D8); /* Chapado, zero gradientes conforme VIS-007 e §4.1 */
       color: #FFFFFF;
       font-family: var(--fonte-display), sans-serif;
       min-height: 100vh;
@@ -31,7 +31,7 @@
       user-select: none;
     }
 
-    /* Gráficos angulares dinâmicos estilo Persona 3 Reload */
+    /* Gráficos angulares dinâmicos estilo Persona / Corte-M sem gradientes ou sombras suaves */
     .p3-faixa-branca {
       position: absolute;
       top: -20%;
@@ -40,7 +40,8 @@
       height: 140%;
       background: #FFFFFF;
       transform: rotate(18deg);
-      box-shadow: 15px 0px 40px rgba(0, 0, 0, 0.45);
+      border-right: 4px solid #000000;
+      box-shadow: 12px 0px 0px #000000; /* Placa dura/sólida sem desfoque (VIS-072) */
       z-index: 2;
       pointer-events: none;
     }
@@ -107,10 +108,10 @@
       display: flex;
       align-items: center;
       gap: var(--espaco-3);
-      background: rgba(0, 0, 0, 0.5);
-      border: 2px solid #00B4FF;
+      background: #000000;
+      border: 3px solid #FFFFFF;
       padding: var(--espaco-2) var(--espaco-4);
-      box-shadow: 3px 3px 0px #000000;
+      box-shadow: 4px 4px 0px #000000;
       z-index: 20;
       transform: skewX(-10deg);
     }
@@ -129,7 +130,7 @@
       font-size: 0.75rem;
       font-weight: 900;
       padding: 1px 6px;
-      background: #00B4FF;
+      background: var(--amarelo, #FFD21F);
       color: #000000;
       margin-top: 2px;
       text-transform: uppercase;
@@ -169,16 +170,16 @@
       font-weight: 900;
       letter-spacing: 0.05em;
       text-transform: uppercase;
-      color: #90D5FF;
-      text-shadow: 3px 3px 0px #001844;
+      color: #FFFFFF;
+      text-shadow: 3px 3px 0px #000000;
       transition: color 0.12s ease, font-size 0.12s ease;
     }
 
     .p3-menu-item:hover .p3-menu-texto {
-      color: #FFFFFF;
+      color: var(--amarelo, #FFD21F);
     }
 
-    /* Item ATIVO / SELECIONADO (Estilo Persona 3 Reload 'ITEM') */
+    /* Item ATIVO / SELECIONADO */
     .p3-menu-item.ativo {
       transform: translateX(24px) scale(1.06);
     }
@@ -189,12 +190,12 @@
       inset: -4px -18px;
       background: #FFFFFF;
       clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
-      box-shadow: 6px 6px 0px #FF0055, 10px 10px 0px #000000;
+      box-shadow: 4px 4px 0px var(--vermelho, #C81E16), 8px 8px 0px #000000;
       z-index: -1;
     }
 
     .p3-menu-item.ativo .p3-menu-texto {
-      color: #E6003A;
+      color: var(--vermelho, #C81E16);
       font-size: 3.25rem;
       text-shadow: none;
       letter-spacing: 0.08em;
@@ -206,7 +207,7 @@
       font-size: 0.9rem;
       font-weight: 900;
       color: #000000;
-      background: #FFDD00;
+      background: var(--amarelo, #FFD21F);
       padding: 2px 8px;
       margin-left: var(--espaco-3);
       vertical-align: middle;
@@ -227,8 +228,8 @@
       display: flex;
       align-items: center;
       gap: var(--espaco-4);
-      background: rgba(0, 0, 0, 0.7);
-      border: 2px solid #FFFFFF;
+      background: #000000;
+      border: 3px solid #FFFFFF;
       padding: var(--espaco-2) var(--espaco-5);
       z-index: 20;
       transform: skewX(-10deg);
@@ -243,7 +244,7 @@
       color: #FFFFFF;
     }
     .hud-btn-tag {
-      background: #00B4FF;
+      background: var(--amarelo, #FFD21F);
       color: #000000;
       padding: 2px 8px;
       font-size: 0.85rem;
@@ -268,7 +269,7 @@
       padding: var(--espaco-6);
       max-width: 500px;
       width: 90%;
-      box-shadow: 8px 8px 0px #00B4FF;
+      box-shadow: 8px 8px 0px #000000;
       transform: skewX(-4deg);
     }
     .modal-box h2 {
@@ -298,7 +299,7 @@
       text-transform: uppercase;
     }
     .modal-btn-confirm {
-      background: #E6003A;
+      background: var(--vermelho, #C81E16);
       color: #FFFFFF;
     }
     .modal-btn-cancel {
@@ -312,14 +313,14 @@
       left: var(--espaco-6);
       background: #000000;
       color: #FFFFFF;
-      border: 3px solid #00B4FF;
+      border: 3px solid #FFFFFF;
       padding: var(--espaco-3) var(--espaco-5);
       font-family: var(--fonte-texto);
       font-weight: 700;
       font-size: 1.1rem;
       display: none;
       z-index: 200;
-      box-shadow: 4px 4px 0px #00B4FF;
+      box-shadow: 4px 4px 0px #000000;
     }
   </style>
 </head>

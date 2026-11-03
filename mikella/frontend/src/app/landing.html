@@ -119,6 +119,11 @@
       box-shadow: 6px 6px 0px #000000;
     }
 
+    .campo-senha-mascarado {
+      -webkit-text-security: disc;
+      text-security: disc;
+    }
+
     .btn-entrar {
       width: 100%;
       height: 64px;
@@ -188,15 +193,19 @@
   <main class="login-container">
     <div class="marca-titulo">MIKELLA ERP</div>
 
-    <form id="form-login" class="form-bloco" autocomplete="off">
+    <form id="form-login" class="form-bloco" autocomplete="off" onsubmit="return false;">
+      <!-- Inputs fantasmas para drenar preenchimento automático do Chromium/Edge -->
+      <input type="text" style="display:none!important;" aria-hidden="true" tabindex="-1" autocomplete="false" />
+      <input type="password" style="display:none!important;" aria-hidden="true" tabindex="-1" autocomplete="false" />
+
       <div id="grupo-user" class="campo-grupo">
         <label for="input-user" class="campo-label">USER</label>
-        <input id="input-user" class="campo-input" type="text" autocomplete="off" spellcheck="false" autofocus required />
+        <input id="input-user" name="mikella_op_user" class="campo-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" autofocus required />
       </div>
 
       <div id="grupo-senha" class="campo-grupo">
         <label id="label-senha" for="input-senha" class="campo-label">SENHA</label>
-        <input id="input-senha" class="campo-input" type="password" autocomplete="new-password" required />
+        <input id="input-senha" name="mikella_op_pwd" class="campo-input campo-senha-mascarado" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" required />
       </div>
 
       <div id="msg-erro" class="feedback-msg feedback-erro" style="display: none;"></div>
@@ -275,7 +284,7 @@
             etapa = "2fa";
             grupoUser.style.display = "none";
             labelSenha.textContent = "CÓDIGO 2FA";
-            inputSenha.type = "text";
+            inputSenha.classList.remove("campo-senha-mascarado");
             inputSenha.maxLength = 6;
             inputSenha.placeholder = "000000";
             btnSubmit.textContent = "VERIFICAR CÓDIGO (ENTER)";
@@ -346,7 +355,7 @@
         etapa = "login";
         grupoUser.style.display = "flex";
         labelSenha.textContent = "SENHA";
-        inputSenha.type = "password";
+        inputSenha.classList.add("campo-senha-mascarado");
         inputSenha.placeholder = "";
         inputSenha.value = "";
         btnSubmit.textContent = "ENTRAR";

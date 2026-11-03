@@ -123,7 +123,7 @@ pub async fn finalizar_venda_handler(
                 "DEBITO" => FormaPagamento::Debito,
                 "CREDITO" => FormaPagamento::Credito,
                 "PIX" => FormaPagamento::Pix,
-                "OUTRO" => FormaPagamento::Outro,
+                "OUTRO" | "VOUCHER" | "CREDIARIO" => FormaPagamento::Outro,
                 _ => return bad_request(&format!("forma desconhecida: {}", p.forma)),
             };
             let valor = Money::from_centavos(p.valor_centavos);
@@ -157,7 +157,7 @@ pub async fn finalizar_venda_handler(
         dispositivo_id,
         operador_id,
         vendedor_id: None,
-        comanda_id: None,
+        comanda_id: form.comanda_id.clone(),
         itens,
         desconto: Money::from_centavos(form.desconto_centavos),
         pagamentos,
@@ -198,6 +198,27 @@ pub async fn finalizar_venda_handler(
 
     match finalizar_venda(&repos, cmd) {
         Ok(venda) => {
+            // Se houve pagamento no CREDIARIO e cliente informado, lança em contas_receber na mesma hora
+            for p in &form.pagamentos {
+                if p.forma.to_uppercase() == "CREDIARIO" {
+                    if let Some(cid) = &form.cliente_id {
+                        let conta_id = uuid::Uuid::new_v4().to_string();
+                        let desc = format!("Venda Crediário #{}", &form.venda_id[..8.min(form.venda_id.len())]);
+                        let _ = tx.execute(
+                            "INSERT INTO contas_receber (id, descricao, cliente_id, referencia_id, referencia_tipo, total_centavos) \
+                             VALUES (?1, ?2, ?3, ?4, 'VENDA', ?5)",
+                            rusqlite::params![conta_id, desc, cid, form.venda_id, p.valor_centavos],
+                        );
+                        let venc = (chrono::Utc::now() + chrono::Duration::days(30)).format("%Y-%m-%d").to_string();
+                        let _ = tx.execute(
+                            "INSERT INTO parcelas_receber (conta_id, numero, vencimento, valor_centavos, estado) \
+                             VALUES (?1, 1, ?2, ?3, 'PENDENTE')",
+                            rusqlite::params![conta_id, venc, p.valor_centavos],
+                        );
+                    }
+                }
+            }
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -236,4 +257,204 @@ pub async fn finalizar_venda_handler(
             error_para_http(e)
         }
     }
+}
+
+/// `POST /v1/vendas/autorizar-cancelamento`
+///
+/// Valida se o usuário e senha têm permissão para cancelar compra no caixa atual:
+/// - Dono e Gerente podem cancelar em qualquer caixa.
+/// - Operador de caixa comum só pode cancelar no seu próprio caixa (onde é o operador da sessão).
+pub async fn autorizar_cancelamento_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<crate::dto::sales::AutorizarCancelamentoPayload>,
+) -> impl IntoResponse {
+    use rusqlite::OptionalExtension;
+    let db = state.db.lock().await;
+
+    let usuario_row: Option<(String, String, String)> = db
+        .conn()
+        .query_row(
+            "SELECT id, senha_hash, papel FROM usuarios WHERE username = ?1 COLLATE NOCASE AND ativo = 1",
+            [payload.username.trim()],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()
+        .unwrap_or(None);
+
+    let (u_id, senha_hash, papel_str) = match usuario_row {
+        Some(u) => u,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({ "erro": "Usuário de autorização não encontrado ou inativo." })),
+            );
+        }
+    };
+
+    if !crate::util::verificar_senha(&payload.senha, &senha_hash) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "erro": "Senha de autorização incorreta." })),
+        );
+    }
+
+    let papel = match mikella_domain_people::Papel::from_db(&papel_str) {
+        Ok(p) => p,
+        Err(_) => {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({ "erro": "Papel do usuário inválido." })),
+            );
+        }
+    };
+
+    // Dono ou Gerente podem cancelar em qualquer caixa
+    if papel.nivel() >= 2 {
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "autorizado": true,
+                "usuario_id": u_id,
+                "papel": papel_str,
+                "motivo": "Autorizado por perfil gerencial"
+            })),
+        );
+    }
+
+    // Operador comum: só pode cancelar no seu próprio caixa
+    let sessao_operador_id: Option<String> = db
+        .conn()
+        .query_row(
+            "SELECT operador_id FROM sessoes_caixa WHERE id = ?1",
+            [&payload.sessao_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .unwrap_or(None);
+
+    match sessao_operador_id {
+        Some(op_id) if op_id == u_id => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "autorizado": true,
+                "usuario_id": u_id,
+                "papel": papel_str,
+                "motivo": "Autorizado pelo próprio operador do caixa"
+            })),
+        ),
+        Some(_) => (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "erro": "Permissão negada: Um operador só pode cancelar compras no seu próprio caixa. Chame o gerente."
+            })),
+        ),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "erro": "Sessão de caixa não encontrada." })),
+        ),
+    }
+}
+
+/// `POST /v1/vendas/:id/cancelar`
+pub async fn cancelar_venda_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    axum::extract::Path(venda_id): axum::extract::Path<String>,
+    Json(payload): Json<crate::dto::sales::CancelarVendaPayload>,
+) -> impl IntoResponse {
+    exigir!(ator, "venda.criar");
+    use rusqlite::OptionalExtension;
+
+    let mut db = state.db.lock().await;
+    let tx = match db.transacao() {
+        Ok(t) => t,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "erro": e.to_string() })),
+            );
+        }
+    };
+
+    let venda_row: Option<(String, String, i64)> = tx
+        .query_row(
+            "SELECT sessao_id, estado, total_centavos FROM vendas WHERE id = ?1",
+            [&venda_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()
+        .unwrap_or(None);
+
+    let (sessao_id, estado, total_centavos) = match venda_row {
+        Some(v) => v,
+        None => {
+            let _ = tx.rollback();
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "erro": "Venda não encontrada" })),
+            );
+        }
+    };
+
+    if estado != "FINALIZADA" {
+        let _ = tx.rollback();
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "erro": format!("Venda não pode ser cancelada (estado atual: {})", estado) })),
+        );
+    }
+
+    // 1. Atualiza estado da venda para CANCELADA
+    let _ = tx.execute("UPDATE vendas SET estado = 'CANCELADA' WHERE id = ?1", [&venda_id]);
+
+    // 2. Lança CANCELAMENTO no livro_caixa
+    let livro = mikella_infra_sqlite::LivroRepo::novo(&tx);
+    if let Ok(sessao_uuid) = sessao_id.parse() {
+        use mikella_domain_cash::ports::LivroCaixaRepository;
+        if let Ok(posicao) = livro.posicao_atual(sessao_uuid) {
+            let entrada_id = uuid::Uuid::new_v4().to_string();
+            let mut hasher = blake3::Hasher::new();
+            hasher.update(posicao.ultimo_hash.as_bytes());
+            hasher.update(entrada_id.as_bytes());
+            hasher.update(b"CANCELAMENTO");
+            let valor_neg = -total_centavos;
+            hasher.update(&valor_neg.to_le_bytes());
+            let novo_hash = hasher.finalize().to_hex().to_string();
+
+            let motivo = payload.motivo.unwrap_or_else(|| "Cancelamento de compra".to_string());
+            let _ = tx.execute(
+                "INSERT INTO livro_caixa \
+                 (id, sessao_id, sequencia, tipo, valor_centavos, troco_centavos, \
+                  referencia_id, referencia_tipo, usuario_id, motivo, prev_hash, hash) \
+                 VALUES (?1, ?2, ?3, 'CANCELAMENTO', ?4, 0, ?5, 'VENDA', ?6, ?7, ?8, ?9)",
+                rusqlite::params![
+                    entrada_id,
+                    sessao_id,
+                    posicao.proxima_sequencia,
+                    valor_neg,
+                    venda_id,
+                    ator.id().to_string(),
+                    motivo,
+                    posicao.ultimo_hash,
+                    novo_hash,
+                ],
+            );
+        }
+    }
+
+    if let Err(e) = tx.commit() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "erro": format!("Falha ao confirmar cancelamento: {}", e) })),
+        );
+    }
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "sucesso": true,
+            "mensagem": "Venda cancelada com sucesso!",
+            "venda_id": venda_id,
+        })),
+    )
 }

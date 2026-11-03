@@ -66,20 +66,30 @@ pub async fn vendas_listar(
     Query(params): Query<VendasQuery>,
 ) -> impl IntoResponse {
     exigir!(ator, "venda.ver");
-    tracing::debug!(usuario = %ator.0.username, limite = params.limite, "listando vendas do dia");
 
     let db = state.db.lock().await;
     let limite = params.limite.clamp(1, 200);
 
+    let mut sql = "SELECT id, sessao_id, operador_id, estado, total_centavos, recebido_centavos, created_at FROM vendas WHERE 1=1".to_string();
+
+    if let Some(codigo) = params.codigo.as_deref().filter(|c| !c.trim().is_empty()) {
+        sql.push_str(&format!(" AND (id LIKE '%{}%' OR rowid = '{}')", codigo.trim(), codigo.trim()));
+    } else {
+        if let Some(ini) = params.data_inicio.as_deref().filter(|d| !d.trim().is_empty()) {
+            sql.push_str(&format!(" AND date(created_at) >= date('{}')", ini.trim()));
+        }
+        if let Some(fim) = params.data_fim.as_deref().filter(|d| !d.trim().is_empty()) {
+            sql.push_str(&format!(" AND date(created_at) <= date('{}')", fim.trim()));
+        }
+        if params.data_inicio.is_none() && params.data_fim.is_none() {
+            sql.push_str(" AND date(created_at) = date('now')");
+        }
+    }
+
+    sql.push_str(" ORDER BY created_at DESC LIMIT ?1");
+
     let vendas = (|| -> rusqlite::Result<Vec<VendaSummary>> {
-        let mut stmt = db.conn().prepare(
-            "SELECT id, sessao_id, operador_id, estado,
-                    total_centavos, recebido_centavos, created_at
-             FROM vendas
-             WHERE date(created_at) = date('now')
-             ORDER BY created_at DESC
-             LIMIT ?1",
-        )?;
+        let mut stmt = db.conn().prepare(&sql)?;
         let rows = stmt.query_map([&limite], |row| {
             let total_centavos: i64 = row.get(4)?;
             let recebido_centavos: i64 = row.get(5)?;

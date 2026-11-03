@@ -24,4 +24,15 @@ pub struct AbrirCaixaForm {
 pub struct FecharCaixaForm {
     pub sessao_id: String,
     pub saldo_contado_centavos: i64,
+    #[serde(default)]
+    pub observacao: Option<String>,
+}
+
+/// Formulário para sangria (retirada de dinheiro do caixa).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SangriaForm {
+    pub sessao_id: String,
+    pub valor_centavos: i64,
+    pub motivo: Option<String>,
 }

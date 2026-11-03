@@ -13,7 +13,7 @@ pub mod two_factor;
 pub mod users;
 
 pub use auth::{LoginForm, OnboardingForm, OnboardingStatus};
-pub use cash::{AbrirCaixaForm, FecharCaixaForm};
+pub use cash::{AbrirCaixaForm, FecharCaixaForm, SangriaForm};
 pub use finance::{
     ListarContasQuery, ParcelaForm, RegistrarContaPagarForm, RegistrarContaReceberForm,
 };

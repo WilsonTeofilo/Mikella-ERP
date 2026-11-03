@@ -81,6 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/usuarios/:id/senha", put(atualizar_senha_handler))
         .route("/v1/caixa/status", get(caixa_status))
         .route("/v1/caixa/abrir", post(abrir_caixa_handler))
+        .route("/v1/caixa/sangria", post(realizar_sangria_handler))
         .route("/v1/caixa/fechar", post(fechar_caixa_handler))
         .route(
             "/v1/caixa/fechamento/:id/comprovante",
@@ -93,8 +94,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/livro-caixa", get(livro_caixa))
         .route("/v1/vendas", get(vendas_listar))
         .route("/v1/vendas", post(finalizar_venda_handler))
+        .route(
+            "/v1/vendas/autorizar-cancelamento",
+            post(autorizar_cancelamento_handler),
+        )
+        .route("/v1/vendas/:id/cancelar", post(cancelar_venda_handler))
         .route("/v1/vendas/:id/comprovante", get(obter_comprovante))
         .route("/v1/vendas/:id/imprimir", post(imprimir_comprovante))
+        .route("/v1/clientes", get(listar_clientes_handler))
+        .route("/v1/clientes", post(salvar_cliente_handler))
+        .route("/v1/crediario/devedores", get(listar_devedores_handler))
+        .route("/v1/crediario/liquidar", post(liquidar_divida_handler))
         .route("/v1/sistema/backup-local", post(backup_local))
         .route("/v1/sistema/diagnostico", get(diagnostico))
         .route("/v1/donation/prompt", get(donation_prompt))

@@ -9,6 +9,7 @@
 pub mod auth;
 pub mod cash;
 pub mod csv;
+pub mod customers;
 pub mod donation;
 pub mod finance;
 pub mod health;
@@ -20,8 +21,12 @@ pub mod system;
 pub mod users;
 
 pub use auth::{auth_me, login, onboarding_create, onboarding_status, solicitar_2fa, verificar_2fa};
-pub use cash::{abrir_caixa_handler, caixa_status, fechar_caixa_handler};
+pub use cash::{abrir_caixa_handler, caixa_status, fechar_caixa_handler, realizar_sangria_handler};
 pub use csv::import_csv_handler;
+pub use customers::{
+    listar_clientes_handler, listar_devedores_handler, liquidar_divida_handler,
+    salvar_cliente_handler,
+};
 pub use donation::{donation_ack, donation_prompt};
 pub use finance::{
     listar_contas_abertas_handler, liquidar_parcela_handler, liquidar_parcela_receber_handler,
@@ -37,7 +42,9 @@ pub use receipt::{
     obter_comprovante_fechamento,
 };
 pub use sales::{listar_produtos, livro_caixa, vendas_listar};
-pub use sales_write::finalizar_venda_handler;
+pub use sales_write::{
+    autorizar_cancelamento_handler, cancelar_venda_handler, finalizar_venda_handler,
+};
 pub use system::{backup_local, diagnostico};
 pub use users::{
     atualizar_senha_handler, atualizar_usuario_handler, buscar_usuario_handler,

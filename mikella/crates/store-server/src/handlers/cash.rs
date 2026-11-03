@@ -16,7 +16,7 @@ use mikella_shared_kernel::clock::SystemClock;
 use mikella_shared_kernel::ids::{DispositivoId, SessaoId};
 use mikella_shared_kernel::money::Money;
 
-use crate::dto::{AbrirCaixaForm, FecharCaixaForm};
+use crate::dto::{AbrirCaixaForm, FecharCaixaForm, SangriaForm};
 use crate::exigir;
 use crate::middleware::Ator;
 use crate::state::AppState;
@@ -252,6 +252,15 @@ pub async fn fechar_caixa_handler(
 
     match fechar_caixa(&repos, cmd) {
         Ok(diferenca) => {
+            // Se houver observação do fechamento (até 512 caracteres), atualiza a entrada de fechamento no livro
+            if let Some(obs) = form.observacao.filter(|s| !s.trim().is_empty()) {
+                let obs_truncada = if obs.len() > 512 { obs[..512].to_string() } else { obs };
+                let _ = tx.execute(
+                    "UPDATE livro_caixa SET motivo = ?1 WHERE sessao_id = ?2 AND tipo = 'FECHAMENTO'",
+                    rusqlite::params![obs_truncada, sessao_id.to_string()],
+                );
+            }
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -278,4 +287,125 @@ pub async fn fechar_caixa_handler(
             error_para_http(e)
         }
     }
+}
+
+/// `POST /v1/caixa/sangria` — realiza retirada de dinheiro da gaveta com lançamento criptográfico.
+pub async fn realizar_sangria_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    Form(form): Form<SangriaForm>,
+) -> impl IntoResponse {
+    exigir!(ator, "caixa.criar");
+
+    let sessao_id: SessaoId = match form.sessao_id.parse() {
+        Ok(id) => id,
+        Err(_) => return bad_request("sessao_id inválido (UUID esperado)"),
+    };
+
+    if form.valor_centavos <= 0 {
+        return bad_request("Valor da sangria deve ser maior que zero");
+    }
+
+    let operador_id = ator.id();
+    let motivo = form.motivo.unwrap_or_else(|| "Sangria de caixa".to_string());
+    let motivo_truncado = if motivo.len() > 256 {
+        motivo[..256].to_string()
+    } else {
+        motivo
+    };
+
+    let mut db = state.db.lock().await;
+    let tx = match db.transacao() {
+        Ok(t) => t,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "erro": e.to_string() })),
+            );
+        }
+    };
+
+    use mikella_domain_cash::ports::{LivroCaixaRepository, SessaoRepository};
+    let sessoes = SessaoRepo::novo(&tx);
+    let sessao = match sessoes.buscar_por_id(sessao_id) {
+        Ok(Some(s)) => s,
+        _ => {
+            let _ = tx.rollback();
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "erro": "Sessão de caixa não encontrada" })),
+            );
+        }
+    };
+
+    if sessao.estado.as_str() != "ABERTA" {
+        let _ = tx.rollback();
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "erro": "Caixa não está aberto para sangria" })),
+        );
+    }
+
+    let livro = LivroRepo::novo(&tx);
+    let posicao = match livro.posicao_atual(sessao_id) {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = tx.rollback();
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "erro": e.to_string() })),
+            );
+        }
+    };
+
+    let entrada_id = uuid::Uuid::new_v4().to_string();
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(posicao.ultimo_hash.as_bytes());
+    hasher.update(entrada_id.as_bytes());
+    hasher.update(b"SANGRIA");
+    let valor_negativo = -form.valor_centavos;
+    hasher.update(&valor_negativo.to_le_bytes());
+    let novo_hash = hasher.finalize().to_hex().to_string();
+
+    let insert_res = tx.execute(
+        "INSERT INTO livro_caixa \
+         (id, sessao_id, sequencia, tipo, valor_centavos, troco_centavos, \
+          usuario_id, motivo, prev_hash, hash) \
+         VALUES (?1, ?2, ?3, 'SANGRIA', ?4, 0, ?5, ?6, ?7, ?8)",
+        rusqlite::params![
+            entrada_id,
+            sessao_id.to_string(),
+            posicao.proxima_sequencia,
+            valor_negativo,
+            operador_id.to_string(),
+            motivo_truncado,
+            posicao.ultimo_hash,
+            novo_hash,
+        ],
+    );
+
+    if let Err(e) = insert_res {
+        let _ = tx.rollback();
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "erro": format!("Erro ao registrar sangria: {}", e) })),
+        );
+    }
+
+    if let Err(e) = tx.commit() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "erro": format!("Erro ao confirmar sangria: {}", e) })),
+        );
+    }
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "sucesso": true,
+            "mensagem": "Sangria realizada com sucesso!",
+            "valor": Money::from_centavos(form.valor_centavos).to_string(),
+            "motivo": motivo_truncado,
+        })),
+    )
 }

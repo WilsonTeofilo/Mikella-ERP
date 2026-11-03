@@ -8,9 +8,9 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 
-use mikella_app_sales::{finalizar_venda, FinalizarVendaCmd, ItemCmd, PoliticaEstoque, VendaRepos};
+use mikella_app_sales::{finalizar_venda, CrediarioCmd, FinalizarVendaCmd, ItemCmd, PoliticaEstoque, VendaRepos};
 use mikella_domain_sales::venda::{FormaPagamento, Pagamento};
-use mikella_infra_sqlite::{Blake3HashChain, LivroRepo, LoteRepo, MovimentacaoRepo, ProdutoRepo, SessaoRepo, VendaRepo};
+use mikella_infra_sqlite::{Blake3HashChain, ContaReceberRepo, LivroRepo, LoteRepo, MovimentacaoRepo, ProdutoRepo, SessaoRepo, VendaRepo};
 use mikella_shared_kernel::clock::SystemClock;
 use mikella_shared_kernel::ids::{DispositivoId, LoteId, ProdutoId, SessaoId, VendaId};
 use mikella_shared_kernel::money::Money;
@@ -123,7 +123,9 @@ pub async fn finalizar_venda_handler(
                 "DEBITO" => FormaPagamento::Debito,
                 "CREDITO" => FormaPagamento::Credito,
                 "PIX" => FormaPagamento::Pix,
-                "OUTRO" | "VOUCHER" | "CREDIARIO" => FormaPagamento::Outro,
+                "VOUCHER" => FormaPagamento::Voucher,
+                "CREDIARIO" => FormaPagamento::Crediario,
+                "OUTRO" => FormaPagamento::Outro,
                 _ => return bad_request(&format!("forma desconhecida: {}", p.forma)),
             };
             let valor = Money::from_centavos(p.valor_centavos);
@@ -151,6 +153,23 @@ pub async fn finalizar_venda_handler(
         _ => return bad_request("politica_estoque inválida (Bloquear|PermitirNegativo)"),
     };
 
+    let crediario = if pagamentos.iter().any(|p| p.forma.e_crediario()) {
+        let Some(cliente_id) = form
+            .cliente_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+        else {
+            return bad_request("venda a crediário exige um cliente cadastrado");
+        };
+        Some(CrediarioCmd {
+            cliente_id: cliente_id.to_string(),
+            vencimento_dias: 30,
+        })
+    } else {
+        None
+    };
+
     let cmd = FinalizarVendaCmd {
         venda_id,
         sessao_id,
@@ -162,9 +181,10 @@ pub async fn finalizar_venda_handler(
         desconto: Money::from_centavos(form.desconto_centavos),
         pagamentos,
         politica_estoque: politica,
+        crediario,
     };
 
-    // Usar o padrão UnitOfWork para melhor encapsulamento da transação
+    // Transação única: venda + estoque + livro-caixa + crediário.
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {
         Ok(tx) => tx,
@@ -183,6 +203,7 @@ pub async fn finalizar_venda_handler(
     let sessoes = SessaoRepo::novo(&tx);
     let livro = LivroRepo::novo(&tx);
     let estoque = MovimentacaoRepo::novo(&tx);
+    let contas_receber = ContaReceberRepo::novo(&tx);
     let hash = Blake3HashChain;
     let clock = SystemClock;
     let repos = VendaRepos {
@@ -194,31 +215,11 @@ pub async fn finalizar_venda_handler(
         estoque: &estoque,
         hash: &hash,
         clock: &clock,
+        contas_receber: Some(&contas_receber),
     };
 
     match finalizar_venda(&repos, cmd) {
         Ok(venda) => {
-            // Se houve pagamento no CREDIARIO e cliente informado, lança em contas_receber na mesma hora
-            for p in &form.pagamentos {
-                if p.forma.to_uppercase() == "CREDIARIO" {
-                    if let Some(cid) = &form.cliente_id {
-                        let conta_id = uuid::Uuid::new_v4().to_string();
-                        let desc = format!("Venda Crediário #{}", &form.venda_id[..8.min(form.venda_id.len())]);
-                        let _ = tx.execute(
-                            "INSERT INTO contas_receber (id, descricao, cliente_id, referencia_id, referencia_tipo, total_centavos) \
-                             VALUES (?1, ?2, ?3, ?4, 'VENDA', ?5)",
-                            rusqlite::params![conta_id, desc, cid, form.venda_id, p.valor_centavos],
-                        );
-                        let venc = (chrono::Utc::now() + chrono::Duration::days(30)).format("%Y-%m-%d").to_string();
-                        let _ = tx.execute(
-                            "INSERT INTO parcelas_receber (conta_id, numero, vencimento, valor_centavos, estado) \
-                             VALUES (?1, 1, ?2, ?3, 'PENDENTE')",
-                            rusqlite::params![conta_id, venc, p.valor_centavos],
-                        );
-                    }
-                }
-            }
-
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -266,92 +267,129 @@ pub async fn finalizar_venda_handler(
 /// - Operador de caixa comum só pode cancelar no seu próprio caixa (onde é o operador da sessão).
 pub async fn autorizar_cancelamento_handler(
     State(state): State<AppState>,
+    ator: Ator,
     Json(payload): Json<crate::dto::sales::AutorizarCancelamentoPayload>,
 ) -> impl IntoResponse {
-    use rusqlite::OptionalExtension;
+    exigir!(ator, "venda.cancelar");
+
+    let username = payload.username.trim();
+    if username.is_empty() || payload.senha.is_empty() {
+        return bad_request("usuário e senha de autorização são obrigatórios");
+    }
+
+    // SEG-006: senha de autorização também é alvo de força bruta.
+    let chave_rate = format!("autorizar-cancelamento:{}", AppState::chave_usuario(username));
+    {
+        let mut rl = state.rate_limit.lock().await;
+        if !rl.permitir(&chave_rate) {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({
+                    "erro": "Muitas tentativas de autorização. Aguarde alguns minutos."
+                })),
+            );
+        }
+    }
+
     let db = state.db.lock().await;
 
-    let usuario_row: Option<(String, String, String)> = db
-        .conn()
-        .query_row(
-            "SELECT id, senha_hash, papel FROM usuarios WHERE username = ?1 COLLATE NOCASE AND ativo = 1",
-            [payload.username.trim()],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )
-        .optional()
-        .unwrap_or(None);
-
-    let (u_id, senha_hash, papel_str) = match usuario_row {
-        Some(u) => u,
-        None => {
+    use mikella_domain_people::ports::UsuarioRepository;
+    let resultado_usuario = {
+        let usuarios = mikella_infra_sqlite::UsuarioRepo::novo(db.conn());
+        usuarios.buscar_por_username(username)
+    };
+    let usuario = match resultado_usuario {
+        Ok(Some(u)) if u.ativo => u,
+        Ok(_) => {
+            drop(db);
+            state.rate_limit.lock().await.registrar_falha(&chave_rate);
             return (
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({ "erro": "Usuário de autorização não encontrado ou inativo." })),
             );
         }
+        Err(e) => {
+            drop(db);
+            tracing::error!(erro = %e, "falha ao buscar usuário autorizador");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "erro": "falha de banco" })),
+            );
+        }
     };
 
-    if !crate::util::verificar_senha(&payload.senha, &senha_hash) {
+    if !crate::util::verificar_senha(&payload.senha, &usuario.senha_hash) {
+        drop(db);
+        state.rate_limit.lock().await.registrar_falha(&chave_rate);
         return (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({ "erro": "Senha de autorização incorreta." })),
         );
     }
 
-    let papel = match mikella_domain_people::Papel::from_db(&papel_str) {
-        Ok(p) => p,
-        Err(_) => {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(serde_json::json!({ "erro": "Papel do usuário inválido." })),
-            );
-        }
-    };
-
-    // Dono ou Gerente podem cancelar em qualquer caixa
-    if papel.nivel() >= 2 {
+    // Dono ou Gerente podem cancelar em qualquer caixa.
+    if usuario.papel.nivel() >= 2 {
+        drop(db);
+        state.rate_limit.lock().await.limpar(&chave_rate);
         return (
             StatusCode::OK,
             Json(serde_json::json!({
                 "autorizado": true,
-                "usuario_id": u_id,
-                "papel": papel_str,
+                "usuario_id": usuario.id.to_string(),
+                "papel": usuario.papel.as_db(),
                 "motivo": "Autorizado por perfil gerencial"
             })),
         );
     }
 
-    // Operador comum: só pode cancelar no seu próprio caixa
-    let sessao_operador_id: Option<String> = db
-        .conn()
-        .query_row(
-            "SELECT operador_id FROM sessoes_caixa WHERE id = ?1",
-            [&payload.sessao_id],
-            |r| r.get(0),
-        )
-        .optional()
-        .unwrap_or(None);
+    // Operador comum: só pode cancelar no próprio caixa.
+    let sessao_id = match payload.sessao_id.parse::<SessaoId>() {
+        Ok(id) => id,
+        Err(_) => return bad_request("sessao_id inválido (UUID esperado)"),
+    };
+    use mikella_domain_cash::ports::SessaoRepository;
+    let resultado_sessao = {
+        let sessoes = mikella_infra_sqlite::SessaoRepo::novo(db.conn());
+        sessoes.buscar_por_id(sessao_id)
+    };
+    let sessao = match resultado_sessao {
+        Ok(Some(s)) => s,
+        Ok(None) => {
+            drop(db);
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "erro": "Sessão de caixa não encontrada." })),
+            );
+        }
+        Err(e) => {
+            drop(db);
+            tracing::error!(erro = %e, "falha ao buscar sessão de caixa");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "erro": "falha de banco" })),
+            );
+        }
+    };
+    drop(db);
 
-    match sessao_operador_id {
-        Some(op_id) if op_id == u_id => (
+    if sessao.operador_id == usuario.id {
+        state.rate_limit.lock().await.limpar(&chave_rate);
+        (
             StatusCode::OK,
             Json(serde_json::json!({
                 "autorizado": true,
-                "usuario_id": u_id,
-                "papel": papel_str,
+                "usuario_id": usuario.id.to_string(),
+                "papel": usuario.papel.as_db(),
                 "motivo": "Autorizado pelo próprio operador do caixa"
             })),
-        ),
-        Some(_) => (
+        )
+    } else {
+        (
             StatusCode::FORBIDDEN,
             Json(serde_json::json!({
                 "erro": "Permissão negada: Um operador só pode cancelar compras no seu próprio caixa. Chame o gerente."
             })),
-        ),
-        None => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "erro": "Sessão de caixa não encontrada." })),
-        ),
+        )
     }
 }
 
@@ -362,7 +400,7 @@ pub async fn cancelar_venda_handler(
     axum::extract::Path(venda_id): axum::extract::Path<String>,
     Json(payload): Json<crate::dto::sales::CancelarVendaPayload>,
 ) -> impl IntoResponse {
-    exigir!(ator, "venda.criar");
+    exigir!(ator, "venda.cancelar");
 
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {
@@ -386,13 +424,70 @@ pub async fn cancelar_venda_handler(
         }
     };
 
+    // Operador só cancela venda do próprio caixa; gerente/dono cancelam em
+    // qualquer caixa. A checagem é feita aqui, não no cliente.
+    {
+        use mikella_domain_cash::ports::SessaoRepository as _;
+        use mikella_domain_sales::ports::VendaRepository as _;
+
+        let vendas_leitura = mikella_infra_sqlite::VendaRepo::novo(&tx);
+        let venda = match vendas_leitura.buscar_por_id(vid) {
+            Ok(Some(v)) => v,
+            Ok(None) => {
+                let _ = tx.rollback();
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({ "erro": "venda não encontrada" })),
+                );
+            }
+            Err(e) => {
+                let _ = tx.rollback();
+                tracing::error!(erro = %e, "falha ao buscar venda para cancelamento");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha de banco" })),
+                );
+            }
+        };
+
+        if ator.papel().nivel() < 2 {
+            let sessoes = mikella_infra_sqlite::SessaoRepo::novo(&tx);
+            match sessoes.buscar_por_id(venda.sessao_id) {
+                Ok(Some(sessao)) if sessao.operador_id == ator.id() => {}
+                Ok(_) => {
+                    let _ = tx.rollback();
+                    return (
+                        StatusCode::FORBIDDEN,
+                        Json(serde_json::json!({
+                            "erro": "Operador só pode cancelar vendas do próprio caixa. Chame o gerente."
+                        })),
+                    );
+                }
+                Err(e) => {
+                    let _ = tx.rollback();
+                    tracing::error!(erro = %e, "falha ao buscar sessão da venda");
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({ "erro": "falha de banco" })),
+                    );
+                }
+            }
+        }
+    }
+
     let vendas = mikella_infra_sqlite::VendaRepo::novo(&tx);
+    let produtos = mikella_infra_sqlite::ProdutoRepo::novo(&tx);
+    let estoque = mikella_infra_sqlite::MovimentacaoRepo::novo(&tx);
     let livro = mikella_infra_sqlite::LivroRepo::novo(&tx);
+    let contas_receber = mikella_infra_sqlite::ContaReceberRepo::novo(&tx);
     let hash = mikella_infra_sqlite::Blake3HashChain;
     let repos = mikella_app_sales::CancelarVendaRepos {
         vendas: &vendas,
+        produtos: &produtos,
+        estoque: &estoque,
         livro: &livro,
         hash: &hash,
+        contas_receber: Some(&contas_receber),
     };
 
     let cmd = mikella_app_sales::CancelarVendaCmd {

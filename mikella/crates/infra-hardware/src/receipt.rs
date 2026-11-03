@@ -67,6 +67,11 @@ pub struct ComprovanteFechamentoCaixa {
     pub saldo_esperado_dinheiro: Money,
     pub saldo_informado_dinheiro: Money,
     pub diferenca: Money,
+    pub quantidade_vendas: u32,
+    pub quantidade_cancelamentos: u32,
+    pub quantidade_estornos: u32,
+    /// Observação do fechamento (até 512 caracteres), impressa no cupom.
+    pub observacao: Option<String>,
     pub ultimo_hash: String,
 }
 
@@ -387,6 +392,15 @@ impl EscPosGerador {
         out.push_str(&sep);
         out.push('\n');
 
+        out.push_str(&Self::formatar_linha_colunas("Vendas:", &c.quantidade_vendas.to_string(), cols));
+        out.push('\n');
+        out.push_str(&Self::formatar_linha_colunas("Cancelamentos:", &c.quantidade_cancelamentos.to_string(), cols));
+        out.push('\n');
+        out.push_str(&Self::formatar_linha_colunas("Estornos:", &c.quantidade_estornos.to_string(), cols));
+        out.push('\n');
+        out.push_str(&sep_fina);
+        out.push('\n');
+
         out.push_str(&Self::formatar_linha_colunas("Saldo Inicial:", &format!("{}", c.saldo_inicial), cols));
         out.push('\n');
         out.push_str(&Self::formatar_linha_colunas("(+) Vendas Dinheiro:", &format!("{}", c.total_vendas_dinheiro), cols));
@@ -420,8 +434,21 @@ impl EscPosGerador {
         out.push_str(&sep);
         out.push('\n');
 
-        out.push_str("\n_______________________________\nOperador\n\n");
-        out.push_str("_______________________________\nGerente / Responsavel\n\n");
+        if let Some(obs) = c.observacao.as_deref().map(str::trim).filter(|o| !o.is_empty()) {
+            out.push_str("Observacao:\n");
+            for linha in Self::quebrar_texto(obs, cols) {
+                out.push_str(&linha);
+                out.push('\n');
+            }
+            out.push_str(&sep_fina);
+            out.push('\n');
+        }
+
+        out.push_str("\n_______________________________\n");
+        out.push_str(&format!("{}\n", c.operador_nome));
+        out.push_str("Operador\n\n");
+        out.push_str("_______________________________\n");
+        out.push_str("Gerente / Responsavel\n\n");
 
         let hash_curto = &c.ultimo_hash[..c.ultimo_hash.len().min(16)];
         out.push_str(&Self::centralizar(&format!("Integridade: {}", hash_curto), cols));
@@ -432,16 +459,39 @@ impl EscPosGerador {
         out
     }
 
-    fn centralizar(texto: &str, largura: usize) -> String {
-        if texto.len() >= largura {
-            return texto[..largura].to_string();
+    /// Quebra um texto em linhas de até `largura` caracteres, respeitando
+    /// palavras e contando caracteres (não bytes) para não cortar acentos.
+    fn quebrar_texto(texto: &str, largura: usize) -> Vec<String> {
+        let mut linhas = Vec::new();
+        let mut atual = String::new();
+        for palavra in texto.split_whitespace() {
+            let extra = if atual.is_empty() { 0 } else { 1 };
+            if atual.chars().count() + extra + palavra.chars().count() > largura && !atual.is_empty() {
+                linhas.push(atual);
+                atual = String::new();
+            }
+            if !atual.is_empty() {
+                atual.push(' ');
+            }
+            atual.push_str(palavra);
         }
-        let espacos = (largura - texto.len()) / 2;
+        if !atual.is_empty() {
+            linhas.push(atual);
+        }
+        linhas
+    }
+
+    fn centralizar(texto: &str, largura: usize) -> String {
+        let total = texto.chars().count();
+        if total >= largura {
+            return texto.chars().take(largura).collect();
+        }
+        let espacos = (largura - total) / 2;
         format!("{}{}", " ".repeat(espacos), texto)
     }
 
     fn formatar_linha_colunas(esq: &str, dir: &str, largura: usize) -> String {
-        let total_chars = esq.len() + dir.len();
+        let total_chars = esq.chars().count() + dir.chars().count();
         if total_chars >= largura {
             return format!("{} {}", esq, dir);
         }
@@ -520,6 +570,10 @@ mod tests {
             saldo_esperado_dinheiro: Money::from_centavos(40000), // R$ 400,00
             saldo_informado_dinheiro: Money::from_centavos(40000), // R$ 400,00
             diferenca: Money::ZERO,
+            quantidade_vendas: 12,
+            quantidade_cancelamentos: 1,
+            quantidade_estornos: 0,
+            observacao: Some("Conferido com o gerente; sem ocorrências.".into()),
             ultimo_hash: "blake3_hash_genesis_abc123".into(),
         };
 
@@ -528,6 +582,8 @@ mod tests {
         assert!(texto.contains("SALDO ESPERADO:"));
         assert!(texto.contains("SALDO CONTADO:"));
         assert!(texto.contains("CONFERE"));
+        assert!(texto.contains("Cancelamentos:"));
+        assert!(texto.contains("Conferido com o gerente"));
         assert!(texto.contains("Operador"));
         assert!(texto.contains("Gerente"));
 

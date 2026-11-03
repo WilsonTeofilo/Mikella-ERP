@@ -2296,6 +2296,7 @@ dependencies = [
  "chrono",
  "mikella-app-cash",
  "mikella-domain-cash",
+ "mikella-domain-finance",
  "mikella-domain-inventory",
  "mikella-domain-sales",
  "mikella-infra-sqlite",

@@ -37,6 +37,10 @@ const MIGRACOES: &[Migracao] = &[
         versao: "0005_pessoas_endereco_doc",
         sql: include_str!("migrations/0005_pessoas_endereco_doc.sql"),
     },
+    Migracao {
+        versao: "0006_crediario_formas",
+        sql: include_str!("migrations/0006_crediario_formas.sql"),
+    },
 ];
 
 /// Aplica todas as migrações pendentes. Idempotente.
@@ -106,7 +110,7 @@ mod tests {
         let total: i64 = conn
             .query_row("SELECT COUNT(*) FROM schema_migrations", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(total, 5);
+        assert_eq!(total, 6);
     }
 
     #[test]

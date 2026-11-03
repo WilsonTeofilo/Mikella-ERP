@@ -16,6 +16,7 @@ mikella-shared-kernel    = { path = "../shared-kernel" }
 mikella-domain-sales     = { path = "../domain-sales" }
 mikella-domain-cash      = { path = "../domain-cash" }
 mikella-domain-inventory = { path = "../domain-inventory" }
+mikella-domain-finance   = { path = "../domain-finance" }
 
 [dev-dependencies]
 mikella-infra-sqlite = { path = "../infra-sqlite" }

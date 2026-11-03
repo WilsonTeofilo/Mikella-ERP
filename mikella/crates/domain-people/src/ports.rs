@@ -68,6 +68,12 @@ pub trait PessoaRepository {
     /// Busca pessoa por ID.
     fn buscar_por_id(&self, id: &str) -> DomainResult<Option<crate::Pessoa>>;
 
+    /// `true` quando já existe outro cliente com o telefone informado.
+    fn telefone_em_uso(&self, telefone: &str, ignorar_id: Option<&str>) -> DomainResult<bool>;
+
+    /// `true` quando já existe outro cliente com o CPF/CNPJ informado.
+    fn documento_em_uso(&self, documento: &str, ignorar_id: Option<&str>) -> DomainResult<bool>;
+
     /// Busca clientes por termo (nome, telefone ou documento) com saldo devedor calculado.
     fn buscar_clientes_com_saldo(&self, busca: Option<&str>) -> DomainResult<Vec<ClienteResumo>>;
 

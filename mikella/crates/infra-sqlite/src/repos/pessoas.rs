@@ -339,6 +339,26 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
         Ok(res)
     }
 
+    fn telefone_em_uso(&self, telefone: &str, ignorar_id: Option<&str>) -> DomainResult<bool> {
+        let existe: i64 = sql(self.conn.query_row(
+            "SELECT COUNT(*) FROM pessoas
+             WHERE telefone = ?1 AND (?2 IS NULL OR id <> ?2)",
+            params![telefone, ignorar_id],
+            |row| row.get(0),
+        ))?;
+        Ok(existe > 0)
+    }
+
+    fn documento_em_uso(&self, documento: &str, ignorar_id: Option<&str>) -> DomainResult<bool> {
+        let existe: i64 = sql(self.conn.query_row(
+            "SELECT COUNT(*) FROM pessoas
+             WHERE documento = ?1 AND (?2 IS NULL OR id <> ?2)",
+            params![documento, ignorar_id],
+            |row| row.get(0),
+        ))?;
+        Ok(existe > 0)
+    }
+
     fn buscar_clientes_com_saldo(&self, busca: Option<&str>) -> DomainResult<Vec<ClienteResumo>> {
         let (sql_query, param) = match busca.map(|s| s.trim()).filter(|s| !s.is_empty()) {
             Some(b) => {
@@ -405,15 +425,19 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
         for r in rows {
             let pessoa = r.map_err(|e| DomainError::EstadoInvalido(format!("Erro ao ler cliente: {e}")))?;
 
-            // Calcula saldo devedor e se há parcelas vencidas no crediário
+            // Calcula saldo devedor e se há parcelas vencidas no crediário.
+            // As parcelas de crediário vivem na tabela unificada `parcelas`
+            // (conta_tipo = 'RECEBIMENTO'), criada pela migração 0004.
             let (saldo, tem_vencido): (i64, bool) = self
                 .conn
                 .query_row(
                     "SELECT COALESCE(SUM(p.valor_centavos), 0),
-                            COALESCE(MAX(CASE WHEN p.vencimento < date('now') THEN 1 ELSE 0 END), 0)
-                     FROM parcelas_receber p
+                            COALESCE(MAX(CASE WHEN date(p.vencimento) < date('now') THEN 1 ELSE 0 END), 0)
+                     FROM parcelas p
                      INNER JOIN contas_receber c ON c.id = p.conta_id
-                     WHERE c.pessoa_id = ?1 AND p.situacao = 'ABERTA'",
+                     WHERE c.pessoa_id = ?1
+                       AND p.conta_tipo = 'RECEBIMENTO'
+                       AND p.status = 'ABERTA'",
                     [&pessoa.id],
                     |row| Ok((row.get(0)?, row.get::<_, i64>(1)? > 0)),
                 )
@@ -436,10 +460,10 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                 "SELECT pe.id, pe.nome, pe.documento, pe.telefone,
                         pa.id as parcela_id, pa.numero, pa.valor_centavos, pa.vencimento,
                         CAST(julianday('now') - julianday(pa.vencimento) AS INTEGER) as dias_atraso
-                 FROM parcelas_receber pa
+                 FROM parcelas pa
                  INNER JOIN contas_receber c ON c.id = pa.conta_id
                  INNER JOIN pessoas pe ON pe.id = c.pessoa_id
-                 WHERE pa.situacao = 'ABERTA'
+                 WHERE pa.conta_tipo = 'RECEBIMENTO' AND pa.status = 'ABERTA'
                  ORDER BY pe.nome ASC, pa.vencimento ASC",
             )
             .map_err(|e| DomainError::EstadoInvalido(format!("Erro ao preparar lista de devedores: {e}")))?;
@@ -460,12 +484,13 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
             })
             .map_err(|e| DomainError::EstadoInvalido(format!("Erro ao consultar devedores: {e}")))?;
 
+        // Agrupa por cliente (id), não por nome: homônimos são pessoas distintas.
         let mut mapa: std::collections::BTreeMap<String, DevedorItem> = std::collections::BTreeMap::new();
         for r in rows {
             let (cid, nome, doc, tel, pid, num, valor, venc, atraso) =
                 r.map_err(|e| DomainError::EstadoInvalido(format!("Erro ao ler parcela devedora: {e}")))?;
 
-            let devedor = mapa.entry(nome.clone()).or_insert_with(|| DevedorItem {
+            let devedor = mapa.entry(cid.clone()).or_insert_with(|| DevedorItem {
                 cliente_id: cid,
                 nome,
                 documento: doc,
@@ -484,42 +509,43 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
             });
         }
 
-        Ok(mapa.into_values().collect())
+        let mut devedores: Vec<DevedorItem> = mapa.into_values().collect();
+        devedores.sort_by_key(|d| d.nome.to_lowercase());
+        Ok(devedores)
     }
 
     fn liquidar_parcela(&self, parcela_id: &str, meio_pagamento: &str) -> DomainResult<i64> {
         let (valor, conta_id): (i64, String) = self
             .conn
             .query_row(
-                "SELECT valor_centavos, conta_id FROM parcelas_receber WHERE id = ?1 AND situacao = 'ABERTA'",
+                "SELECT valor_centavos, conta_id
+                 FROM parcelas
+                 WHERE id = ?1 AND conta_tipo = 'RECEBIMENTO' AND status = 'ABERTA'",
                 [parcela_id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .map_err(|e| DomainError::EstadoInvalido(format!("Parcela não encontrada ou já liquidada: {e}")))?;
 
-        sql(self.conn.execute(
-            "UPDATE parcelas_receber
-             SET situacao = 'LIQUIDADA',
+        let alteradas = sql(self.conn.execute(
+            "UPDATE parcelas
+             SET status = 'PAGA',
                  pago_em = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
-                 forma_liquidacao = ?2
-             WHERE id = ?1",
+                 forma_liquidacao = ?2,
+                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+             WHERE id = ?1 AND conta_tipo = 'RECEBIMENTO' AND status = 'ABERTA'",
             params![parcela_id, meio_pagamento],
         ))?;
+        if alteradas == 0 {
+            return Err(DomainError::EstadoInvalido(
+                "Parcela já foi liquidada por outra operação".into(),
+            ));
+        }
 
-        // Verifica se a conta ainda tem parcelas abertas
-        let abertas: i64 = self
-            .conn
-            .query_row(
-                "SELECT COUNT(*) FROM parcelas_receber WHERE conta_id = ?1 AND situacao = 'ABERTA'",
-                [&conta_id],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        let novo_status = if abertas == 0 { "LIQUIDADA" } else { "PARCIAL" };
+        // A conta em si não tem coluna de status; o estado é derivado das
+        // parcelas. Só tocamos `updated_at` para o histórico.
         sql(self.conn.execute(
-            "UPDATE contas_receber SET status = ?2, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?1",
-            params![&conta_id, novo_status],
+            "UPDATE contas_receber SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?1",
+            [&conta_id],
         ))?;
 
         Ok(valor)

@@ -236,6 +236,22 @@ pub async fn fechar_caixa_handler(
         Err(_) => return bad_request("sessao_id inválido (UUID esperado)"),
     };
     let saldo_contado = Money::from_centavos(form.saldo_contado_centavos);
+    if saldo_contado.is_negative() {
+        return bad_request("saldo contado não pode ser negativo");
+    }
+
+    let observacao = form
+        .observacao
+        .as_deref()
+        .map(str::trim)
+        .filter(|o| !o.is_empty())
+        .map(|o| {
+            if o.chars().count() > 512 {
+                o.chars().take(512).collect::<String>()
+            } else {
+                o.to_string()
+            }
+        });
 
     let operador_id = ator.id();
 
@@ -292,19 +308,11 @@ pub async fn fechar_caixa_handler(
         sessao_id,
         usuario_id: operador_id,
         saldo_contado,
+        observacao,
     };
 
     match fechar_caixa(&repos, cmd) {
         Ok(diferenca) => {
-            // Se houver observação do fechamento (até 512 caracteres), atualiza a entrada de fechamento no livro
-            if let Some(obs) = form.observacao.filter(|s| !s.trim().is_empty()) {
-                let obs_truncada = if obs.len() > 512 { obs[..512].to_string() } else { obs };
-                let _ = tx.execute(
-                    "UPDATE livro_caixa SET motivo = ?1 WHERE sessao_id = ?2 AND tipo = 'FECHAMENTO'",
-                    rusqlite::params![obs_truncada, sessao_id.to_string()],
-                );
-            }
-
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -339,7 +347,7 @@ pub async fn realizar_sangria_handler(
     ator: Ator,
     req: axum::extract::Request,
 ) -> impl IntoResponse {
-    exigir!(ator, "caixa.criar");
+    exigir!(ator, "venda.sangria");
 
     let bytes = match axum::body::to_bytes(req.into_body(), 64 * 1024).await {
         Ok(b) => b,
@@ -365,11 +373,7 @@ pub async fn realizar_sangria_handler(
 
     let operador_id = ator.id();
     let motivo = form.motivo.unwrap_or_else(|| "Sangria de caixa".to_string());
-    let motivo_truncado = if motivo.len() > 256 {
-        motivo[..256].to_string()
-    } else {
-        motivo
-    };
+    let motivo_truncado: String = motivo.trim().chars().take(256).collect();
 
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {

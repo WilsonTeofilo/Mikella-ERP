@@ -50,7 +50,7 @@ pub struct DevedorItemResponse {
     pub cliente_nome: String,
     pub cliente_cpf: Option<String>,
     pub cliente_telefone: Option<String>,
-    pub conta_id: String,
+    pub parcela_id: String,
     pub parcela_numero: i64,
     pub descricao: String,
     pub vencimento: String,
@@ -62,9 +62,9 @@ pub struct DevedorItemResponse {
 
 #[derive(Deserialize)]
 pub struct LiquidarDividaPayload {
-    pub conta_id: String,
-    #[allow(dead_code)]
-    pub parcela_numero: i64,
+    /// ID da parcela em aberto (nome antigo `conta_id` aceito por compatibilidade).
+    #[serde(alias = "conta_id")]
+    pub parcela_id: String,
     pub forma_pagamento: String,
     pub sessao_id: Option<String>,
 }
@@ -152,6 +152,45 @@ pub async fn salvar_cliente_handler(
     };
 
     let repo = PessoaRepo::novo(&tx);
+
+    if let Some(tel) = pessoa.telefone.as_deref() {
+        match repo.telefone_em_uso(tel, id_existente) {
+            Ok(true) => {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(serde_json::json!({ "erro": "Telefone já cadastrado para outro cliente" })),
+                );
+            }
+            Ok(false) => {}
+            Err(e) => {
+                tracing::error!(erro = %e, "falha ao verificar telefone do cliente");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha ao validar telefone" })),
+                );
+            }
+        }
+    }
+
+    if let Some(doc) = pessoa.documento.as_deref() {
+        match repo.documento_em_uso(doc, id_existente) {
+            Ok(true) => {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(serde_json::json!({ "erro": "CPF/CNPJ já cadastrado para outro cliente" })),
+                );
+            }
+            Ok(false) => {}
+            Err(e) => {
+                tracing::error!(erro = %e, "falha ao verificar documento do cliente");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha ao validar documento" })),
+                );
+            }
+        }
+    }
+
     let resultado = if id_existente.is_some() {
         repo.atualizar(&pessoa)
     } else {
@@ -171,6 +210,14 @@ pub async fn salvar_cliente_handler(
                 Json(serde_json::json!({ "sucesso": true, "mensagem": "Cliente salvo com sucesso" })),
             )
         }
+        Err(mikella_shared_kernel::error::DomainError::NaoEncontrado { .. }) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "erro": "Cliente não encontrado" })),
+        ),
+        Err(mikella_shared_kernel::error::DomainError::Invalido(msg)) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "erro": msg })),
+        ),
         Err(e) => {
             tracing::error!(erro = %e, "erro ao salvar cliente");
             (
@@ -201,9 +248,9 @@ pub async fn listar_devedores_handler(
                         cliente_nome: dev.nome.clone(),
                         cliente_cpf: dev.documento.clone(),
                         cliente_telefone: dev.telefone.clone(),
-                        conta_id: parc.parcela_id.clone(),
-                        parcela_numero: parc.numero as i64,
-                        descricao: format!("Parcela {}/{}", parc.numero, parc.numero),
+                        parcela_id: parc.parcela_id.clone(),
+                        parcela_numero: i64::from(parc.numero),
+                        descricao: format!("Parcela {}", parc.numero),
                         vencimento: parc.vencimento,
                         valor_centavos: parc.valor_centavos,
                         valor_fmt: Money::from_centavos(parc.valor_centavos).to_string(),
@@ -224,27 +271,31 @@ pub async fn listar_devedores_handler(
     }
 }
 
-/// `POST /v1/crediario/liquidar` — baixa uma parcela de dívida com lançamento no caixa se for dinheiro.
+/// `POST /v1/crediario/liquidar` — baixa uma parcela de dívida.
+///
+/// Recebimento em dinheiro entra no livro-caixa como venda à vista; as demais
+/// formas apenas liquidam a parcela (sem inflar o dinheiro esperado da gaveta).
 pub async fn liquidar_divida_handler(
     State(state): State<AppState>,
     ator: Ator,
     Json(payload): Json<LiquidarDividaPayload>,
 ) -> impl IntoResponse {
-    exigir!(ator, "caixa.abrir");
+    exigir!(ator, "financeiro.gerenciar");
 
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {
         Ok(t) => t,
         Err(e) => {
+            tracing::error!(erro = %e, "falha ao abrir transação de liquidação");
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": format!("Erro ao abrir transação: {e}") })),
+                Json(serde_json::json!({ "erro": "falha de banco" })),
             );
         }
     };
 
     let repo = PessoaRepo::novo(&tx);
-    let valor_centavos = match repo.liquidar_parcela(&payload.conta_id, &payload.forma_pagamento) {
+    let valor_centavos = match repo.liquidar_parcela(&payload.parcela_id, &payload.forma_pagamento) {
         Ok(v) => v,
         Err(e) => {
             return (
@@ -254,44 +305,71 @@ pub async fn liquidar_divida_handler(
         }
     };
 
-    // Se o pagamento foi em dinheiro e a sessão do caixa estiver ativa, registra como suprimento no livro caixa
+    // Dinheiro recebido de dívida entra na gaveta e precisa constar no livro.
     if payload.forma_pagamento.eq_ignore_ascii_case("DINHEIRO") {
-        if let Some(sessao_id) = payload.sessao_id.filter(|s| !s.trim().is_empty()) {
-            let sessao_uuid: Result<uuid::Uuid, _> = sessao_id.parse();
-            if let Ok(suuid) = sessao_uuid {
-                let livro_repo = mikella_infra_sqlite::LivroRepo::novo(&tx);
-                let sid = mikella_shared_kernel::ids::SessaoId::from_uuid(suuid);
-                if let Ok(posicao) = mikella_domain_cash::ports::LivroCaixaRepository::posicao_atual(&livro_repo, sid) {
-                    let hash_chain = mikella_infra_sqlite::Blake3HashChain;
-                    let mut entrada = mikella_domain_cash::livro::EntradaLivro {
-                        id: mikella_shared_kernel::ids::LivroCaixaId::new(),
-                        sessao_id: sid,
-                        sequencia: posicao.proxima_sequencia,
-                        tipo: mikella_domain_cash::livro::TipoMovimentacao::Suprimento,
-                        valor_centavos: Money::from_centavos(valor_centavos),
-                        troco_centavos: Money::ZERO,
-                        referencia: Some(mikella_domain_cash::livro::Referencia {
-                            id: payload.conta_id.clone(),
-                            tipo: "RECEBIMENTO_CREDIARIO".to_string(),
-                        }),
-                        usuario_id: ator.id(),
-                        aprovador_id: None,
-                        motivo: Some("Recebimento de dívida de crediário".to_string()),
-                        prev_hash: posicao.ultimo_hash,
-                        hash: String::new(),
-                        created_at: chrono::Utc::now(),
-                    };
-                    entrada.hash = mikella_domain_cash::ports::HashChain::hash_entrada(&hash_chain, &entrada);
-                    let _ = mikella_domain_cash::ports::LivroCaixaRepository::inserir_entrada(&livro_repo, &entrada);
+        if let Some(sessao_id) = payload.sessao_id.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            let Ok(suuid) = sessao_id.parse::<Uuid>() else {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({ "erro": "sessao_id inválido (UUID esperado)" })),
+                );
+            };
+            let sid = mikella_shared_kernel::ids::SessaoId::from_uuid(suuid);
+            let livro_repo = mikella_infra_sqlite::LivroRepo::novo(&tx);
+
+            let posicao = match mikella_domain_cash::ports::LivroCaixaRepository::posicao_atual(
+                &livro_repo,
+                sid,
+            ) {
+                Ok(p) => p,
+                Err(e) => {
+                    tracing::error!(erro = %e, "falha ao ler posição do livro-caixa");
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({ "erro": "falha ao registrar recebimento no caixa" })),
+                    );
                 }
+            };
+
+            let hash_chain = mikella_infra_sqlite::Blake3HashChain;
+            let mut entrada = mikella_domain_cash::livro::EntradaLivro {
+                id: mikella_shared_kernel::ids::LivroCaixaId::new(),
+                sessao_id: sid,
+                sequencia: posicao.proxima_sequencia,
+                tipo: mikella_domain_cash::livro::TipoMovimentacao::VendaDinheiro,
+                valor_centavos: Money::from_centavos(valor_centavos),
+                troco_centavos: Money::ZERO,
+                referencia: Some(mikella_domain_cash::livro::Referencia {
+                    id: payload.parcela_id.clone(),
+                    tipo: "RECEBIMENTO_CREDIARIO".to_string(),
+                }),
+                usuario_id: ator.id(),
+                aprovador_id: None,
+                motivo: Some("Recebimento de dívida de crediário".to_string()),
+                prev_hash: posicao.ultimo_hash,
+                hash: String::new(),
+                created_at: chrono::Utc::now(),
+            };
+            entrada.hash =
+                mikella_domain_cash::ports::HashChain::hash_entrada(&hash_chain, &entrada);
+
+            if let Err(e) =
+                mikella_domain_cash::ports::LivroCaixaRepository::inserir_entrada(&livro_repo, &entrada)
+            {
+                tracing::error!(erro = %e, "falha ao inserir recebimento no livro-caixa");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha ao registrar recebimento no caixa" })),
+                );
             }
         }
     }
 
     if let Err(e) = tx.commit() {
+        tracing::error!(erro = %e, "falha ao confirmar liquidação");
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "erro": format!("Erro ao confirmar transação: {e}") })),
+            Json(serde_json::json!({ "erro": "falha ao confirmar liquidação" })),
         );
     }
 

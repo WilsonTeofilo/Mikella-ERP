@@ -16,33 +16,58 @@ pub enum FormaPagamento {
     Debito,
     Credito,
     Pix,
+    Voucher,
+    Crediario,
     Misto,
     Outro,
 }
 
 impl FormaPagamento {
+    /// Valor gravado na coluna `forma` do banco.
+    ///
+    /// O schema histórico aceita apenas DINHEIRO/DEBITO/CREDITO/PIX/OUTRO.
+    /// Voucher e crediário são operacionalmente distintos, mas são gravados
+    /// como OUTRO e identificados em `forma_detalhe` (migração 0006).
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Dinheiro => "DINHEIRO",
             Self::Debito => "DEBITO",
             Self::Credito => "CREDITO",
             Self::Pix => "PIX",
+            Self::Voucher | Self::Crediario | Self::Outro => "OUTRO",
             Self::Misto => "MISTO",
-            Self::Outro => "OUTRO",
+        }
+    }
+
+    /// Detalhe opcional que desfaz a ambiguidade de OUTRO.
+    pub fn as_detalhe(&self) -> Option<&'static str> {
+        match self {
+            Self::Voucher => Some("VOUCHER"),
+            Self::Crediario => Some("CREDIARIO"),
+            _ => None,
         }
     }
 
     pub fn from_db(valor: &str) -> DomainResult<Self> {
-        match valor {
-            "DINHEIRO" => Ok(Self::Dinheiro),
-            "DEBITO" => Ok(Self::Debito),
-            "CREDITO" => Ok(Self::Credito),
-            "PIX" => Ok(Self::Pix),
-            "MISTO" => Ok(Self::Misto),
-            "OUTRO" => Ok(Self::Outro),
-            outro => Err(DomainError::Invalido(format!(
-                "Forma de pagamento desconhecida no banco: {outro}"
-            ))),
+        Self::from_db_com_detalhe(valor, None)
+    }
+
+    /// Reconstrói a forma a partir do valor canônico + detalhe da migração 0006.
+    pub fn from_db_com_detalhe(valor: &str, detalhe: Option<&str>) -> DomainResult<Self> {
+        match (valor, detalhe.map(str::to_ascii_uppercase).as_deref()) {
+            ("OUTRO", Some("VOUCHER")) => Ok(Self::Voucher),
+            ("OUTRO", Some("CREDIARIO")) => Ok(Self::Crediario),
+            _ => match valor {
+                "DINHEIRO" => Ok(Self::Dinheiro),
+                "DEBITO" => Ok(Self::Debito),
+                "CREDITO" => Ok(Self::Credito),
+                "PIX" => Ok(Self::Pix),
+                "MISTO" => Ok(Self::Misto),
+                "OUTRO" => Ok(Self::Outro),
+                outro => Err(DomainError::Invalido(format!(
+                    "Forma de pagamento desconhecida no banco: {outro}"
+                ))),
+            },
         }
     }
 
@@ -54,6 +79,11 @@ impl FormaPagamento {
 
     pub fn movimenta_dinheiro_fisico(&self) -> bool {
         matches!(self, Self::Dinheiro)
+    }
+
+    /// Crediário não entra no caixa: gera uma conta a receber em aberto.
+    pub fn e_crediario(&self) -> bool {
+        matches!(self, Self::Crediario)
     }
 }
 

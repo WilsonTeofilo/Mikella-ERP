@@ -106,6 +106,8 @@ pub struct FecharCaixaCmd {
     pub usuario_id: UsuarioId,
     /// Valor contado fisicamente pelo operador.
     pub saldo_contado: Money,
+    /// Observação opcional da conferência do fechamento (até 512 caracteres).
+    pub observacao: Option<String>,
 }
 
 /// Fecha a sessão, grava o `FECHAMENTO` (informativo) e calcula a diferença.
@@ -156,6 +158,20 @@ pub fn fechar_caixa(repos: &CaixaRepos<'_>, cmd: FecharCaixaCmd) -> DomainResult
     let diferenca = sessao.finalizar_fechamento(cmd.saldo_contado, agora)?;
 
     let posicao = repos.livro.posicao_atual(sessao.id)?;
+    let motivo = match cmd.observacao.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(obs) => {
+            let obs_trunc: String = obs.chars().take(512).collect();
+            format!(
+                "esperado {} / contado {} / diferença {} | Obs: {}",
+                diferenca.esperado, diferenca.contado, diferenca.diferenca, obs_trunc
+            )
+        }
+        None => format!(
+            "esperado {} / contado {} / diferença {}",
+            diferenca.esperado, diferenca.contado, diferenca.diferenca
+        ),
+    };
+
     let mut entrada = EntradaLivro {
         id: LivroCaixaId::new(),
         sessao_id: sessao.id,
@@ -169,10 +185,7 @@ pub fn fechar_caixa(repos: &CaixaRepos<'_>, cmd: FecharCaixaCmd) -> DomainResult
         }),
         usuario_id: cmd.usuario_id,
         aprovador_id: None,
-        motivo: Some(format!(
-            "esperado {} / contado {} / diferença {}",
-            diferenca.esperado, diferenca.contado, diferenca.diferenca
-        )),
+        motivo: Some(motivo),
         prev_hash: posicao.ultimo_hash,
         hash: String::new(),
         created_at: agora,

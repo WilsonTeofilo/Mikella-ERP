@@ -996,19 +996,19 @@
 
     // Garante que o caixa esteja aberto antes de vender ou operar
     async function garantirCaixaAberto() {
-      // 1. Se já sabemos que está aberto, prossegue imediatamente
+      // 1. Se já sabemos que está aberto na memória local, prossegue
       if (sessaoAtual && sessaoAtual.sessao_id) return true;
 
-      // 2. Consulta o backend para checar se já existe sessão aberta
+      // 2. Consulta o backend para checar se já existe sessão aberta no banco
       const statusRes = await fetchJSON("/v1/caixa/status");
-      if (statusRes.ok && statusRes.data.aberta) {
+      if (statusRes.ok && statusRes.data && statusRes.data.aberta) {
         sessaoAtual = statusRes.data;
         localStorage.setItem("mikella_sessao_id", statusRes.data.sessao_id);
         await inicializar();
         return true;
       }
 
-      // 3. Se estiver fechado, abre a sessão 01 com suporte a Adm Mestre
+      // 3. Se estiver fechado, abre a sessão 01 com suporte irrestrito
       toast("Abrindo sessão do Caixa 01...");
       const payload = {
         sessao_id: crypto.randomUUID(),
@@ -1023,15 +1023,26 @@
         body: JSON.stringify(payload)
       });
 
-      if (res.ok && res.data.sessao_id) {
-        sessaoAtual = { sessao_id: res.data.sessao_id, numero_caixa: 1 };
+      if (res.ok && res.data && res.data.sessao_id) {
+        sessaoAtual = { sessao_id: res.data.sessao_id, numero_caixa: res.data.numero_caixa || 1 };
         localStorage.setItem("mikella_sessao_id", res.data.sessao_id);
         await inicializar();
         toast("Caixa 01 aberto com sucesso!");
         return true;
       }
 
-      toast(res.data.erro || "Falha ao abrir sessão de caixa.");
+      // 4. Se a abertura retornou conflito/idempotência, recupera a sessão ativa
+      const retryStatus = await fetchJSON("/v1/caixa/status");
+      if (retryStatus.ok && retryStatus.data && retryStatus.data.aberta) {
+        sessaoAtual = retryStatus.data;
+        localStorage.setItem("mikella_sessao_id", retryStatus.data.sessao_id);
+        await inicializar();
+        return true;
+      }
+
+      console.error("[garantirCaixaAberto] Erro na resposta da API:", res);
+      const msgErro = (res.data && res.data.erro) ? res.data.erro : "Falha ao abrir sessão de caixa.";
+      toast(msgErro);
       return false;
     }
 

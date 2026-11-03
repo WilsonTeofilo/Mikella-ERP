@@ -82,12 +82,34 @@ impl Pessoa {
             None
         };
 
+        let tel_limpo = if let Some(tel) = telefone.filter(|t| !t.trim().is_empty()) {
+            let digits: String = tel.chars().filter(|c| c.is_ascii_digit()).collect();
+            if digits.len() != 10 && digits.len() != 11 {
+                return Err(DomainError::Invalido(
+                    "Telefone deve ter DDD + 8 ou 9 dígitos".into(),
+                ));
+            }
+            Some(digits)
+        } else {
+            None
+        };
+
+        let email_limpo = if let Some(email) = email.filter(|e| !e.trim().is_empty()) {
+            let e = email.trim().to_string();
+            if !e.contains('@') || e.starts_with('@') || e.ends_with('@') {
+                return Err(DomainError::Invalido("E-mail informado é inválido".into()));
+            }
+            Some(e)
+        } else {
+            None
+        };
+
         Ok(Self {
             id,
             tipo: TipoPessoa::Cliente,
             nome: nome_limpo,
-            telefone: telefone.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()),
-            email: email.map(|e| e.trim().to_string()).filter(|e| !e.is_empty()),
+            telefone: tel_limpo,
+            email: email_limpo,
             documento: doc_limpo,
             endereco: endereco.map(|e| e.trim().to_string()).filter(|e| !e.is_empty()),
             ativo: true,

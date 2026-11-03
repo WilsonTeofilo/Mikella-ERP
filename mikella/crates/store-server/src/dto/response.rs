@@ -56,6 +56,8 @@ pub struct LivroEntradaResponse {
 #[derive(Serialize)]
 pub struct VendaSummary {
     pub id: String,
+    /// COO (número sequencial da venda na base local) usado no cupom.
+    pub coo: i64,
     pub sessao_id: String,
     pub operador_id: String,
     pub estado: String,

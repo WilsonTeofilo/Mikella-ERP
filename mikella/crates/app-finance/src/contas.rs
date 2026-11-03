@@ -264,6 +264,7 @@ mod tests {
         }
         fn buscar_abertas(&self) -> DomainResult<Vec<ContaPagar>> { Ok(vec![]) }
         fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> { Ok(vec![]) }
+        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> { Ok(0) }
     }
 
     impl ContaReceberRepository for MockRepos {
@@ -274,6 +275,7 @@ mod tests {
         }
         fn buscar_abertas(&self) -> DomainResult<Vec<ContaReceber>> { Ok(vec![]) }
         fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> { Ok(vec![]) }
+        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> { Ok(0) }
     }
 
     impl ParcelaRepository for MockRepos {

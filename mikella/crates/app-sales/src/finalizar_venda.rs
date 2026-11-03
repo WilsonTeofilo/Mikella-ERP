@@ -19,6 +19,8 @@ use chrono::Utc;
 
 use mikella_domain_cash::livro::{EntradaLivro, Referencia, TipoMovimentacao};
 use mikella_domain_cash::ports::{HashChain, LivroCaixaRepository, SessaoRepository};
+use mikella_domain_finance::conta::{ContaReceber, PlanoConta};
+use mikella_domain_finance::ports::ContaReceberRepository;
 use mikella_domain_inventory::lote::Lote;
 use mikella_domain_inventory::movimentacao::MovimentacaoEstoque;
 use mikella_domain_inventory::ports::{
@@ -54,6 +56,15 @@ pub struct ItemCmd {
     pub quantidade: u32,
 }
 
+/// Dados do crediário quando a venda tem pagamento nessa modalidade.
+#[derive(Debug, Clone)]
+pub struct CrediarioCmd {
+    /// Cliente já cadastrado que assume a dívida.
+    pub cliente_id: String,
+    /// Prazo em dias para o vencimento (30 por padrão no PDV).
+    pub vencimento_dias: u32,
+}
+
 /// Comando de finalização de venda.
 #[derive(Debug)]
 pub struct FinalizarVendaCmd {
@@ -70,6 +81,8 @@ pub struct FinalizarVendaCmd {
     /// pelo servidor; `VendaBuilder` valida.
     pub pagamentos: Vec<Pagamento>,
     pub politica_estoque: PoliticaEstoque,
+    /// Obrigatório quando existe pagamento em CREDIARIO.
+    pub crediario: Option<CrediarioCmd>,
 }
 
 /// Dependências do caso de uso. O chamador monta com os repositórios SQLite
@@ -83,6 +96,8 @@ pub struct VendaRepos<'a> {
     pub estoque: &'a dyn MovimentacaoEstoqueRepository,
     pub hash: &'a dyn HashChain,
     pub clock: &'a dyn Clock,
+    /// Necessário apenas quando a venda tem crediário.
+    pub contas_receber: Option<&'a dyn ContaReceberRepository>,
 }
 
 pub fn finalizar_venda(repos: &VendaRepos<'_>, cmd: FinalizarVendaCmd) -> DomainResult<Venda> {
@@ -176,8 +191,14 @@ pub fn finalizar_venda(repos: &VendaRepos<'_>, cmd: FinalizarVendaCmd) -> Domain
     // Recalcula subtotal/total e valida soma dos pagamentos.
     let venda = builder.build(agora)?;
 
+    // Crediário: a dívida nasce na mesma transação da venda. Se qualquer
+    // passo falhar, o chamador faz rollback e nada fica gravado.
+    validar_crediario(&venda, cmd.crediario.as_ref())?;
+
     // 4. Persiste cabeçalho + itens + pagamentos.
     repos.vendas.salvar(&venda)?;
+
+    registrar_crediario(repos, &venda, cmd.crediario.as_ref(), agora)?;
 
     // 5. Baixa de estoque (imutável).
     for item in &venda.itens {
@@ -206,6 +227,78 @@ pub fn finalizar_venda(repos: &VendaRepos<'_>, cmd: FinalizarVendaCmd) -> Domain
     );
 
     Ok(venda)
+}
+
+fn validar_crediario(venda: &Venda, crediario: Option<&CrediarioCmd>) -> DomainResult<()> {
+    let tem_pagamento_crediario = venda.pagamentos.iter().any(|p| p.forma.e_crediario());
+
+    match (tem_pagamento_crediario, crediario) {
+        (true, None) => Err(DomainError::Invalido(
+            "Venda com crediário exige o cliente titular da dívida".into(),
+        )),
+        (false, Some(_)) => Err(DomainError::Invalido(
+            "Crediário informado, mas nenhum pagamento foi lançado nessa modalidade".into(),
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn registrar_crediario(
+    repos: &VendaRepos<'_>,
+    venda: &Venda,
+    crediario: Option<&CrediarioCmd>,
+    agora: DateTime<Utc>,
+) -> DomainResult<()> {
+    let Some(cmd) = crediario else {
+        return Ok(());
+    };
+
+    let mut valor = Money::ZERO;
+    for pagamento in &venda.pagamentos {
+        if pagamento.forma.e_crediario() {
+            valor = valor.somar(pagamento.valor).map_err(|_| {
+                DomainError::InvarianteViolada("Overflow na soma do crediário".into())
+            })?;
+        }
+    }
+
+    if valor.is_zero() {
+        return Ok(());
+    }
+
+    let repo = repos.contas_receber.ok_or_else(|| {
+        DomainError::Infraestrutura(
+            "repositório de contas a receber não foi fornecido para a venda a crediário".into(),
+        )
+    })?;
+
+    let plano = PlanoConta::novo("3.1.01".into(), "Vendas".into())?;
+    let descricao = format!(
+        "Venda a crediário #{}",
+        &venda.id.to_string()[..8.min(venda.id.to_string().len())]
+    );
+    let mut conta = ContaReceber::nova(descricao, plano, venda.operador_id, agora)?;
+    conta.vincular_origem(
+        cmd.cliente_id.clone(),
+        venda.id.to_string(),
+        "VENDA".into(),
+    )?;
+
+    let dias = i64::from(cmd.vencimento_dias.max(1));
+    let vencimento = chrono::Duration::try_days(dias)
+        .and_then(|d| agora.checked_add_signed(d))
+        .ok_or_else(|| DomainError::InvarianteViolada("vencimento do crediário inválido".into()))?;
+    conta.adicionar_parcela(valor, mikella_domain_finance::conta::ajustar_para_dia_util(vencimento))?;
+
+    repo.salvar(&conta)?;
+    tracing::info!(
+        conta_id = %conta.id,
+        venda_id = %venda.id,
+        cliente_id = %cmd.cliente_id,
+        valor_centavos = valor.centavos(),
+        "crediário da venda registrado"
+    );
+    Ok(())
 }
 
 fn carregar_produto(repos: &VendaRepos<'_>, id: ProdutoId) -> DomainResult<Produto> {
@@ -345,10 +438,14 @@ fn registrar_livro_da_venda(
     for pagamento in &venda.pagamentos {
         let tipo = match pagamento.forma {
             FormaPagamento::Dinheiro => continue,
+            // Crediário não movimenta dinheiro nem cartão: gera conta a receber.
+            FormaPagamento::Crediario => continue,
             FormaPagamento::Debito => TipoMovimentacao::VendaDebito,
             FormaPagamento::Credito => TipoMovimentacao::VendaCredito,
             FormaPagamento::Pix => TipoMovimentacao::VendaPix,
-            FormaPagamento::Outro | FormaPagamento::Misto => TipoMovimentacao::VendaOutro,
+            FormaPagamento::Voucher
+            | FormaPagamento::Outro
+            | FormaPagamento::Misto => TipoMovimentacao::VendaOutro,
         };
         inserir_entrada(
             repos,

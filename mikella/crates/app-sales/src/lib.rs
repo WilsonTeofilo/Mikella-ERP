@@ -8,5 +8,5 @@ pub mod finalizar_venda;
 
 pub use cancelar_venda::{cancelar_venda, CancelarVendaCmd, CancelarVendaRepos};
 pub use finalizar_venda::{
-    finalizar_venda, FinalizarVendaCmd, ItemCmd, PoliticaEstoque, VendaRepos,
+    finalizar_venda, CrediarioCmd, FinalizarVendaCmd, ItemCmd, PoliticaEstoque, VendaRepos,
 };

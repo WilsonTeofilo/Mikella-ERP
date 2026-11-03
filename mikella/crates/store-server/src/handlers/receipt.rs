@@ -249,7 +249,7 @@ fn carregar_comprovante_fechamento(
         },
     );
 
-    let (s_id, num_caixa, aberta_str, fechada_str, saldo_ini, saldo_esp, operador_nome) =
+    let (s_id, num_caixa, aberta_str, fechada_str, saldo_ini, _saldo_esp, operador_nome) =
         match sessao_row {
             Ok(s) => s,
             Err(rusqlite::Error::QueryReturnedNoRows) => {
@@ -274,7 +274,7 @@ fn carregar_comprovante_fechamento(
     // 2. Busca movimentações do livro_caixa
     let mut stmt = conn
         .prepare(
-            "SELECT tipo, valor_centavos, troco_centavos, hash \
+            "SELECT tipo, valor_centavos, troco_centavos, hash, motivo \
              FROM livro_caixa \
              WHERE sessao_id = ?1 \
              ORDER BY created_at ASC, rowid ASC",
@@ -289,6 +289,8 @@ fn carregar_comprovante_fechamento(
     let mut total_suprimentos = 0i64;
     let mut total_sangrias = 0i64;
     let mut ultimo_hash = "GENESIS".to_string();
+    let mut contado: Option<i64> = None;
+    let mut observacao: Option<String> = None;
 
     let rows = stmt.query_map([&s_id], |row| {
         Ok((
@@ -296,12 +298,13 @@ fn carregar_comprovante_fechamento(
             row.get::<_, i64>(1)?,
             row.get::<_, i64>(2)?,
             row.get::<_, String>(3)?,
+            row.get::<_, Option<String>>(4)?,
         ))
     });
 
     if let Ok(entries) = rows {
         for res in entries.flatten() {
-            let (tipo, valor, troco, hash) = res;
+            let (tipo, valor, troco, hash, motivo) = res;
             ultimo_hash = hash;
             match tipo.as_str() {
                 "VENDA_DINHEIRO" => total_dinheiro += valor - troco,
@@ -310,15 +313,38 @@ fn carregar_comprovante_fechamento(
                 }
                 "SUPRIMENTO" => total_suprimentos += valor,
                 "SANGRIA" => total_sangrias += valor,
+                "FECHAMENTO" => {
+                    contado = Some(valor);
+                    observacao = motivo
+                        .as_deref()
+                        .and_then(|m| m.split_once("| Obs: "))
+                        .map(|(_, obs)| obs.trim().to_string())
+                        .filter(|obs| !obs.is_empty());
+                }
                 _ => {}
             }
         }
     }
 
+    let (quantidade_vendas, quantidade_cancelamentos, quantidade_estornos): (i64, i64, i64) = conn
+        .query_row(
+            "SELECT
+                 COALESCE(SUM(CASE WHEN estado = 'FINALIZADA' THEN 1 ELSE 0 END), 0),
+                 COALESCE(SUM(CASE WHEN estado = 'CANCELADA' THEN 1 ELSE 0 END), 0),
+                 COALESCE(SUM(CASE WHEN estado = 'ESTORNADA' THEN 1 ELSE 0 END), 0)
+             FROM vendas WHERE sessao_id = ?1",
+            [&s_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap_or((0, 0, 0));
+
     let saldo_esperado_dinheiro =
         Money::from_centavos(saldo_ini + total_dinheiro + total_suprimentos - total_sangrias);
+    // O valor contado é o lançamento FECHAMENTO (o que o operador digitou no
+    // fechamento). O saldo "esperado" da sessão é o valor calculado pelo
+    // servidor no momento do fechamento, não o contado.
     let saldo_informado_dinheiro =
-        Money::from_centavos(saldo_esp.unwrap_or(saldo_esperado_dinheiro.centavos()));
+        Money::from_centavos(contado.unwrap_or(saldo_esperado_dinheiro.centavos()));
     let diferenca = saldo_informado_dinheiro - saldo_esperado_dinheiro;
 
     Ok(ComprovanteFechamentoCaixa {
@@ -337,6 +363,10 @@ fn carregar_comprovante_fechamento(
         saldo_esperado_dinheiro,
         saldo_informado_dinheiro,
         diferenca,
+        quantidade_vendas: u32::try_from(quantidade_vendas).unwrap_or(0),
+        quantidade_cancelamentos: u32::try_from(quantidade_cancelamentos).unwrap_or(0),
+        quantidade_estornos: u32::try_from(quantidade_estornos).unwrap_or(0),
+        observacao,
         ultimo_hash,
     })
 }

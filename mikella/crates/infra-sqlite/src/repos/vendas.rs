@@ -31,7 +31,8 @@ impl<'a> VendaRepo<'a> {
             .query_row(
                 "SELECT id, sessao_id, dispositivo_id, operador_id, vendedor_id, comanda_id,
                         estado, forma_pagamento, subtotal_centavos, desconto_centavos,
-                        total_centavos, recebido_centavos, troco_centavos, created_at
+                        total_centavos, recebido_centavos, troco_centavos, created_at,
+                        forma_pagamento_detalhe
                  FROM vendas WHERE id = ?1",
                 params![id.to_string()],
                 VendaBruta::da_linha,
@@ -91,7 +92,7 @@ impl<'a> VendaRepo<'a> {
 
     fn carregar_pagamentos(&self, venda_id: VendaId) -> InfraResult<Vec<Pagamento>> {
         let mut stmt = self.conn.prepare(
-            "SELECT forma, valor_centavos, recebido_centavos
+            "SELECT forma, valor_centavos, recebido_centavos, forma_detalhe
              FROM venda_pagamentos
              WHERE venda_id = ?1
              ORDER BY created_at ASC, id ASC",
@@ -101,13 +102,14 @@ impl<'a> VendaRepo<'a> {
                 row.get::<_, String>(0)?,
                 row.get::<_, i64>(1)?,
                 row.get::<_, Option<i64>>(2)?,
+                row.get::<_, Option<String>>(3)?,
             ))
         })?;
 
         let mut pagamentos = Vec::new();
         for linha in linhas {
-            let (forma, valor, recebido) = linha?;
-            let forma = FormaPagamento::from_db(&forma)
+            let (forma, valor, recebido, detalhe) = linha?;
+            let forma = FormaPagamento::from_db_com_detalhe(&forma, detalhe.as_deref())
                 .map_err(|erro| crate::error::erro_campo("venda_pagamentos.forma", erro))?;
             pagamentos.push(Pagamento {
                 forma,
@@ -138,8 +140,9 @@ impl VendaRepository for VendaRepo<'_> {
             "INSERT INTO vendas
                  (id, sessao_id, dispositivo_id, operador_id, vendedor_id, comanda_id,
                   estado, forma_pagamento, subtotal_centavos, desconto_centavos,
-                  total_centavos, recebido_centavos, troco_centavos, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                  total_centavos, recebido_centavos, troco_centavos, created_at,
+                  forma_pagamento_detalhe)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 venda.id.to_string(),
                 venda.sessao_id.to_string(),
@@ -155,6 +158,7 @@ impl VendaRepository for VendaRepo<'_> {
                 venda.recebido.centavos(),
                 venda.troco.centavos(),
                 data_hora_sql(venda.created_at),
+                venda.forma_pagamento.as_detalhe(),
             ],
         ))?;
 
@@ -184,8 +188,9 @@ impl VendaRepository for VendaRepo<'_> {
         for pagamento in &venda.pagamentos {
             sql(self.conn.execute(
                 "INSERT INTO venda_pagamentos
-                     (id, venda_id, forma, valor_centavos, recebido_centavos, troco_centavos)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                     (id, venda_id, forma, valor_centavos, recebido_centavos, troco_centavos,
+                      forma_detalhe)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     uuid::Uuid::new_v4().to_string(),
                     venda.id.to_string(),
@@ -193,6 +198,7 @@ impl VendaRepository for VendaRepo<'_> {
                     pagamento.valor.centavos(),
                     pagamento.recebido.map(|valor| valor.centavos()),
                     pagamento.troco().centavos(),
+                    pagamento.forma.as_detalhe(),
                 ],
             ))?;
         }
@@ -221,7 +227,8 @@ impl VendaRepository for VendaRepo<'_> {
         let mut stmt = sql(self.conn.prepare(
             "SELECT id, sessao_id, dispositivo_id, operador_id, vendedor_id, comanda_id,
                     estado, forma_pagamento, subtotal_centavos, desconto_centavos,
-                    total_centavos, recebido_centavos, troco_centavos, created_at
+                    total_centavos, recebido_centavos, troco_centavos, created_at,
+                    forma_pagamento_detalhe
              FROM vendas
              WHERE sessao_id = ?1
                AND (?2 IS NULL OR (created_at, id) < (?2, ?3))
@@ -320,6 +327,7 @@ struct VendaBruta {
     recebido_centavos: i64,
     troco_centavos: i64,
     created_at: String,
+    forma_pagamento_detalhe: Option<String>,
 }
 
 impl VendaBruta {
@@ -339,6 +347,7 @@ impl VendaBruta {
             recebido_centavos: row.get(11)?,
             troco_centavos: row.get(12)?,
             created_at: row.get(13)?,
+            forma_pagamento_detalhe: row.get(14)?,
         })
     }
 
@@ -359,8 +368,11 @@ impl VendaBruta {
             comanda_id: self.comanda_id,
             estado: EstadoVenda::from_db(&self.estado)
                 .map_err(|erro| crate::error::erro_campo("vendas.estado", erro))?,
-            forma_pagamento: FormaPagamento::from_db(&self.forma_pagamento)
-                .map_err(|erro| crate::error::erro_campo("vendas.forma_pagamento", erro))?,
+            forma_pagamento: FormaPagamento::from_db_com_detalhe(
+                &self.forma_pagamento,
+                self.forma_pagamento_detalhe.as_deref(),
+            )
+            .map_err(|erro| crate::error::erro_campo("vendas.forma_pagamento", erro))?,
             pagamentos,
             itens,
             subtotal: Money::from_centavos(self.subtotal_centavos),

@@ -50,8 +50,9 @@ impl Ator {
     }
 
     /// Exige uma capacidade do catálogo (SEG-020).
+    /// O papel DONO (Host / Administrador Mestre) tem acesso total irrestrito a tudo (RF-001).
     pub fn exigir(&self, capacidade: &str) -> Result<(), ErroHttp> {
-        if self.0.tem_capacidade(capacidade) {
+        if matches!(self.0.papel, mikella_domain_people::Papel::Dono) || self.0.tem_capacidade(capacidade) {
             Ok(())
         } else {
             tracing::warn!(

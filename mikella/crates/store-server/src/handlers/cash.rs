@@ -4,7 +4,7 @@
 //! (`app_cash::abrir_caixa` / `app_cash::fechar_caixa`).
 //! `operador_id` é sempre derivado do usuário autenticado — nunca do cliente.
 
-use axum::extract::{Form, State};
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -78,13 +78,27 @@ pub async fn caixa_status(State(state): State<AppState>, ator: Ator) -> impl Int
 ///
 /// Usa `app_cash::abrir_caixa` com repositórios SQLite dentro de uma transação.
 /// Idempotente: reenviar o mesmo `sessao_id` devolve a sessão existente.
+/// Se já houver uma sessão aberta para o caixa, devolve a sessão existente com sucesso.
 #[allow(clippy::too_many_lines)]
 pub async fn abrir_caixa_handler(
     State(state): State<AppState>,
     ator: Ator,
-    Form(form): Form<AbrirCaixaForm>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
     exigir!(ator, "caixa.abrir");
+
+    let bytes = match axum::body::to_bytes(req.into_body(), 64 * 1024).await {
+        Ok(b) => b,
+        Err(_) => return bad_request("corpo de requisição inválido"),
+    };
+
+    let form: AbrirCaixaForm = if let Ok(f) = serde_json::from_slice(&bytes) {
+        f
+    } else if let Ok(f) = serde_urlencoded::from_bytes(&bytes) {
+        f
+    } else {
+        return bad_request("formato inválido (esperado JSON ou URL-encoded)");
+    };
 
     let sessao_id: SessaoId = match form.sessao_id.parse() {
         Ok(id) => id,
@@ -125,6 +139,23 @@ pub async fn abrir_caixa_handler(
     };
 
     let sessoes = SessaoRepo::novo(&tx);
+
+    // Se já existir uma sessão aberta para este número de caixa, retorna a sessão existente de forma idempotente
+    if let Ok(abertas) = sessoes.buscar_sessoes_abertas() {
+        if let Some(conflito) = abertas.iter().find(|s| s.numero_caixa == form.numero_caixa) {
+            let _ = tx.rollback();
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "sessao_id": conflito.id.to_string(),
+                    "numero_caixa": conflito.numero_caixa,
+                    "estado": conflito.estado.as_str(),
+                    "saldo_inicial": conflito.saldo_inicial_centavos.to_string(),
+                })),
+            );
+        }
+    }
+
     let livro = LivroRepo::novo(&tx);
     let hash = Blake3HashChain;
     let clock = SystemClock;
@@ -183,9 +214,22 @@ pub async fn abrir_caixa_handler(
 pub async fn fechar_caixa_handler(
     State(state): State<AppState>,
     ator: Ator,
-    Form(form): Form<FecharCaixaForm>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
     exigir!(ator, "caixa.fechar");
+
+    let bytes = match axum::body::to_bytes(req.into_body(), 64 * 1024).await {
+        Ok(b) => b,
+        Err(_) => return bad_request("corpo de requisição inválido"),
+    };
+
+    let form: FecharCaixaForm = if let Ok(f) = serde_json::from_slice(&bytes) {
+        f
+    } else if let Ok(f) = serde_urlencoded::from_bytes(&bytes) {
+        f
+    } else {
+        return bad_request("formato inválido (esperado JSON ou URL-encoded)");
+    };
 
     let sessao_id: SessaoId = match form.sessao_id.parse() {
         Ok(id) => id,
@@ -293,9 +337,22 @@ pub async fn fechar_caixa_handler(
 pub async fn realizar_sangria_handler(
     State(state): State<AppState>,
     ator: Ator,
-    Form(form): Form<SangriaForm>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
     exigir!(ator, "caixa.criar");
+
+    let bytes = match axum::body::to_bytes(req.into_body(), 64 * 1024).await {
+        Ok(b) => b,
+        Err(_) => return bad_request("corpo de requisição inválido"),
+    };
+
+    let form: SangriaForm = if let Ok(f) = serde_json::from_slice(&bytes) {
+        f
+    } else if let Ok(f) = serde_urlencoded::from_bytes(&bytes) {
+        f
+    } else {
+        return bad_request("formato inválido (esperado JSON ou URL-encoded)");
+    };
 
     let sessao_id: SessaoId = match form.sessao_id.parse() {
         Ok(id) => id,

@@ -188,15 +188,15 @@
   <main class="login-container">
     <div class="marca-titulo">MIKELLA ERP</div>
 
-    <form id="form-login" class="form-bloco" autocomplete="on">
+    <form id="form-login" class="form-bloco" autocomplete="off">
       <div id="grupo-user" class="campo-grupo">
         <label for="input-user" class="campo-label">USER</label>
-        <input id="input-user" class="campo-input" type="text" autocomplete="username" autofocus required />
+        <input id="input-user" class="campo-input" type="text" autocomplete="off" spellcheck="false" autofocus required />
       </div>
 
       <div id="grupo-senha" class="campo-grupo">
         <label id="label-senha" for="input-senha" class="campo-label">SENHA</label>
-        <input id="input-senha" class="campo-input" type="password" autocomplete="current-password" required />
+        <input id="input-senha" class="campo-input" type="password" autocomplete="new-password" required />
       </div>
 
       <div id="msg-erro" class="feedback-msg feedback-erro" style="display: none;"></div>
@@ -280,15 +280,13 @@
             inputSenha.placeholder = "000000";
             btnSubmit.textContent = "VERIFICAR CÓDIGO (ENTER)";
 
+            inputSenha.value = "";
             if (data.codigo_debug) {
-              inputSenha.value = data.codigo_debug;
-              mostrarOk(`Código 2FA gerado: ${data.codigo_debug} (Aperte Enter para confirmar)`);
+              mostrarOk(`Código 2FA: ${data.codigo_debug} (digite o código acima)`);
             } else {
-              inputSenha.value = "";
               mostrarOk("Código 2FA enviado! Digite os 6 números.");
             }
             inputSenha.focus();
-            inputSenha.select();
           } else {
             mostrarErro(data.erro || "Usuário ou senha incorretos.");
           }

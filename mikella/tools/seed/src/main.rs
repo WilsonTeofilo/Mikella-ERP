@@ -5,7 +5,9 @@ use rusqlite::Connection;
 use uuid::Uuid;
 
 fn main() {
-    let db = std::env::args().nth(1).unwrap();
+    let db = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "dados/loja.db".to_string());
     let argon2 = Argon2::default();
 
     // Gera salt aleatório usando OsRng (CSPRNG)

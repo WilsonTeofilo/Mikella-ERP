@@ -325,87 +325,48 @@ pub async fn realizar_sangria_handler(
         }
     };
 
-    use mikella_domain_cash::ports::{LivroCaixaRepository, SessaoRepository};
+    use mikella_app_cash::caixa::registrar_sangria;
+
     let sessoes = SessaoRepo::novo(&tx);
-    let sessao = match sessoes.buscar_por_id(sessao_id) {
-        Ok(Some(s)) => s,
-        _ => {
-            let _ = tx.rollback();
-            return (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({ "erro": "Sessão de caixa não encontrada" })),
-            );
-        }
+    let livro = LivroRepo::novo(&tx);
+    let hash = Blake3HashChain;
+    let clock = SystemClock;
+    let repos = CaixaRepos {
+        sessoes: &sessoes,
+        livro: &livro,
+        hash: &hash,
+        clock: &clock,
     };
 
-    if sessao.estado.as_str() != "ABERTA" {
-        let _ = tx.rollback();
-        return (
-            StatusCode::CONFLICT,
-            Json(serde_json::json!({ "erro": "Caixa não está aberto para sangria" })),
-        );
-    }
+    match registrar_sangria(
+        &repos,
+        sessao_id,
+        Money::from_centavos(form.valor_centavos),
+        operador_id,
+        operador_id,
+        motivo_truncado.clone(),
+    ) {
+        Ok(()) => {
+            if tx.commit().is_err() {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "Erro ao confirmar sangria" })),
+                );
+            }
 
-    let livro = LivroRepo::novo(&tx);
-    let posicao = match livro.posicao_atual(sessao_id) {
-        Ok(p) => p,
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "sucesso": true,
+                    "mensagem": "Sangria realizada com sucesso!",
+                    "valor": Money::from_centavos(form.valor_centavos).to_string(),
+                    "motivo": motivo_truncado,
+                })),
+            )
+        }
         Err(e) => {
             let _ = tx.rollback();
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": e.to_string() })),
-            );
+            error_para_http(e)
         }
-    };
-
-    let entrada_id = uuid::Uuid::new_v4().to_string();
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(posicao.ultimo_hash.as_bytes());
-    hasher.update(entrada_id.as_bytes());
-    hasher.update(b"SANGRIA");
-    let valor_negativo = -form.valor_centavos;
-    hasher.update(&valor_negativo.to_le_bytes());
-    let novo_hash = hasher.finalize().to_hex().to_string();
-
-    let insert_res = tx.execute(
-        "INSERT INTO livro_caixa \
-         (id, sessao_id, sequencia, tipo, valor_centavos, troco_centavos, \
-          usuario_id, motivo, prev_hash, hash) \
-         VALUES (?1, ?2, ?3, 'SANGRIA', ?4, 0, ?5, ?6, ?7, ?8)",
-        rusqlite::params![
-            entrada_id,
-            sessao_id.to_string(),
-            posicao.proxima_sequencia,
-            valor_negativo,
-            operador_id.to_string(),
-            motivo_truncado,
-            posicao.ultimo_hash,
-            novo_hash,
-        ],
-    );
-
-    if let Err(e) = insert_res {
-        let _ = tx.rollback();
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "erro": format!("Erro ao registrar sangria: {}", e) })),
-        );
     }
-
-    if let Err(e) = tx.commit() {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "erro": format!("Erro ao confirmar sangria: {}", e) })),
-        );
-    }
-
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "sucesso": true,
-            "mensagem": "Sangria realizada com sucesso!",
-            "valor": Money::from_centavos(form.valor_centavos).to_string(),
-            "motivo": motivo_truncado,
-        })),
-    )
 }

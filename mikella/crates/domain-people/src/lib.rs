@@ -9,7 +9,10 @@
 //! - Usuário inativo (desativado) não pode autenticar.
 //! - PIN é opcional — usado para operações de aprovação no balcão (FRD-050).
 
+pub mod pessoa;
 pub mod ports;
+
+pub use pessoa::{Pessoa, TipoPessoa};
 
 use chrono::{DateTime, Utc};
 use mikella_shared_kernel::{

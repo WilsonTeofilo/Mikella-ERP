@@ -1,7 +1,7 @@
 # Mikella ERP — Plano Mestre de Desenvolvimento
 
-**Última atualização:** 02/11/2026  
-**Status atual:** MVP-0, MVP-1, Pré-Piloto e Desktop Shell (Tauri 2) CONCLUÍDOS ✅ (172 testes passando, clippy 0 warnings, binários `mikella.exe` e `mikella-server.exe` gerados e validados)  
+**Última atualização:** 03/11/2026  
+**Status atual:** MVP-0, MVP-1, Pré-Piloto e Operação de Caixa Avançada (Tauri 2 + Clean Architecture) CONCLUÍDOS ✅ (172+ testes passando, Clippy 0 warnings, binários `mikella.exe` e `mikella-server.exe` gerados e validados)  
 **Premissa fundamental:** Desktop local-first (Tauri 2 + Rust + HTML/CSS puro + SQLite). O sistema roda e processa 100% na máquina da loja; a nuvem não processa vendas e só servirá (após o MVP-3) para sincronização de conta, licença e cópia de segurança (backup cifrado zero-knowledge). A landing page fica para o final do projeto para utilizar capturas de tela e métricas reais do sistema operando.
 
 Documento de precedência: `04/05 > 06 > 09 > 03 > 02 > 07 > 08 > 01`.
@@ -13,17 +13,31 @@ Documento de precedência: `04/05 > 06 > 09 > 03 > 02 > 07 > 08 > 01`.
 ```
 [MVP-0] ✅ Núcleo Puro: Domínio, SQLite, livro de caixa imutável, venda atômica, estoque por movimentação.
 [MVP-1] ✅ PDV Vendável (1 PC): API local (store-server), auth Argon2id + 2FA BLAKE3, caixa F1-F7, produtos com FTS5 e CSV, financeiro básico RF-030 (contas a pagar/receber e liquidação), gerenciamento de usuários com hierarquia e catálogo fechado, frontend TUI balcão (cobalto/preto/branco).
-[PRÉ-PILOTO] ✅ Recursos de Loja Concluídos:
+[PRÉ-PILOTO] ✅ Recursos de Loja & Frente Operacional Concluídos:
   ├── 1. Impressão de cupom e fechamento ESC/POS 58mm/80mm (infra-hardware).
   ├── 2. Cópia de segurança local de 1 clique (POST /v1/sistema/backup-local com VACUUM INTO e BLAKE3).
   ├── 3. Pacote de diagnóstico técnico sem PII (GET /v1/sistema/diagnostico com integridade de banco).
-  └── 4. Telas operacionais no terminal (produtos.html, financeiro.html e main-menu.html integrado F1-F5).
+  ├── 4. Menu Operacional Intermediário do PDV (pos-menu.html) com atalhos F1 a F8:
+  │      ├── F1 Venda direta / F2 Venda com comanda
+  │      ├── F3 Histórico de vendas com filtro por período/COO, bobina e reimpressão
+  │      ├── F4 Cadastro e consulta de clientes com saldo devedor e indicador de atraso
+  │      ├── F5 Sangria de caixa com observação (até 256 chars) e hash BLAKE3
+  │      ├── F6 Pagar dívidas (crediário) com catálogo alfabético e liquidação instantânea
+  │      ├── F7 Sincronização do caixa
+  │      └── F8 Fechar caixa com sangria de troco, operador, obs (512 chars) e bobina com assinatura
+  ├── 5. Fluxo de Vendas no Balcão (pos.html):
+  │      ├── F1 Pagamento multi-método (restante dinâmico e troco exato em dinheiro)
+  │      ├── F2 Vincular/alterar cliente em tempo real
+  │      ├── F3 Pré-seleção de forma de pagamento
+  │      ├── F4 Cancelamento de item específico com quantidade
+  │      └── F5 Cancelamento de compra com autorização por senha (operador próprio caixa / gerente global)
+  └── 6. Blindagem Clean Architecture: casos de uso desacoplados (app-sales, app-cash, domain-people) e anti-autofill no WebView2.
 
-─── [FASE ATUAL: ENTRADA NO PILOTO FECHADO DE 30 DIAS EM 3 LOJAS REAIS] ───
-  ├── 1. Build de distribuição de release (binários otimizados com LTO e strip).
-  ├── 2. Script de inicialização da loja em 1 clique (criação automática de dados/loja.db).
-  ├── 3. Homologação com hardware físico (impressora térmica USB e leitor de código de barras).
-  └── 4. Checklist de acompanhamento diário (tolerância a queda de energia, conferência de caixa sem divergência).
+─── [PRÓXIMA ETAPA: HOMOLOGAÇÃO DE PERIFÉRICOS & PILOTO DE 30 DIAS EM 3 LOJAS REAIS] ───
+  ├── 1. Homologação final com impressora térmica USB (Daruma/Bematech/Epson) e leitor de código de barras.
+  ├── 2. Teste de estresse: simulação de corte abrupto de energia durante emissão de venda com HDD 5400 rpm.
+  ├── 3. Acompanhamento do operador: validação de fechamento diário sem divergência de centavos.
+  └── 4. Coleta de feedback do lojista (tempo médio de atendimento e clareza da fita térmica).
 
 [PILOTO] 🔒 Validação em 3 lojas reais por 30 dias (hardware real i3/i5, 6 GB RAM, HDD, sem dependência de nuvem).
 [MVP-2]  🔒 Rede da loja: modo multi-PC (servidor axum local, TLS autoassinado via rcgen, pareamento por código, 3 a 8 caixas simultâneos).

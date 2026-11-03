@@ -1,16 +1,18 @@
-//! Handlers para clientes, crediário e devedores da loja.
+//! Handlers HTTP para clientes, crediário e devedores da loja (Clean Architecture).
 
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::exigir;
 use crate::middleware::Ator;
 use crate::state::AppState;
+use mikella_domain_people::ports::PessoaRepository;
+use mikella_domain_people::Pessoa;
+use mikella_infra_sqlite::PessoaRepo;
 use mikella_shared_kernel::money::Money;
 
 #[derive(Deserialize)]
@@ -61,6 +63,7 @@ pub struct DevedorItemResponse {
 #[derive(Deserialize)]
 pub struct LiquidarDividaPayload {
     pub conta_id: String,
+    #[allow(dead_code)]
     pub parcela_numero: i64,
     pub forma_pagamento: String,
     pub sessao_id: Option<String>,
@@ -75,73 +78,27 @@ pub async fn listar_clientes_handler(
     exigir!(ator, "caixa.ver");
 
     let db = state.db.lock().await;
-    let termo = query.busca.unwrap_or_default().trim().to_lowercase();
+    let repo = PessoaRepo::novo(db.conn());
 
-    let sql = if termo.is_empty() {
-        "SELECT id, nome, documento, telefone, email, endereco, ativo FROM pessoas \
-         WHERE tipo IN ('CLIENTE', 'AMBOS') AND ativo = 1 ORDER BY nome LIMIT 50".to_string()
-    } else {
-        format!(
-            "SELECT id, nome, documento, telefone, email, endereco, ativo FROM pessoas \
-             WHERE tipo IN ('CLIENTE', 'AMBOS') AND ativo = 1 \
-               AND (LOWER(nome) LIKE '%{termo}%' OR documento LIKE '%{termo}%' OR telefone LIKE '%{termo}%') \
-             ORDER BY nome LIMIT 50"
-        )
-    };
-
-    let clientes_res = (|| -> rusqlite::Result<Vec<ClienteResponse>> {
-        let mut stmt = db.conn().prepare(&sql)?;
-        let rows = stmt.query_map([], |row| {
-            let id: String = row.get(0)?;
-            let nome: String = row.get(1)?;
-            let cpf: Option<String> = row.get(2)?;
-            let telefone: Option<String> = row.get(3)?;
-            let email: Option<String> = row.get(4)?;
-            let endereco: Option<String> = row.get(5)?;
-            let ativo: bool = row.get::<_, i64>(6)? == 1;
-
-            Ok((id, nome, cpf, telefone, email, endereco, ativo))
-        })?;
-
-        let mut lista = Vec::new();
-        for r in rows {
-            let (id, nome, cpf, telefone, email, endereco, ativo) = r?;
-
-            // Calcula saldo devedor e se há parcelas vencidas no crediário
-            let saldo_e_vencido: (i64, i64) = db
-                .conn()
-                .query_row(
-                    "SELECT COALESCE(SUM(pr.valor_centavos), 0), \
-                            COALESCE(SUM(CASE WHEN date(pr.vencimento) < date('now') THEN 1 ELSE 0 END), 0) \
-                     FROM parcelas_receber pr \
-                     JOIN contas_receber cr ON cr.id = pr.conta_id \
-                     WHERE cr.cliente_id = ?1 AND pr.estado = 'PENDENTE'",
-                    [&id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )
-                .unwrap_or((0, 0));
-
-            let saldo_devedor_centavos = saldo_e_vencido.0;
-            let tem_vencido = saldo_e_vencido.1 > 0;
-
-            lista.push(ClienteResponse {
-                id,
-                nome,
-                cpf,
-                telefone,
-                email,
-                endereco,
-                saldo_devedor_centavos,
-                saldo_devedor_fmt: Money::from_centavos(saldo_devedor_centavos).to_string(),
-                tem_vencido,
-                ativo,
-            });
+    match repo.buscar_clientes_com_saldo(query.busca.as_deref()) {
+        Ok(clientes) => {
+            let lista: Vec<ClienteResponse> = clientes
+                .into_iter()
+                .map(|c| ClienteResponse {
+                    id: c.pessoa.id,
+                    nome: c.pessoa.nome,
+                    cpf: c.pessoa.documento,
+                    telefone: c.pessoa.telefone,
+                    email: c.pessoa.email,
+                    endereco: c.pessoa.endereco,
+                    saldo_devedor_centavos: c.saldo_devedor_centavos,
+                    saldo_devedor_fmt: Money::from_centavos(c.saldo_devedor_centavos).to_string(),
+                    tem_vencido: c.tem_vencido,
+                    ativo: c.pessoa.ativo,
+                })
+                .collect();
+            (StatusCode::OK, Json(serde_json::json!({ "clientes": lista })))
         }
-        Ok(lista)
-    })();
-
-    match clientes_res {
-        Ok(clientes) => (StatusCode::OK, Json(serde_json::json!({ "clientes": clientes }))),
         Err(e) => {
             tracing::error!(erro = %e, "falha ao listar clientes");
             (
@@ -160,56 +117,65 @@ pub async fn salvar_cliente_handler(
 ) -> impl IntoResponse {
     exigir!(ator, "caixa.ver");
 
-    let nome = payload.nome.trim();
-    if nome.is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "erro": "Nome do cliente é obrigatório" })),
-        );
-    }
+    let id_existente = payload.id.as_deref().filter(|s| !s.trim().is_empty());
+    let id = id_existente
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-    let db = state.db.lock().await;
-
-    let res = if let Some(id) = payload.id.filter(|s| !s.trim().is_empty()) {
-        db.conn().execute(
-            "UPDATE pessoas SET nome = ?1, documento = ?2, telefone = ?3, email = ?4, endereco = ?5, \
-             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
-             WHERE id = ?6",
-            params![
-                nome,
-                payload.cpf.as_deref().map(str::trim),
-                payload.telefone.as_deref().map(str::trim),
-                payload.email.as_deref().map(str::trim),
-                payload.endereco.as_deref().map(str::trim),
-                id,
-            ],
-        )
-    } else {
-        let novo_id = Uuid::new_v4().to_string();
-        db.conn().execute(
-            "INSERT INTO pessoas (id, tipo, nome, documento, telefone, email, endereco, ativo) \
-             VALUES (?1, 'CLIENTE', ?2, ?3, ?4, ?5, ?6, 1)",
-            params![
-                novo_id,
-                nome,
-                payload.cpf.as_deref().map(str::trim),
-                payload.telefone.as_deref().map(str::trim),
-                payload.email.as_deref().map(str::trim),
-                payload.endereco.as_deref().map(str::trim),
-            ],
-        )
+    let pessoa = match Pessoa::novo_cliente(
+        id,
+        payload.nome,
+        payload.telefone,
+        payload.email,
+        payload.cpf,
+        payload.endereco,
+        chrono::Utc::now(),
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "erro": e.to_string() })),
+            );
+        }
     };
 
-    match res {
-        Ok(_) => (
-            StatusCode::OK,
-            Json(serde_json::json!({ "sucesso": true, "mensagem": "Cliente salvo com sucesso" })),
-        ),
+    let mut db = state.db.lock().await;
+    let tx = match db.transacao() {
+        Ok(t) => t,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "erro": format!("Erro ao abrir transação: {e}") })),
+            );
+        }
+    };
+
+    let repo = PessoaRepo::novo(&tx);
+    let resultado = if id_existente.is_some() {
+        repo.atualizar(&pessoa)
+    } else {
+        repo.salvar(&pessoa)
+    };
+
+    match resultado {
+        Ok(_) => {
+            if let Err(e) = tx.commit() {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": format!("Erro ao confirmar transação: {e}") })),
+                );
+            }
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({ "sucesso": true, "mensagem": "Cliente salvo com sucesso" })),
+            )
+        }
         Err(e) => {
             tracing::error!(erro = %e, "erro ao salvar cliente");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": "Falha de banco ao salvar cliente" })),
+                Json(serde_json::json!({ "erro": format!("Falha ao salvar cliente: {e}") })),
             )
         }
     }
@@ -223,62 +189,48 @@ pub async fn listar_devedores_handler(
     exigir!(ator, "caixa.ver");
 
     let db = state.db.lock().await;
+    let repo = PessoaRepo::novo(db.conn());
 
-    let sql = "\
-        SELECT p.id, p.nome, p.documento, p.telefone, \
-               cr.id, pr.numero, cr.descricao, pr.vencimento, pr.valor_centavos, \
-               CAST((julianday('now') - julianday(pr.vencimento)) AS INTEGER) as dias_atraso \
-        FROM parcelas_receber pr \
-        JOIN contas_receber cr ON cr.id = pr.conta_id \
-        JOIN pessoas p ON p.id = cr.cliente_id \
-        WHERE pr.estado = 'PENDENTE' \
-        ORDER BY p.nome ASC, pr.vencimento ASC";
-
-    let devedores_res = (|| -> rusqlite::Result<Vec<DevedorItemResponse>> {
-        let mut stmt = db.conn().prepare(sql)?;
-        let rows = stmt.query_map([], |row| {
-            let valor_c: i64 = row.get(8)?;
-            let dias_atraso: i64 = row.get(9).unwrap_or(0);
-            Ok(DevedorItemResponse {
-                cliente_id: row.get(0)?,
-                cliente_nome: row.get(1)?,
-                cliente_cpf: row.get(2)?,
-                cliente_telefone: row.get(3)?,
-                conta_id: row.get(4)?,
-                parcela_numero: row.get(5)?,
-                descricao: row.get(6)?,
-                vencimento: row.get(7)?,
-                valor_centavos: valor_c,
-                valor_fmt: Money::from_centavos(valor_c).to_string(),
-                dias_atraso: dias_atraso.max(0),
-                vencido: dias_atraso > 0,
-            })
-        })?;
-        rows.collect()
-    })();
-
-    match devedores_res {
-        Ok(devedores) => (
-            StatusCode::OK,
-            Json(serde_json::json!({ "devedores": devedores })),
-        ),
+    match repo.listar_devedores() {
+        Ok(devedores) => {
+            let mut lista_resp = Vec::new();
+            for dev in devedores {
+                for parc in dev.parcelas {
+                    lista_resp.push(DevedorItemResponse {
+                        cliente_id: dev.cliente_id.clone(),
+                        cliente_nome: dev.nome.clone(),
+                        cliente_cpf: dev.documento.clone(),
+                        cliente_telefone: dev.telefone.clone(),
+                        conta_id: parc.parcela_id.clone(),
+                        parcela_numero: parc.numero as i64,
+                        descricao: format!("Parcela {}/{}", parc.numero, parc.numero),
+                        vencimento: parc.vencimento,
+                        valor_centavos: parc.valor_centavos,
+                        valor_fmt: Money::from_centavos(parc.valor_centavos).to_string(),
+                        dias_atraso: parc.dias_atraso,
+                        vencido: parc.dias_atraso > 0,
+                    });
+                }
+            }
+            (StatusCode::OK, Json(serde_json::json!({ "devedores": lista_resp })))
+        }
         Err(e) => {
-            tracing::error!(erro = %e, "erro ao listar devedores");
+            tracing::error!(erro = %e, "falha ao listar devedores");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": "falha ao consultar crediário" })),
+                Json(serde_json::json!({ "erro": "falha ao consultar devedores" })),
             )
         }
     }
 }
 
-/// `POST /v1/crediario/liquidar` — baixa uma parcela de dívida de crediário.
+/// `POST /v1/crediario/liquidar` — baixa uma parcela de dívida com lançamento no caixa se for dinheiro.
 pub async fn liquidar_divida_handler(
     State(state): State<AppState>,
     ator: Ator,
     Json(payload): Json<LiquidarDividaPayload>,
 ) -> impl IntoResponse {
-    exigir!(ator, "caixa.criar");
+    exigir!(ator, "caixa.abrir");
 
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {
@@ -286,83 +238,51 @@ pub async fn liquidar_divida_handler(
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": e.to_string() })),
-            )
-        }
-    };
-
-    // 1. Busca valor da parcela
-    let parcela_info: Option<(i64, String, String)> = tx
-        .query_row(
-            "SELECT pr.valor_centavos, cr.descricao, cr.cliente_id \
-             FROM parcelas_receber pr \
-             JOIN contas_receber cr ON cr.id = pr.conta_id \
-             WHERE pr.conta_id = ?1 AND pr.numero = ?2 AND pr.estado = 'PENDENTE'",
-            params![&payload.conta_id, payload.parcela_numero],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )
-        .ok();
-
-    let (valor_centavos, descricao, _cliente_id) = match parcela_info {
-        Some(info) => info,
-        None => {
-            let _ = tx.rollback();
-            return (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({ "erro": "Parcela de dívida não encontrada ou já liquidada" })),
+                Json(serde_json::json!({ "erro": format!("Erro ao abrir transação: {e}") })),
             );
         }
     };
 
-    // 2. Atualiza estado da parcela para RECEBIDO
-    let updated = tx.execute(
-        "UPDATE parcelas_receber \
-         SET estado = 'RECEBIDO', recebido_em = strftime('%Y-%m-%dT%H:%M:%fZ','now'), recebido_por = ?1 \
-         WHERE conta_id = ?2 AND numero = ?3",
-        params![ator.id().to_string(), &payload.conta_id, payload.parcela_numero],
-    );
+    let repo = PessoaRepo::novo(&tx);
+    let valor_centavos = match repo.liquidar_parcela(&payload.conta_id, &payload.forma_pagamento) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "erro": e.to_string() })),
+            );
+        }
+    };
 
-    if let Err(e) = updated {
-        let _ = tx.rollback();
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "erro": format!("Falha ao liquidar parcela: {}", e) })),
-        );
-    }
-
-    // 3. Se foi pago em dinheiro e houver caixa aberto, lança como SUPRIMENTO / RECEBIMENTO no livro-caixa
-    if payload.forma_pagamento.to_uppercase() == "DINHEIRO" {
-        if let Some(sessao_id_str) = payload.sessao_id.filter(|s| !s.trim().is_empty()) {
-            let livro = mikella_infra_sqlite::LivroRepo::novo(&tx);
-            if let Ok(sessao_id) = sessao_id_str.parse() {
-                use mikella_domain_cash::ports::LivroCaixaRepository;
-                if let Ok(posicao) = livro.posicao_atual(sessao_id) {
-                    let entrada_id = Uuid::new_v4().to_string();
-                    let motivo = format!("Recebimento Crediário: {} (Parc {})", descricao, payload.parcela_numero);
-                    let mut hasher = blake3::Hasher::new();
-                    hasher.update(posicao.ultimo_hash.as_bytes());
-                    hasher.update(entrada_id.as_bytes());
-                    hasher.update(b"SUPRIMENTO");
-                    hasher.update(&valor_centavos.to_le_bytes());
-                    let novo_hash = hasher.finalize().to_hex().to_string();
-
-                    let _ = tx.execute(
-                        "INSERT INTO livro_caixa \
-                         (id, sessao_id, sequencia, tipo, valor_centavos, troco_centavos, \
-                          referencia_id, referencia_tipo, usuario_id, motivo, prev_hash, hash) \
-                         VALUES (?1, ?2, ?3, 'SUPRIMENTO', ?4, 0, ?5, 'CREDIARIO', ?6, ?7, ?8, ?9)",
-                        params![
-                            entrada_id,
-                            sessao_id_str,
-                            posicao.proxima_sequencia,
-                            valor_centavos,
-                            payload.conta_id,
-                            ator.id().to_string(),
-                            motivo,
-                            posicao.ultimo_hash,
-                            novo_hash,
-                        ],
-                    );
+    // Se o pagamento foi em dinheiro e a sessão do caixa estiver ativa, registra como suprimento no livro caixa
+    if payload.forma_pagamento.eq_ignore_ascii_case("DINHEIRO") {
+        if let Some(sessao_id) = payload.sessao_id.filter(|s| !s.trim().is_empty()) {
+            let sessao_uuid: Result<uuid::Uuid, _> = sessao_id.parse();
+            if let Ok(suuid) = sessao_uuid {
+                let livro_repo = mikella_infra_sqlite::LivroRepo::novo(&tx);
+                let sid = mikella_shared_kernel::ids::SessaoId::from_uuid(suuid);
+                if let Ok(posicao) = mikella_domain_cash::ports::LivroCaixaRepository::posicao_atual(&livro_repo, sid) {
+                    let hash_chain = mikella_infra_sqlite::Blake3HashChain;
+                    let mut entrada = mikella_domain_cash::livro::EntradaLivro {
+                        id: mikella_shared_kernel::ids::LivroCaixaId::new(),
+                        sessao_id: sid,
+                        sequencia: posicao.proxima_sequencia,
+                        tipo: mikella_domain_cash::livro::TipoMovimentacao::Suprimento,
+                        valor_centavos: Money::from_centavos(valor_centavos),
+                        troco_centavos: Money::ZERO,
+                        referencia: Some(mikella_domain_cash::livro::Referencia {
+                            id: payload.conta_id.clone(),
+                            tipo: "RECEBIMENTO_CREDIARIO".to_string(),
+                        }),
+                        usuario_id: ator.id(),
+                        aprovador_id: None,
+                        motivo: Some("Recebimento de dívida de crediário".to_string()),
+                        prev_hash: posicao.ultimo_hash,
+                        hash: String::new(),
+                        created_at: chrono::Utc::now(),
+                    };
+                    entrada.hash = mikella_domain_cash::ports::HashChain::hash_entrada(&hash_chain, &entrada);
+                    let _ = mikella_domain_cash::ports::LivroCaixaRepository::inserir_entrada(&livro_repo, &entrada);
                 }
             }
         }
@@ -371,7 +291,7 @@ pub async fn liquidar_divida_handler(
     if let Err(e) = tx.commit() {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "erro": format!("Falha ao confirmar liquidação: {}", e) })),
+            Json(serde_json::json!({ "erro": format!("Erro ao confirmar transação: {e}") })),
         );
     }
 
@@ -379,8 +299,8 @@ pub async fn liquidar_divida_handler(
         StatusCode::OK,
         Json(serde_json::json!({
             "sucesso": true,
-            "mensagem": "Dívida quitada com sucesso!",
-            "valor_pago": Money::from_centavos(valor_centavos).to_string(),
+            "mensagem": "Dívida liquidada com sucesso",
+            "valor_liquidado_centavos": valor_centavos
         })),
     )
 }

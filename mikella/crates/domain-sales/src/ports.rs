@@ -25,4 +25,7 @@ pub trait VendaRepository {
 
     /// Total de vendas finalizadas em uma sessão (em centavos).
     fn total_por_sessao(&self, sessao_id: SessaoId) -> DomainResult<i64>;
+
+    /// Atualiza o estado da venda (ex: Cancelada, Estornada).
+    fn atualizar_estado(&self, id: VendaId, estado: crate::venda::EstadoVenda) -> DomainResult<()>;
 }

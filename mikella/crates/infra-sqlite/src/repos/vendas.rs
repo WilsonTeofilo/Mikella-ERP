@@ -273,6 +273,20 @@ impl VendaRepository for VendaRepo<'_> {
         ))?;
         Ok(total)
     }
+
+    fn atualizar_estado(&self, id: VendaId, estado: EstadoVenda) -> DomainResult<()> {
+        let alteradas = sql(self.conn.execute(
+            "UPDATE vendas SET estado = ?2 WHERE id = ?1",
+            params![id.to_string(), estado.as_str()],
+        ))?;
+        if alteradas == 0 {
+            return Err(DomainError::NaoEncontrado {
+                entidade: "Venda",
+                id: id.to_string(),
+            });
+        }
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize)]

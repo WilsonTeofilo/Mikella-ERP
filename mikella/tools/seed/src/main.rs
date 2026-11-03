@@ -29,8 +29,8 @@ fn main() {
     let store_id = Uuid::new_v4().to_string();
     let usuario_id = Uuid::new_v4().to_string();
     let dispositivo_id = Uuid::new_v4().to_string();
-    let produto_id = Uuid::new_v4().to_string();
-    let lote_id = Uuid::new_v4().to_string();
+    let _produto_id = Uuid::new_v4().to_string();
+    let _lote_id = Uuid::new_v4().to_string();
 
     // Busca usuário existente ou cria novo
     let user_row: Option<(String,)> = conn

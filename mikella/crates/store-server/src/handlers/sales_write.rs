@@ -363,7 +363,6 @@ pub async fn cancelar_venda_handler(
     Json(payload): Json<crate::dto::sales::CancelarVendaPayload>,
 ) -> impl IntoResponse {
     exigir!(ator, "venda.criar");
-    use rusqlite::OptionalExtension;
 
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {
@@ -376,85 +375,55 @@ pub async fn cancelar_venda_handler(
         }
     };
 
-    let venda_row: Option<(String, String, i64)> = tx
-        .query_row(
-            "SELECT sessao_id, estado, total_centavos FROM vendas WHERE id = ?1",
-            [&venda_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )
-        .optional()
-        .unwrap_or(None);
-
-    let (sessao_id, estado, total_centavos) = match venda_row {
-        Some(v) => v,
-        None => {
+    let vid: mikella_shared_kernel::ids::VendaId = match venda_id.parse() {
+        Ok(id) => id,
+        Err(_) => {
             let _ = tx.rollback();
             return (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({ "erro": "Venda não encontrada" })),
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "erro": "venda_id inválido (UUID esperado)" })),
             );
         }
     };
 
-    if estado != "FINALIZADA" {
-        let _ = tx.rollback();
-        return (
-            StatusCode::CONFLICT,
-            Json(serde_json::json!({ "erro": format!("Venda não pode ser cancelada (estado atual: {})", estado) })),
-        );
-    }
-
-    // 1. Atualiza estado da venda para CANCELADA
-    let _ = tx.execute("UPDATE vendas SET estado = 'CANCELADA' WHERE id = ?1", [&venda_id]);
-
-    // 2. Lança CANCELAMENTO no livro_caixa
+    let vendas = mikella_infra_sqlite::VendaRepo::novo(&tx);
     let livro = mikella_infra_sqlite::LivroRepo::novo(&tx);
-    if let Ok(sessao_uuid) = sessao_id.parse() {
-        use mikella_domain_cash::ports::LivroCaixaRepository;
-        if let Ok(posicao) = livro.posicao_atual(sessao_uuid) {
-            let entrada_id = uuid::Uuid::new_v4().to_string();
-            let mut hasher = blake3::Hasher::new();
-            hasher.update(posicao.ultimo_hash.as_bytes());
-            hasher.update(entrada_id.as_bytes());
-            hasher.update(b"CANCELAMENTO");
-            let valor_neg = -total_centavos;
-            hasher.update(&valor_neg.to_le_bytes());
-            let novo_hash = hasher.finalize().to_hex().to_string();
+    let hash = mikella_infra_sqlite::Blake3HashChain;
+    let repos = mikella_app_sales::CancelarVendaRepos {
+        vendas: &vendas,
+        livro: &livro,
+        hash: &hash,
+    };
 
-            let motivo = payload.motivo.unwrap_or_else(|| "Cancelamento de compra".to_string());
-            let _ = tx.execute(
-                "INSERT INTO livro_caixa \
-                 (id, sessao_id, sequencia, tipo, valor_centavos, troco_centavos, \
-                  referencia_id, referencia_tipo, usuario_id, motivo, prev_hash, hash) \
-                 VALUES (?1, ?2, ?3, 'CANCELAMENTO', ?4, 0, ?5, 'VENDA', ?6, ?7, ?8, ?9)",
-                rusqlite::params![
-                    entrada_id,
-                    sessao_id,
-                    posicao.proxima_sequencia,
-                    valor_neg,
-                    venda_id,
-                    ator.id().to_string(),
-                    motivo,
-                    posicao.ultimo_hash,
-                    novo_hash,
-                ],
-            );
+    let cmd = mikella_app_sales::CancelarVendaCmd {
+        venda_id: vid,
+        usuario_id: ator.id(),
+        motivo: payload.motivo,
+    };
+
+    match mikella_app_sales::cancelar_venda(&repos, cmd) {
+        Ok(()) => {
+            if let Err(e) = tx.commit() {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": format!("Falha ao confirmar cancelamento: {}", e) })),
+                );
+            }
+
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "sucesso": true,
+                    "mensagem": "Venda cancelada e estornada com sucesso."
+                })),
+            )
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "erro": e.to_string() })),
+            )
         }
     }
-
-    if let Err(e) = tx.commit() {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "erro": format!("Falha ao confirmar cancelamento: {}", e) })),
-        );
-    }
-
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "sucesso": true,
-            "mensagem": "Venda cancelada com sucesso!",
-            "venda_id": venda_id,
-        })),
-    )
 }

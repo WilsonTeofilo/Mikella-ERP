@@ -1,0 +1,290 @@
+/* Extraído de app/landing.html — estilos específicos desta tela. */
+/* ============================================================
+   LANDING — tela de login
+   Voz: "Rua" (letreiro) — cobalto dominante, blocos, ângulos.
+   Ref: 08_IDENTIDADE_VISUAL_E_UX.md §1, §5.2, §6, §7.1
+   VIS-040: zero border-radius em todo o sistema.
+   VIS-072: sem sombra difusa (box-shadow só 0px 0px na sólida).
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: 0 !important;
+}
+
+body {
+  background: var(--azul-600, #0040d8);
+  color: var(--branco, #ffffff);
+  font-family: var(--fonte-display, "Archivo"), "Arial Narrow", sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ─── Elementos angulares de fundo (assinatura visual §7.1) ─── */
+.fundo-angular {
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 60%;
+  height: 140%;
+  background: rgba(255, 255, 255, 0.08);
+  transform: rotate(25deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.fundo-faixa {
+  position: absolute;
+  bottom: -15%;
+  left: -25%;
+  width: 80%;
+  height: 40%;
+  background: var(--azul-700, #0030a8);
+  transform: rotate(-15deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Container principal ─── */
+.login-container {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 460px;
+  padding: 32px 28px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* ─── LETREIRO QUADRICULADO — Estilo Stickers / Bloco de Rua ─── */
+.marca-letreiro-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 32px;
+  user-select: none;
+}
+
+.letreiro-linha {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0px;
+  box-shadow: 6px 6px 0px #000000;
+}
+
+.letra-bloco {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 48px;
+  font-family: var(--fonte-display, "Archivo", sans-serif);
+  font-size: 1.85rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  border: 3px solid #000000;
+  border-right-width: 0;
+  box-sizing: border-box;
+  transition: transform 80ms ease;
+}
+
+.letreiro-linha .letra-bloco:last-child {
+  border-right-width: 3px;
+}
+
+/* Alternância de blocos estilo Cartoon Network / Persona */
+.letra-bloco.preta {
+  background: #000000;
+  color: #ffffff;
+}
+
+.letra-bloco.branca {
+  background: #ffffff;
+  color: #000000;
+}
+
+.marca-letreiro-grid:hover .letra-bloco {
+  transform: translateY(-2px);
+}
+
+/* ─── Formulário ─── */
+.form-bloco {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.campo-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.campo-label {
+  font-family: var(--fonte-display, "Archivo"), sans-serif;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #000;
+  text-transform: uppercase;
+  background: #fff;
+  display: inline-block;
+  padding: 2px 8px;
+  align-self: flex-start;
+}
+
+.campo-input {
+  width: 100%;
+  height: 58px;
+  background: #fff;
+  border: 3px solid #000;
+  padding: 0 16px;
+  font-family: var(--fonte-texto, "Source Sans 3"), "Segoe UI", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #000;
+  outline: none;
+  /* sombra sólida — estilo letreiro */
+  box-shadow: 4px 4px 0 #000;
+  transition:
+    transform 80ms,
+    box-shadow 80ms;
+}
+
+.campo-input:focus {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #000;
+}
+
+/* Disfarça senha sem type=password (anti-autofill do WebView2) */
+.campo-senha-mascarado {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
+/* ─── Botão entrar ─── */
+.btn-entrar {
+  width: 100%;
+  min-height: 58px;
+  margin-top: 4px;
+  background: #000;
+  color: #fff;
+  border: 3px solid #000;
+  font-family: var(--fonte-display, "Archivo"), sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 rgba(255, 255, 255, 0.5);
+  transition:
+    transform 80ms,
+    background 80ms,
+    color 80ms,
+    box-shadow 80ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-entrar:hover:not(:disabled) {
+  background: #fff;
+  color: #000;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #000;
+}
+
+.btn-entrar:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ─── Mensagens de feedback ─── */
+.feedback-msg {
+  padding: 10px 14px;
+  font-family: var(--fonte-texto, "Source Sans 3"), sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 2px solid #000;
+  width: 100%;
+  display: none;
+}
+
+.feedback-erro {
+  background: var(--vermelho, #c81e16);
+  color: #fff;
+}
+
+.feedback-ok {
+  background: var(--verde, #07733c);
+  color: #fff;
+}
+
+/* ─── Rodapé ─── */
+.rodape-info {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  font-family: var(--fonte-texto, "Source Sans 3"), sans-serif;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  z-index: 5;
+}
+
+/* ─── Acessibilidade ─── */
+*:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 24px 16px 32px;
+  }
+  .letra-bloco {
+    width: 34px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

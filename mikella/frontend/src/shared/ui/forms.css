@@ -220,6 +220,21 @@
    CAMPOS (12.2)
    ════════════════════════════════════════════════════════════════════════ */
 
+.campo-grupo {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--espaco-2);
+}
+
+.campo-grupo > label,
+.campo-grupo > .campo-label {
+  font-family: var(--fonte-texto);
+  font-size: var(--tamanho-auxiliar);
+  font-weight: var(--peso-subtitulo);
+  color: var(--texto-2, var(--cinza-500));
+  margin-bottom: var(--espaco-1);
+}
+
 .campo {
   display: block;
   width: 100%;

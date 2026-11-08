@@ -113,6 +113,26 @@ fn validar_cpf(digits: &str) -> bool {
     r2 == nums[10]
 }
 
+/// Mascara um documento (CPF ou CNPJ) para operadores comuns (SEC-013 / LGPD).
+///
+/// Exemplo:
+/// - CPF:  `12345678901` -> `123.***.***-01`
+/// - CNPJ: `11222333000181` -> `11.***.***/****-81`
+pub fn mascarar_documento(doc: &str) -> String {
+    let digits: String = doc.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() == 11 {
+        format!("{}.***.***-{}", &digits[..3], &digits[9..])
+    } else if digits.len() == 14 {
+        format!("{}.***.***/****-{}", &digits[..2], &digits[12..])
+    } else if doc.len() > 4 {
+        let inicio = &doc[..2];
+        let fim = &doc[doc.len() - 2..];
+        format!("{inicio}***{fim}")
+    } else {
+        "***".to_string()
+    }
+}
+
 fn validar_cnpj(digits: &str) -> bool {
     let nums: Vec<u32> = digits
         .chars()
@@ -171,5 +191,17 @@ mod tests {
         let debug = format!("{:?}", cpf);
         assert!(!debug.contains("529"));
         assert!(!debug.contains("247"));
+    }
+
+    #[test]
+    fn mascaramento_cpf_e_cnpj() {
+        assert_eq!(mascarar_documento("52998224725"), "529.***.***-25");
+        assert_eq!(mascarar_documento("529.982.247-25"), "529.***.***-25");
+        assert_eq!(
+            mascarar_documento("11222333000181"),
+            "11.***.***/****-81"
+        );
+        assert_eq!(mascarar_documento("12345"), "12***45");
+        assert_eq!(mascarar_documento("12"), "***");
     }
 }

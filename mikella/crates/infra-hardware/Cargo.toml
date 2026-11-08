@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name    = "mikella-infra-hardware"
 version.workspace = true
 edition.workspace = true
@@ -11,6 +11,7 @@ serde_json = { workspace = true }
 thiserror  = { workspace = true }
 uuid       = { workspace = true }
 chrono     = { workspace = true }
+chrono-tz  = { workspace = true }
 tracing    = { workspace = true }
 mikella-shared-kernel = { path = "../shared-kernel" }
 

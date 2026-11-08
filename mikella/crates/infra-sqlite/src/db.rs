@@ -118,7 +118,7 @@ mod tests {
     fn abre_em_memoria_com_integridade() {
         let db = Database::em_memoria().unwrap();
         db.verificar_integridade().unwrap();
-        assert_eq!(db.versao_schema().unwrap(), "0006_crediario_formas");
+        assert_eq!(db.versao_schema().unwrap(), "0010_pagamentos_e_loja_config");
     }
 
     #[test]

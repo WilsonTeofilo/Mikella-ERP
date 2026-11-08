@@ -1,0 +1,198 @@
+/* Extraído de app/produtos.html — estilos específicos desta tela. */
+[data-tema="caixa"] body {
+  background: var(--branco);
+  color: var(--preto);
+  font-family: var(--fonte-texto);
+  margin: 0;
+}
+.corte-m { display: none; 
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 64px solid var(--cobalto-600);
+  border-left: 64px solid transparent;
+}
+.wordmark { display: none; 
+  position: fixed;
+  top: var(--espaco-6);
+  left: var(--espaco-6);
+  display: flex;
+  gap: var(--espaco-1);
+  font-family: var(--fonte-display);
+  font-weight: var(--peso-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  z-index: 10;
+}
+.wordmark .letra {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2em;
+  height: 2em;
+  font-size: 1.1rem;
+  color: var(--preto);
+  background: var(--cobalto-600);
+  border: 2px solid var(--preto);
+}
+.wordmark .letra:nth-child(odd) {
+  color: var(--branco);
+  background: var(--preto);
+}
+
+.app-container {
+  min-height: calc(100vh - 54px);
+  padding: var(--espaco-4) var(--espaco-6);
+  box-sizing: border-box;
+}
+.linha-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: var(--espaco-4);
+  gap: var(--espaco-4);
+  flex-wrap: wrap;
+}
+.titulo-pagina {
+  font-family: var(--fonte-display);
+  font-weight: var(--peso-display);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.busca-box input {
+  width: 320px;
+  padding: var(--espaco-3);
+  border: 2px solid var(--preto);
+  font-family: var(--fonte-texto);
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+.busca-box input:focus {
+  outline: 3px solid var(--cobalto-600);
+  outline-offset: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--espaco-3);
+}
+th,
+td {
+  border-bottom: 1px solid var(--preto);
+  padding: var(--espaco-3) var(--espaco-2);
+  text-align: left;
+  font-family: var(--fonte-texto);
+  font-size: 0.95rem;
+}
+th {
+  font-weight: var(--peso-subtitulo);
+  background: #f4f4f4;
+  border-top: 2px solid var(--preto);
+}
+td.direita,
+th.direita {
+  text-align: right;
+}
+
+.barra-botoes {
+  display: flex;
+  gap: var(--espaco-2);
+  margin-top: var(--espaco-5);
+  flex-wrap: wrap;
+}
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-texto);
+  font-weight: var(--peso-subtitulo);
+  padding: var(--espaco-3) var(--espaco-4);
+  min-height: 48px;
+  min-width: 96px;
+  background: var(--branco);
+  color: var(--preto);
+  border: 2px solid var(--preto);
+  cursor: pointer;
+  text-decoration: none;
+}
+.botao:hover {
+  background: var(--cobalto-600);
+  color: var(--branco);
+}
+.botao.primario {
+  background: var(--preto);
+  color: var(--branco);
+}
+.botao.primario:hover {
+  background: var(--cobalto-600);
+}
+.tecla {
+  font-weight: var(--peso-titulo);
+  margin-right: var(--espaco-2);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.modal-conteudo {
+  background: var(--branco);
+  color: var(--preto);
+  border: 2px solid var(--preto);
+  padding: var(--espaco-6);
+  max-width: 520px;
+  width: calc(100% - var(--espaco-4));
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-titulo {
+  font-family: var(--fonte-display);
+  font-weight: var(--peso-display);
+  font-size: 1.5rem;
+  margin: 0 0 var(--espaco-4);
+}
+
+.campo {
+  margin-bottom: var(--espaco-3);
+}
+.campo label {
+  display: block;
+  font-weight: var(--peso-subtitulo);
+  margin-bottom: var(--espaco-1);
+}
+.campo input,
+.campo select {
+  width: 100%;
+  padding: var(--espaco-2);
+  border: 2px solid var(--preto);
+  font-family: var(--fonte-texto);
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.toast {
+  position: fixed;
+  bottom: var(--espaco-6);
+  right: var(--espaco-6);
+  background: var(--preto);
+  color: var(--branco);
+  padding: var(--espaco-3) var(--espaco-5);
+  font-family: var(--fonte-texto);
+  font-weight: var(--peso-subtitulo);
+  border: 2px solid var(--preto);
+  display: none;
+  z-index: 300;
+}
+.toast.visivel {
+  display: block;
+}

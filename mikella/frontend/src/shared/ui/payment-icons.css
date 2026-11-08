@@ -1,4 +1,9 @@
-/* ── Ícones e Estilos de Formas de Pagamento Mikella ── */
+/* ─────────────────────────────────────────────────────────────────────────
+   Grade de formas de pagamento — PDV
+   Cada SVG já traz fill/stroke próprios (payment-icons.js). O CSS abaixo não
+   deve sobrescrever cores: apenas dimensiona e mantém o traço legível.
+   ───────────────────────────────────────────────────────────────────────── */
+
 .grade-pagamentos-icones {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -19,61 +24,67 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: #FFFFFF;
+  min-height: 96px;
+  padding: 10px 6px;
+  background: #ffffff;
   color: #000000;
   border: 3px solid #000000;
-  padding: 10px 6px;
+  box-shadow: 4px 4px 0 #000000;
+  font: inherit;
+  text-align: center;
   cursor: pointer;
-  box-shadow: 4px 4px 0px #000000;
-  transition: transform 60ms ease, box-shadow 60ms ease, background 60ms ease;
   user-select: none;
-  min-height: 80px;
+  transition:
+    transform 60ms ease,
+    box-shadow 60ms ease,
+    background 60ms ease;
 }
 
 .card-forma-pagamento:hover {
-  background: #FFFFF0;
+  background: #fffff0;
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px #000000;
+  box-shadow: 6px 6px 0 #000000;
 }
 
 .card-forma-pagamento:active {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0px #000000;
+  box-shadow: 1px 1px 0 #000000;
+}
+
+.card-forma-pagamento:focus-visible {
+  outline: 3px solid #0040d8;
+  outline-offset: 2px;
 }
 
 .card-forma-pagamento.selecionado {
-  background: var(--amarelo, #FFD21F);
-  border-color: #000000;
-  box-shadow: 5px 5px 0px #000000;
+  background: var(--amarelo, #ffd21f);
 }
 
 .card-forma-pagamento .badge-atalho {
+  align-self: flex-start;
+  padding: 2px 6px;
   background: #000000;
-  color: #FFFFFF;
+  color: #ffffff;
   font-family: var(--fonte-display, "Archivo", sans-serif);
   font-size: 0.75rem;
   font-weight: 900;
-  padding: 2px 6px;
-  align-self: flex-start;
   line-height: 1;
 }
 
 .card-forma-pagamento .icone-svg {
-  width: 32px;
-  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
 }
 
+/* Rede de segurança: formas sem fill declarado não devem virar manchas pretas. */
 .card-forma-pagamento .icone-svg svg {
+  display: block;
   width: 100%;
   height: 100%;
-  stroke: #000000;
   fill: none;
-  stroke-width: 2.2;
-  stroke-linecap: square;
-  stroke-linejoin: miter;
 }
 
 .card-forma-pagamento .rotulo-forma {
@@ -81,7 +92,12 @@
   font-size: 0.88rem;
   font-weight: 900;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-align: center;
   line-height: 1.1;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-forma-pagamento {
+    transition: none;
+  }
 }

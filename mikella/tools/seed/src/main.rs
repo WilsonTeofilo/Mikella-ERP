@@ -56,6 +56,29 @@ fn main() {
         usuario_id
     };
 
+    // Cria/atualiza também usuário 'admin' com senha 'admin123'
+    let admin_hash = argon2.hash_password(b"admin123", &salt).unwrap().to_string();
+    let admin_row: Option<(String,)> = conn
+        .query_row(
+            "SELECT id FROM usuarios WHERE username = 'admin'",
+            [],
+            |row| Ok((row.get(0)?,)),
+        )
+        .ok();
+    if let Some((uid,)) = admin_row {
+        conn.execute(
+            "UPDATE usuarios SET senha_hash = ?1, ativo = 1 WHERE id = ?2",
+            [&admin_hash, &uid],
+        ).unwrap();
+    } else {
+        let admin_id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO usuarios (id, nome, username, senha_hash, email, papel, ativo) \
+             VALUES (?1, 'Administrador', 'admin', ?2, 'admin@test.local', 'DONO', 1)",
+            [&admin_id, &admin_hash],
+        ).unwrap();
+    }
+
     // Popula instance_identity para simular onboarding concluído
     conn.execute(
         "INSERT OR IGNORE INTO instance_identity (id, account_id, store_id, db_epoch, manifest_json) \

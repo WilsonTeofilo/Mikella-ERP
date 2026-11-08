@@ -33,6 +33,8 @@ pub enum MoneyError {
     CentavosInvalidos { centavos: u8 },
     #[error("Percentual inválido: {0} (esperado de 0 a 100)")]
     PercentualInvalido(u8),
+    #[error("Número de parcelas inválido: {0} (deve ser entre 1 e 120)")]
+    ParcelasInvalidas(u32),
 }
 
 impl Money {
@@ -138,10 +140,52 @@ impl Money {
     }
 
     /// Retorna `(reais, centavos)` para exibição. O sinal acompanha `reais`.
+    ///
+    /// Atenção: para valores entre -0,01 e -0,99 centavos, `reais` é `0`.
+    /// Nesses casos, use [`partes_sinal`](Self::partes_sinal) para preservar o sinal negativo.
     pub fn partes(self) -> (i64, u8) {
         let abs = self.0.unsigned_abs();
         let reais = (abs / 100) as i64 * self.0.signum();
         (reais, (abs % 100) as u8)
+    }
+
+    /// Retorna `(negativo, reais_abs, centavos)` garantindo que o sinal nunca se perca (DAT-010),
+    /// mesmo para valores fracionários negativos entre -1 e -99 centavos.
+    pub fn partes_sinal(self) -> (bool, u64, u8) {
+        let abs = self.0.unsigned_abs();
+        let negativo = self.0 < 0;
+        let reais = abs / 100;
+        let centavos = (abs % 100) as u8;
+        (negativo, reais, centavos)
+    }
+
+    /// Divide o valor monetário em `n` parcelas inteiras em centavos.
+    ///
+    /// Regra padrão de ERPs brasileiros:
+    /// - As primeiras `n - 1` parcelas recebem o valor base `total / n`.
+    /// - A última parcela (`n - 1`) recebe `base + (total % n)` (absorve integralmente o resto da divisão),
+    ///   garantindo que a soma exata de todas as parcelas seja estritamente igual a `self`.
+    /// - `n` deve estar no intervalo `1..=120`.
+    pub fn dividir_em_parcelas(self, n: u32) -> Result<Vec<Money>, MoneyError> {
+        if n == 0 || n > 120 {
+            return Err(MoneyError::ParcelasInvalidas(n));
+        }
+        if self.0 < 0 {
+            return Err(MoneyError::ValorNegativo(self.0));
+        }
+        let n_i64 = i64::from(n);
+        let base = self.0 / n_i64;
+        let resto = self.0 % n_i64;
+
+        let mut parcelas = Vec::with_capacity(n as usize);
+        for i in 0..n {
+            if i == n - 1 {
+                parcelas.push(Money::from_centavos(base + resto));
+            } else {
+                parcelas.push(Money::from_centavos(base));
+            }
+        }
+        Ok(parcelas)
     }
 
     pub const ZERO: Money = Money(0);
@@ -337,11 +381,83 @@ mod tests {
     }
 
     #[test]
+    fn partes_sinal_preserva_fracao_negativa() {
+        // DAT-010: entre -1 e -99 centavos, reais é 0 mas o sinal não pode se perder
+        let m = Money::from_centavos(-50);
+        assert_eq!(m.partes_sinal(), (true, 0, 50));
+
+        let zero = Money::from_centavos(0);
+        assert_eq!(zero.partes_sinal(), (false, 0, 0));
+
+        let positivo = Money::from_centavos(150);
+        assert_eq!(positivo.partes_sinal(), (false, 1, 50));
+    }
+
+    #[test]
     fn serde_roundtrip() {
         let m = Money::from_centavos(9999);
         let json = serde_json::to_string(&m).unwrap();
         assert_eq!(json, "9999");
         let de: Money = serde_json::from_str(&json).unwrap();
         assert_eq!(de, m);
+    }
+
+    #[test]
+    fn dividir_em_parcelas_de_1_a_12_com_resto_na_ultima() {
+        let valores_teste = [
+            455,    // R$ 4,55 (com divisões ímpares como 7x e 11x)
+            10_000, // R$ 100,00
+            1_001,  // R$ 10,01
+            5,      // R$ 0,05 (menor que o número de parcelas para testar centavos 0)
+            12_347, // R$ 123,47
+            99,     // R$ 0,99
+        ];
+
+        for &centavos in &valores_teste {
+            let total = Money::from_centavos(centavos);
+            for n in 1..=12 {
+                let parcelas = total.dividir_em_parcelas(n).expect("divisão válida");
+                assert_eq!(parcelas.len(), n as usize, "Total {centavos} em {n} parcelas");
+
+                // 1. Invariante fundamental: A soma de todas as parcelas é EXATAMENTE igual ao total
+                let soma: i64 = parcelas.iter().map(|p| p.centavos()).sum();
+                assert_eq!(
+                    soma, centavos,
+                    "A soma das {n} parcelas de {centavos} difere do total original!"
+                );
+
+                let base = centavos / i64::from(n);
+                let resto = centavos % i64::from(n);
+
+                // 2. As primeiras n - 1 parcelas têm o valor base
+                for (i, p) in parcelas[..parcelas.len() - 1].iter().enumerate() {
+                    assert_eq!(
+                        p.centavos(),
+                        base,
+                        "Parcela {} de {}x de total {} deveria ser a base {}",
+                        i + 1, n, centavos, base
+                    );
+                }
+
+                // 3. A ÚLTIMA parcela absorve o resto da divisão
+                let ultima = parcelas.last().unwrap().centavos();
+                assert_eq!(
+                    ultima,
+                    base + resto,
+                    "Última parcela de {}x de total {} deveria ter base ({}) + resto ({}) = {}",
+                    n, centavos, base, resto, base + resto
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn dividir_em_parcelas_limites_e_erros() {
+        let valor = Money::from_centavos(1000);
+        assert_eq!(valor.dividir_em_parcelas(0), Err(MoneyError::ParcelasInvalidas(0)));
+        assert_eq!(valor.dividir_em_parcelas(121), Err(MoneyError::ParcelasInvalidas(121)));
+
+        let negativo = Money::from_centavos(-100);
+        assert_eq!(negativo.dividir_em_parcelas(3), Err(MoneyError::ValorNegativo(-100)));
     }
 }

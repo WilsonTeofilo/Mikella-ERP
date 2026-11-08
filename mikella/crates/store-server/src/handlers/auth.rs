@@ -10,10 +10,11 @@ use axum::extract::{Form, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use rusqlite::OptionalExtension;
 use uuid::Uuid;
 
+use mikella_domain_people::ports::UsuarioRepository;
 use mikella_domain_people::{Papel, Usuario};
+use mikella_infra_sqlite::{AuditoriaRepo, InstanceRepo, UsuarioRepo};
 use mikella_shared_kernel::ids::UsuarioId;
 
 use crate::dto::{
@@ -28,16 +29,10 @@ use crate::util::{
 /// `GET /v1/onboarding/status` — informa se a loja já foi configurada.
 pub async fn onboarding_status(State(state): State<AppState>) -> impl IntoResponse {
     let db = state.db.lock().await;
-    match db.conn().query_row(
-        "SELECT COUNT(*) FROM instance_identity WHERE id = 1",
-        [],
-        |row| row.get::<_, i64>(0),
-    ) {
+    match InstanceRepo::novo(db.conn()).esta_onboarded() {
         Ok(onboarded) => (
             StatusCode::OK,
-            Json(OnboardingStatus {
-                onboarded: onboarded > 0,
-            }),
+            Json(OnboardingStatus { onboarded }),
         ),
         Err(erro) => {
             tracing::error!(%erro, "falha ao consultar onboarding");
@@ -117,18 +112,14 @@ pub async fn onboarding_create(
     {
         let mut db = state.db.lock().await;
 
-        let ja_onboarded: i64 = match db.conn().query_row(
-            "SELECT COUNT(*) FROM instance_identity WHERE id = 1",
-            [],
-            |row| row.get(0),
-        ) {
-            Ok(n) => n,
+        let ja_onboarded = match InstanceRepo::novo(db.conn()).esta_onboarded() {
+            Ok(b) => b,
             Err(e) => {
                 tracing::error!(%e, "falha ao consultar instance_identity");
                 return erro(StatusCode::INTERNAL_SERVER_ERROR, "erro interno");
             }
         };
-        if ja_onboarded > 0 {
+        if ja_onboarded {
             return erro(StatusCode::CONFLICT, "onboarding já realizado");
         }
 
@@ -140,30 +131,16 @@ pub async fn onboarding_create(
             }
         };
 
-        let resultado = (|| -> Result<(), rusqlite::Error> {
-            tx.execute(
-                "INSERT INTO instance_identity (id, account_id, store_id, db_epoch, manifest_json)
-                 VALUES (1, ?1, ?2, 1, '{}')",
-                rusqlite::params![&account_id, &store_id],
-            )?;
-            tx.execute(
-                "INSERT INTO usuarios (id, nome, username, senha_hash, email, papel, ativo)
-                 VALUES (?1, ?2, ?3, ?4, ?5, 'DONO', 1)",
-                rusqlite::params![
-                    usuario.id.to_string(),
-                    &usuario.nome,
-                    &usuario.username,
-                    &usuario.senha_hash,
-                    usuario.email.as_deref(),
-                ],
-            )?;
-            Ok(())
-        })();
-
-        if let Err(e) = resultado {
-            tracing::error!(%e, "falha ao gravar onboarding");
+        if let Err(e) = InstanceRepo::novo(&tx).registrar(&account_id, &store_id) {
+            tracing::error!(%e, "falha ao gravar instance_identity");
             return erro(StatusCode::INTERNAL_SERVER_ERROR, "erro interno");
         }
+
+        if let Err(e) = UsuarioRepo::novo(&tx).salvar(&usuario) {
+            tracing::error!(%e, "falha ao gravar usuario dono no onboarding");
+            return erro(StatusCode::INTERNAL_SERVER_ERROR, "erro interno");
+        }
+
         if let Err(e) = tx.commit() {
             tracing::error!(%e, "falha ao confirmar onboarding");
             return erro(StatusCode::INTERNAL_SERVER_ERROR, "erro interno");
@@ -199,6 +176,42 @@ pub async fn auth_me(
             "username": usuario.username,
             "papel": usuario.papel.as_db(),
             "capacidades": usuario.papel.capacidades(),
+        })),
+    )
+}
+
+/// `POST /v1/auth/logout` — encerra a sessão ativa e revoga o token (SEC-011).
+pub async fn logout(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    if let Some(auth) = headers.get(axum::http::header::AUTHORIZATION) {
+        if let Ok(valor) = auth.to_str() {
+            if let Some(token) = valor.strip_prefix("Bearer ") {
+                let mut sessoes = state.sessoes.lock().await;
+                let removido = sessoes.remove(token.trim());
+                if let Some(s) = removido {
+                    tracing::info!(usuario = %s.username, "sessão encerrada via logout");
+                    let db = state.db.lock().await;
+                    let audit = AuditoriaRepo::novo(db.conn());
+                    let _ = audit.registrar(
+                        "usuario",
+                        &s.username,
+                        "LOGOUT",
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
+                }
+            }
+        }
+    }
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "sucesso": true,
+            "mensagem": "sessão encerrada"
         })),
     )
 }
@@ -286,15 +299,9 @@ pub async fn verificar_2fa(
     // Código válido: confirma que o usuário continua ativo e emite o token.
     let usuario = {
         let db = state.db.lock().await;
-        match db.conn().query_row(
-            "SELECT id, nome, username, email, senha_hash, papel, pin_hash, ativo,
-                    created_at, updated_at
-             FROM usuarios WHERE username = ?1 COLLATE NOCASE AND ativo = 1",
-            [&username],
-            usuario_da_linha,
-        ).optional() {
-            Ok(Some(u)) => u,
-            Ok(None) => {
+        match UsuarioRepo::novo(db.conn()).buscar_por_username(&username) {
+            Ok(Some(u)) if u.ativo => u,
+            Ok(Some(_)) | Ok(None) => {
                 return erro(StatusCode::UNAUTHORIZED, "sessão inválida");
             }
             Err(e) => {
@@ -308,6 +315,23 @@ pub async fn verificar_2fa(
     {
         let mut limiter = state.rate_limit.lock().await;
         limiter.limpar(&format!("2fa:{chave}"));
+    }
+
+    // LGPD-002: auditoria de login bem-sucedido.
+    {
+        let db = state.db.lock().await;
+        let audit = AuditoriaRepo::novo(db.conn());
+        if let Err(e) = audit.registrar(
+            "usuario",
+            &usuario.id.to_string(),
+            "LOGIN",
+            Some(&usuario.id.to_string()),
+            None,
+            None,
+            None,
+        ) {
+            tracing::error!(erro = %e, usuario = %usuario.username, "falha ao gravar auditoria de login");
+        }
     }
 
     tracing::info!(usuario = %usuario.username, "2FA verificado, token emitido");
@@ -355,18 +379,8 @@ async fn iniciar_desafio(
     // Carrega o hash e solta o lock antes do Argon2 (CPU-bound).
     let registro = {
         let db = state.db.lock().await;
-        match db
-            .conn()
-            .query_row(
-                "SELECT id, nome, username, email, senha_hash, papel, pin_hash, ativo,
-                        created_at, updated_at
-                 FROM usuarios WHERE username = ?1 COLLATE NOCASE AND ativo = 1",
-                [username.trim()],
-                usuario_da_linha,
-            )
-            .optional()
-        {
-            Ok(opt) => opt,
+        match UsuarioRepo::novo(db.conn()).buscar_por_username(username.trim()) {
+            Ok(opt) => opt.filter(|u| u.ativo),
             Err(e) => {
                 tracing::error!(%e, "falha ao buscar usuário no login");
                 return erro(StatusCode::INTERNAL_SERVER_ERROR, "erro interno");
@@ -399,18 +413,37 @@ async fn iniciar_desafio(
         return erro(StatusCode::UNAUTHORIZED, "credenciais inválidas");
     };
 
+    let desativar_2fa = std::env::var("MIKELLA_DESATIVAR_2FA")
+        .map(|v| v == "1")
+        .unwrap_or(false);
+
+    if desativar_2fa {
+        let token = emitir_token(state, &usuario).await;
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "sucesso": true,
+                "token": token,
+                "usuario": {
+                    "id": usuario.id.to_string(),
+                    "nome": usuario.nome,
+                    "username": usuario.username,
+                    "papel": usuario.papel.as_db(),
+                }
+            })),
+        );
+    }
+
     match enviar_codigo_2fa(state, &usuario).await {
-        Ok(codigo) => {
-            let mut corpo = serde_json::json!({
+        Ok(codigo_dev) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
                 "sucesso": true,
                 "token_pending": true,
                 "username": usuario.username,
-            });
-            if state.email.disponivel() {
-                corpo["codigo_debug"] = serde_json::Value::String(codigo);
-            }
-            (StatusCode::OK, Json(corpo))
-        }
+                "codigo_dev": codigo_dev,
+            })),
+        ),
         Err(resposta) => resposta,
     }
 }
@@ -419,7 +452,7 @@ async fn iniciar_desafio(
 async fn enviar_codigo_2fa(
     state: &AppState,
     usuario: &Usuario,
-) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Option<String>, (StatusCode, Json<serde_json::Value>)> {
     let Some(email) = usuario.email.as_deref().filter(|e| !e.trim().is_empty()) else {
         tracing::error!(
             usuario = %usuario.username,
@@ -466,7 +499,16 @@ async fn enviar_codigo_2fa(
     );
 
     tracing::info!(usuario = %usuario.username, "código 2FA enviado");
-    Ok(codigo)
+    let mostrar_corpo = std::env::var("MIKELLA_EMAIL_CONSOLE_CORPO")
+        .map(|v| v == "1")
+        .unwrap_or(false);
+    let codigo_dev = if mostrar_corpo {
+        Some(codigo)
+    } else {
+        None
+    };
+
+    Ok(codigo_dev)
 }
 
 /// Emite token e aplica a regra de sessão única por usuário (SEG-012).
@@ -484,43 +526,6 @@ async fn emitir_token(state: &AppState, usuario: &Usuario) -> String {
         },
     );
     token
-}
-
-/// Lê uma linha de `usuarios` no formato usado pelo login.
-fn usuario_da_linha(row: &rusqlite::Row<'_>) -> rusqlite::Result<Usuario> {
-    let papel_str: String = row.get(5)?;
-    let papel = Papel::from_db(&papel_str).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e))
-    })?;
-    Ok(Usuario {
-        id: UsuarioId::from_uuid(
-            row.get::<_, String>(0)?
-                .parse()
-                .map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        0,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    )
-                })?,
-        ),
-        nome: row.get(1)?,
-        username: row.get(2)?,
-        email: row.get(3)?,
-        senha_hash: row.get(4)?,
-        papel,
-        pin_hash: row.get(6)?,
-        capacidades_extras: Vec::new(),
-        ativo: row.get::<_, i64>(7)? != 0,
-        criado_em: parse_data_hora(row.get::<_, String>(8)?),
-        atualizado_em: parse_data_hora(row.get::<_, String>(9)?),
-    })
-}
-
-fn parse_data_hora(valor: String) -> chrono::DateTime<chrono::Utc> {
-    chrono::DateTime::parse_from_rfc3339(&valor)
-        .map(|d| d.with_timezone(&chrono::Utc))
-        .unwrap_or_else(|_| chrono::Utc::now())
 }
 
 fn erro(
@@ -597,5 +602,38 @@ mod tests {
         assert!(!email_valido("@loja.com"));
         assert!(!email_valido("dono@.com"));
         assert!(!email_valido("dono @loja.com"));
+    }
+
+    #[tokio::test]
+    async fn logout_revoga_token_ativo() {
+        use crate::state::SessaoAtiva;
+        use std::time::Instant;
+
+        let db = mikella_infra_sqlite::Database::em_memoria().expect("db em memoria");
+        let state = AppState::new(db, std::sync::Arc::new(crate::state::ConsoleEmailBackend::default()));
+
+        let token = "mikella-tok-teste-logout";
+        {
+            let mut sessoes = state.sessoes.lock().await;
+            sessoes.insert(
+                token.to_string(),
+                SessaoAtiva {
+                    username: "teste".to_string(),
+                    criada_em: Instant::now(),
+                    ultimo_uso: Instant::now(),
+                },
+            );
+        }
+
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {token}").parse().unwrap(),
+        );
+
+        let _ = logout(axum::extract::State(state.clone()), headers).await;
+
+        let sessoes = state.sessoes.lock().await;
+        assert!(!sessoes.contains_key(token), "token deveria ter sido revogado");
     }
 }

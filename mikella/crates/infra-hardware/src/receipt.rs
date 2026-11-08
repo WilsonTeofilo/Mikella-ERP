@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
 use mikella_shared_kernel::money::Money;
 use serde::{Deserialize, Serialize};
 
@@ -75,7 +76,43 @@ pub struct ComprovanteFechamentoCaixa {
     pub ultimo_hash: String,
 }
 
+/// Comprovante interno de estorno de venda.
+///
+/// Não é documento fiscal: registra o COO da venda original, o valor devolvido,
+/// o motivo/observação e quem autorizou. É impresso em bobina após o estorno.
+pub struct ComprovanteEstorno {
+    pub loja_nome: String,
+    pub coo: i64,
+    pub venda_id: String,
+    pub data_venda: DateTime<Utc>,
+    pub operador_nome: String,
+    pub total: Money,
+    pub valor_estornado: Money,
+    pub formas: Vec<PagamentoComprovante>,
+    pub motivo: String,
+    pub aprovador_nome: String,
+    pub aprovador_papel: String,
+    pub data_estorno: DateTime<Utc>,
+    pub hash_verificacao: Option<String>,
+}
+
 pub struct EscPosGerador;
+
+/// Converte um `DateTime<Utc>` para o fuso IANA da loja e formata.
+///
+/// `fuso` deve ser um nome IANA válido (ex: `"America/Sao_Paulo"`, `"America/Manaus"`,
+/// `"America/Rio_Branco"`, `"America/Noronha"`). Se a string for inválida, usa UTC-3
+/// (Brasília) como fallback seguro e emite um aviso de log para facilitar diagnóstico.
+pub fn formatar_data_no_fuso(dt: &DateTime<Utc>, fuso: &str, fmt: &str) -> String {
+    let tz: Tz = match fuso.parse() {
+        Ok(t) => t,
+        Err(_) => {
+            tracing::warn!(fuso = %fuso, "Fuso horário IANA inválido; usando America/Sao_Paulo como fallback");
+            chrono_tz::America::Sao_Paulo
+        }
+    };
+    dt.with_timezone(&tz).format(fmt).to_string()
+}
 
 impl EscPosGerador {
     // Comandos de controle ESC/POS
@@ -92,7 +129,9 @@ impl EscPosGerador {
     const ESC_DRAWER_PULSE: &'static [u8] = b"\x1bp\x00\x19\xfa";
 
     /// Gera o buffer de bytes binários ESC/POS pronto para impressora térmica.
-    pub fn gerar_bytes(c: &ComprovanteVenda, largura: LarguraPapel, cortar: bool, abrir_gaveta: bool) -> Vec<u8> {
+    ///
+    /// `fuso` é o nome IANA da loja (`loja_config.fuso_horario`).
+    pub fn gerar_bytes(c: &ComprovanteVenda, largura: LarguraPapel, cortar: bool, abrir_gaveta: bool, fuso: &str) -> Vec<u8> {
         let cols = largura.colunas();
         let sep = "-".repeat(cols);
         let mut buf = Vec::with_capacity(1024);
@@ -116,7 +155,7 @@ impl EscPosGerador {
             buf.extend_from_slice(format!("CNPJ/CPF: {}\n", doc).as_bytes());
         }
         buf.extend_from_slice(b"COMPROVANTE DE VENDA\n");
-        buf.extend_from_slice(format!("Data: {}\n", c.data_hora.format("%d/%m/%Y %H:%M:%S")).as_bytes());
+        buf.extend_from_slice(format!("Data: {}\n", formatar_data_no_fuso(&c.data_hora, fuso, "%d/%m/%Y %H:%M:%S")).as_bytes());
         buf.extend_from_slice(format!("Venda: {}\n", &c.venda_id[..c.venda_id.len().min(18)]).as_bytes());
         buf.extend_from_slice(format!("Operador: {}\n", c.operador_nome).as_bytes());
 
@@ -138,11 +177,7 @@ impl EscPosGerador {
         for (i, item) in c.itens.iter().enumerate() {
             let num = i + 1;
             let nome_max = cols.saturating_sub(4);
-            let nome_trunc = if item.nome.len() > nome_max {
-                &item.nome[..nome_max]
-            } else {
-                &item.nome
-            };
+            let nome_trunc: String = item.nome.chars().take(nome_max).collect();
             buf.extend_from_slice(format!("{:02} {}\n", num, nome_trunc).as_bytes());
 
             let qtd_preco = format!("  {} un x {}", item.quantidade, item.preco_unitario);
@@ -209,7 +244,7 @@ impl EscPosGerador {
     }
 
     /// Gera representação textual limpa (útil para pré-visualização na tela ou logs).
-    pub fn gerar_texto_puro(c: &ComprovanteVenda, largura: LarguraPapel) -> String {
+    pub fn gerar_texto_puro(c: &ComprovanteVenda, largura: LarguraPapel, fuso: &str) -> String {
         let cols = largura.colunas();
         let sep = "-".repeat(cols);
         let mut out = String::with_capacity(512);
@@ -222,7 +257,7 @@ impl EscPosGerador {
         }
         out.push_str(&Self::centralizar("COMPROVANTE DE VENDA", cols));
         out.push('\n');
-        out.push_str(&format!("Data: {}\n", c.data_hora.format("%d/%m/%Y %H:%M:%S")));
+        out.push_str(&format!("Data: {}\n", formatar_data_no_fuso(&c.data_hora, fuso, "%d/%m/%Y %H:%M:%S")));
         out.push_str(&format!("Venda: {}\n", &c.venda_id[..c.venda_id.len().min(18)]));
         out.push_str(&format!("Operador: {}\n", c.operador_nome));
         out.push_str(&sep);
@@ -236,11 +271,7 @@ impl EscPosGerador {
         for (i, item) in c.itens.iter().enumerate() {
             let num = i + 1;
             let nome_max = cols.saturating_sub(4);
-            let nome_trunc = if item.nome.len() > nome_max {
-                &item.nome[..nome_max]
-            } else {
-                &item.nome
-            };
+            let nome_trunc: String = item.nome.chars().take(nome_max).collect();
             out.push_str(&format!("{:02} {}\n", num, nome_trunc));
             let qtd_preco = format!("  {} un x {}", item.quantidade, item.preco_unitario);
             let subtotal = format!("{}", item.subtotal);
@@ -288,8 +319,103 @@ impl EscPosGerador {
         out
     }
 
+    /// Texto do comprovante de estorno (pré-visualização e reimpressão).
+    pub fn gerar_texto_estorno(c: &ComprovanteEstorno, largura: LarguraPapel, fuso: &str) -> String {
+        let cols = largura.colunas();
+        let sep = "-".repeat(cols);
+        let mut out = String::with_capacity(640);
+
+        out.push_str(&Self::centralizar(&c.loja_nome, cols));
+        out.push('\n');
+        out.push_str(&Self::centralizar("COMPROVANTE DE ESTORNO", cols));
+        out.push('\n');
+        out.push_str(&Self::centralizar(
+            "documento interno - sem valor fiscal",
+            cols,
+        ));
+        out.push('\n');
+        out.push_str(&sep);
+        out.push('\n');
+        out.push_str(&Self::formatar_linha_colunas(
+            "COO da venda:",
+            &format!("#{:06}", c.coo),
+            cols,
+        ));
+        out.push('\n');
+        out.push_str(&Self::formatar_linha_colunas(
+            "Data da venda:",
+            &formatar_data_no_fuso(&c.data_venda, fuso, "%d/%m/%Y %H:%M"),
+            cols,
+        ));
+        out.push('\n');
+        out.push_str(&Self::formatar_linha_colunas("Operador:", &c.operador_nome, cols));
+        out.push('\n');
+        out.push_str(&Self::formatar_linha_colunas(
+            "Total da venda:",
+            &format!("{}", c.total),
+            cols,
+        ));
+        out.push('\n');
+        out.push_str(&Self::formatar_linha_colunas(
+            "VALOR ESTORNADO:",
+            &format!("{}", c.valor_estornado),
+            cols,
+        ));
+        out.push('\n');
+        out.push_str(&sep);
+        out.push('\n');
+
+        out.push_str("FORMAS ESTORNADAS\n");
+        for p in &c.formas {
+            out.push_str(&Self::formatar_linha_colunas(
+                &p.forma,
+                &format!("{}", p.valor),
+                cols,
+            ));
+            out.push('\n');
+        }
+        out.push_str(&sep);
+        out.push('\n');
+
+        out.push_str(&format!("Motivo: {}\n", c.motivo));
+        out.push_str(&format!(
+            "Aprovador: {} ({})\n",
+            c.aprovador_nome, c.aprovador_papel
+        ));
+        out.push_str(&format!(
+            "Data do estorno: {}\n",
+            formatar_data_no_fuso(&c.data_estorno, fuso, "%d/%m/%Y %H:%M:%S")
+        ));
+        out.push_str(&sep);
+        out.push('\n');
+        out.push_str("Assinatura: ____________________________\n");
+        if let Some(hash) = &c.hash_verificacao {
+            let hash_curto = &hash[..hash.len().min(16)];
+            out.push_str(&Self::centralizar(&format!("Verificação: {}", hash_curto), cols));
+            out.push('\n');
+        }
+        out
+    }
+
+    /// Buffer ESC/POS do comprovante de estorno.
+    pub fn gerar_bytes_estorno(
+        c: &ComprovanteEstorno,
+        largura: LarguraPapel,
+        cortar: bool,
+        fuso: &str,
+    ) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(1024);
+        buf.extend_from_slice(Self::ESC_INIT);
+        buf.extend_from_slice(Self::ESC_ALIGN_LEFT);
+        buf.extend_from_slice(Self::gerar_texto_estorno(c, largura, fuso).as_bytes());
+        if cortar {
+            buf.extend_from_slice(Self::ESC_CUT_FULL);
+        }
+        buf
+    }
+
     /// Gera o buffer de bytes binários ESC/POS para o Comprovante de Fechamento de Caixa.
-    pub fn gerar_bytes_fechamento(c: &ComprovanteFechamentoCaixa, largura: LarguraPapel, cortar: bool) -> Vec<u8> {
+    pub fn gerar_bytes_fechamento(c: &ComprovanteFechamentoCaixa, largura: LarguraPapel, cortar: bool, fuso: &str) -> Vec<u8> {
         let cols = largura.colunas();
         let sep = "=".repeat(cols);
         let sep_fina = "-".repeat(cols);
@@ -312,8 +438,8 @@ impl EscPosGerador {
         buf.extend_from_slice(Self::ESC_BOLD_OFF);
         buf.extend_from_slice(format!("Caixa Nº: {:02}\n", c.numero_caixa).as_bytes());
         buf.extend_from_slice(format!("Operador: {}\n", c.operador_nome).as_bytes());
-        buf.extend_from_slice(format!("Abertura: {}\n", c.aberta_em.format("%d/%m/%Y %H:%M")).as_bytes());
-        buf.extend_from_slice(format!("Fechamento: {}\n", c.fechada_em.format("%d/%m/%Y %H:%M")).as_bytes());
+        buf.extend_from_slice(format!("Abertura: {}\n", formatar_data_no_fuso(&c.aberta_em, fuso, "%d/%m/%Y %H:%M")).as_bytes());
+        buf.extend_from_slice(format!("Fechamento: {}\n", formatar_data_no_fuso(&c.fechada_em, fuso, "%d/%m/%Y %H:%M")).as_bytes());
 
         buf.extend_from_slice(Self::ESC_ALIGN_LEFT);
         buf.extend_from_slice(sep.as_bytes());
@@ -372,7 +498,7 @@ impl EscPosGerador {
     }
 
     /// Gera representação textual do comprovante de fechamento.
-    pub fn gerar_texto_fechamento(c: &ComprovanteFechamentoCaixa, largura: LarguraPapel) -> String {
+    pub fn gerar_texto_fechamento(c: &ComprovanteFechamentoCaixa, largura: LarguraPapel, fuso: &str) -> String {
         let cols = largura.colunas();
         let sep = "=".repeat(cols);
         let sep_fina = "-".repeat(cols);
@@ -387,8 +513,8 @@ impl EscPosGerador {
         out.push_str(&Self::centralizar("FECHAMENTO DE CAIXA", cols));
         out.push('\n');
         out.push_str(&format!("Caixa: {:02} | Operador: {}\n", c.numero_caixa, c.operador_nome));
-        out.push_str(&format!("Abertura: {}\n", c.aberta_em.format("%d/%m/%Y %H:%M")));
-        out.push_str(&format!("Fechamento: {}\n", c.fechada_em.format("%d/%m/%Y %H:%M")));
+        out.push_str(&format!("Abertura: {}\n", formatar_data_no_fuso(&c.aberta_em, fuso, "%d/%m/%Y %H:%M")));
+        out.push_str(&format!("Fechamento: {}\n", formatar_data_no_fuso(&c.fechada_em, fuso, "%d/%m/%Y %H:%M")));
         out.push_str(&sep);
         out.push('\n');
 
@@ -505,6 +631,59 @@ mod tests {
     use super::*;
 
     #[test]
+    fn fuso_horario_brasilia_converte_3_horas_a_menos() {
+        use chrono::TimeZone;
+        // 12:00:00 UTC deve formatar exatamente como 09:00:00 no horário de Brasília (UTC-3)
+        let utc_dt = Utc.with_ymd_and_hms(2026, 11, 7, 12, 0, 0).unwrap();
+        let formatado = formatar_data_no_fuso(&utc_dt, "America/Sao_Paulo", "%d/%m/%Y %H:%M:%S");
+        assert_eq!(formatado, "07/11/2026 09:00:00");
+    }
+
+    #[test]
+    fn fuso_horario_manaus_converte_4_horas_a_menos() {
+        use chrono::TimeZone;
+        // Manaus não tem horário de verão: 12:00 UTC = 08:00 local (UTC-4)
+        let utc_dt = Utc.with_ymd_and_hms(2026, 11, 7, 12, 0, 0).unwrap();
+        let formatado = formatar_data_no_fuso(&utc_dt, "America/Manaus", "%d/%m/%Y %H:%M:%S");
+        assert_eq!(formatado, "07/11/2026 08:00:00");
+    }
+
+    #[test]
+    fn fuso_horario_invalido_usa_fallback_sem_panico() {
+        use chrono::TimeZone;
+        let utc_dt = Utc.with_ymd_and_hms(2026, 11, 7, 12, 0, 0).unwrap();
+        let formatado = formatar_data_no_fuso(&utc_dt, "Fuso/Invalido", "%H:%M");
+        assert_eq!(formatado, "09:00");
+    }
+
+    #[test]
+    fn parcelamento_credito_distribui_centavos_exatos() {
+        // Testa a função real de domínio Money::dividir_em_parcelas para 1..12 parcelas
+        let total = Money::from_centavos(455); // R$ 4,55
+        let parcelas_11 = total.dividir_em_parcelas(11).expect("divisão válida em 11x");
+        assert_eq!(parcelas_11.len(), 11);
+        // Primeiras 10 parcelas são de 41 centavos
+        for p in &parcelas_11[..10] {
+            assert_eq!(p.centavos(), 41);
+        }
+        // 11ª parcela recebe a base (41) + resto (4) = 45 centavos
+        assert_eq!(parcelas_11[10].centavos(), 45);
+        // Soma exata
+        let soma: i64 = parcelas_11.iter().map(|p| p.centavos()).sum();
+        assert_eq!(soma, 455);
+
+        // Testa exaustivamente n de 1 a 12 com valores diversos
+        for n in 1..=12 {
+            let p_res = total.dividir_em_parcelas(n).unwrap();
+            let sum: i64 = p_res.iter().map(|p| p.centavos()).sum();
+            assert_eq!(sum, 455);
+            let base = 455 / i64::from(n);
+            let resto = 455 % i64::from(n);
+            assert_eq!(p_res.last().unwrap().centavos(), base + resto);
+        }
+    }
+
+    #[test]
     fn gera_texto_puro_58mm_correto() {
         let comp = ComprovanteVenda {
             loja_nome: "Mercadinho São José".into(),
@@ -540,13 +719,13 @@ mod tests {
             hash_verificacao: Some("b1a4e8f9901234567890".into()),
         };
 
-        let texto = EscPosGerador::gerar_texto_puro(&comp, LarguraPapel::Colunas32);
+        let texto = EscPosGerador::gerar_texto_puro(&comp, LarguraPapel::Colunas32, "America/Sao_Paulo");
         assert!(texto.contains("Mercadinho São José"));
         assert!(texto.contains("Cafe Torrado"));
         assert!(texto.contains("TOTAL:"));
         assert!(texto.contains("PIX"));
 
-        let bytes = EscPosGerador::gerar_bytes(&comp, LarguraPapel::Colunas32, true, false);
+        let bytes = EscPosGerador::gerar_bytes(&comp, LarguraPapel::Colunas32, true, false, "America/Sao_Paulo");
         assert!(!bytes.is_empty());
         assert!(bytes.starts_with(EscPosGerador::ESC_INIT));
         assert!(bytes.ends_with(EscPosGerador::ESC_CUT_FULL));
@@ -577,7 +756,7 @@ mod tests {
             ultimo_hash: "blake3_hash_genesis_abc123".into(),
         };
 
-        let texto = EscPosGerador::gerar_texto_fechamento(&fechamento, LarguraPapel::Colunas48);
+        let texto = EscPosGerador::gerar_texto_fechamento(&fechamento, LarguraPapel::Colunas48, "America/Sao_Paulo");
         assert!(texto.contains("FECHAMENTO DE CAIXA"));
         assert!(texto.contains("SALDO ESPERADO:"));
         assert!(texto.contains("SALDO CONTADO:"));
@@ -587,7 +766,7 @@ mod tests {
         assert!(texto.contains("Operador"));
         assert!(texto.contains("Gerente"));
 
-        let bytes = EscPosGerador::gerar_bytes_fechamento(&fechamento, LarguraPapel::Colunas48, true);
+        let bytes = EscPosGerador::gerar_bytes_fechamento(&fechamento, LarguraPapel::Colunas48, true, "America/Sao_Paulo");
         assert!(!bytes.is_empty());
         assert!(bytes.starts_with(EscPosGerador::ESC_INIT));
         assert!(bytes.ends_with(EscPosGerador::ESC_CUT_FULL));

@@ -198,6 +198,75 @@ impl<'a> LivroRepo<'a> {
     pub fn novo(conn: &'a Connection) -> Self {
         Self { conn }
     }
+
+    /// Read model das entradas de uma sessão para a tela de caixa (ARQ-001).
+    ///
+    /// O `LivroCaixa` do domínio mantém `entradas` privado; esta consulta
+    /// devolve os campos crus que a UI precisa, sem regra de apresentação.
+    pub fn listar_entradas(&self, sessao_id: &str) -> InfraResult<Vec<LivroEntradaView>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT sequencia, tipo, valor_centavos, troco_centavos,
+                    usuario_id, aprovador_id, motivo,
+                    referencia_id, referencia_tipo,
+                    prev_hash, hash, created_at
+             FROM livro_caixa
+             WHERE sessao_id = ?1
+             ORDER BY sequencia ASC",
+        )?;
+        let rows = stmt.query_map(params![sessao_id], LivroEntradaView::da_linha)?;
+        let mut entradas = Vec::new();
+        for row in rows {
+            entradas.push(row?);
+        }
+        Ok(entradas)
+    }
+
+    /// Soma o efeito líquido das entradas da sessão no saldo esperado.
+    pub fn saldo_total(&self, sessao_id: &str) -> InfraResult<i64> {
+        let saldo = self.conn.query_row(
+            "SELECT COALESCE(SUM(valor_centavos - troco_centavos), 0)
+             FROM livro_caixa WHERE sessao_id = ?1",
+            params![sessao_id],
+            |row| row.get(0),
+        )?;
+        Ok(saldo)
+    }
+}
+
+/// Linha crua do livro-caixa para o read model HTTP.
+#[derive(Debug, Clone)]
+pub struct LivroEntradaView {
+    pub sequencia: i64,
+    pub tipo: String,
+    pub valor_centavos: i64,
+    pub troco_centavos: i64,
+    pub usuario_id: String,
+    pub aprovador_id: Option<String>,
+    pub motivo: Option<String>,
+    pub referencia_id: Option<String>,
+    pub referencia_tipo: Option<String>,
+    pub prev_hash: String,
+    pub hash: String,
+    pub created_at: String,
+}
+
+impl LivroEntradaView {
+    fn da_linha(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            sequencia: row.get(0)?,
+            tipo: row.get(1)?,
+            valor_centavos: row.get(2)?,
+            troco_centavos: row.get(3)?,
+            usuario_id: row.get(4)?,
+            aprovador_id: row.get(5)?,
+            motivo: row.get(6)?,
+            referencia_id: row.get(7)?,
+            referencia_tipo: row.get(8)?,
+            prev_hash: row.get(9)?,
+            hash: row.get(10)?,
+            created_at: row.get(11)?,
+        })
+    }
 }
 
 impl LivroCaixaRepository for LivroRepo<'_> {

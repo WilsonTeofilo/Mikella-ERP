@@ -1,0 +1,487 @@
+/* Mikella ERP — Módulo Financeiro: 4 Abas (Fluxo, A Pagar, A Receber, Resultado) */
+[data-tema="caixa"] body {
+  background: var(--branco);
+  color: var(--preto);
+  font-family: var(--fonte-texto);
+  margin: 0;
+}
+
+.corte-m { display: none; 
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 64px solid var(--cobalto-600);
+  border-left: 64px solid transparent;
+  pointer-events: none;
+}
+
+.wordmark { display: none; 
+  position: fixed;
+  top: var(--espaco-6);
+  left: var(--espaco-6);
+  display: flex;
+  gap: var(--espaco-1);
+  font-family: var(--fonte-display);
+  font-weight: var(--peso-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  z-index: 10;
+}
+
+.wordmark .letra {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2em;
+  height: 2em;
+  font-size: 1.1rem;
+  color: var(--preto);
+  background: var(--cobalto-600);
+  border: 2px solid var(--preto);
+}
+
+.wordmark .letra:nth-child(odd) {
+  color: var(--branco);
+  background: var(--preto);
+}
+
+.app-container {
+  min-height: calc(100vh - 54px);
+  padding: var(--espaco-4) var(--espaco-6);
+  box-sizing: border-box;
+}
+
+.linha-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: var(--espaco-4);
+  gap: var(--espaco-4);
+  flex-wrap: wrap;
+}
+
+.titulo-pagina {
+  font-family: var(--fonte-display);
+  font-weight: var(--peso-display);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.subtitulo-pagina {
+  margin: var(--espaco-1) 0 0 0;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+/* Sistema de Abas */
+.barra-abas {
+  display: flex;
+  gap: var(--espaco-2);
+  border-bottom: 2px solid var(--preto);
+  margin-bottom: var(--espaco-4);
+  flex-wrap: wrap;
+}
+
+.aba {
+  font-family: var(--fonte-texto);
+  font-weight: var(--peso-subtitulo);
+  font-size: 1rem;
+  padding: var(--espaco-2) var(--espaco-4);
+  background: #f4f4f4;
+  color: var(--preto);
+  border: 2px solid var(--preto);
+  border-bottom: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  margin-bottom: -2px;
+  min-height: 42px;
+}
+
+.aba:hover {
+  background: #e2e8f0;
+}
+
+.aba.ativa {
+  background: var(--branco);
+  border-bottom: 2px solid var(--branco);
+  color: var(--cobalto-600);
+  font-weight: var(--peso-titulo);
+}
+
+.painel-aba {
+  display: block;
+}
+
+.painel-aba.oculto {
+  display: none;
+}
+
+/* Cards de KPIs */
+.cards-kpi-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--espaco-3);
+  margin-bottom: var(--espaco-4);
+}
+
+.card-kpi {
+  border: 2px solid var(--preto);
+  padding: var(--espaco-3);
+  background: #FFF;
+}
+
+.card-kpi-rotulo {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  color: #555;
+  display: block;
+}
+
+.card-kpi-valor {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin-top: 4px;
+}
+
+.card-kpi-detalhe {
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-top: 2px;
+  color: #555;
+}
+
+/* Filtros rápidos e controles */
+.barra-filtros {
+  display: flex;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filtro-datas {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  flex-wrap: wrap;
+}
+
+.filtro-datas input[type="date"],
+.filtro-datas input[type="month"] {
+  padding: var(--espaco-1) var(--espaco-2);
+  border: 2px solid var(--preto);
+  font-family: var(--fonte-texto);
+  font-size: 0.9rem;
+  min-height: 36px;
+}
+
+/* Tabelas */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--espaco-2);
+  margin-bottom: var(--espaco-4);
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--preto);
+  padding: var(--espaco-3) var(--espaco-2);
+  text-align: left;
+  font-family: var(--fonte-texto);
+  font-size: 0.95rem;
+}
+
+th {
+  font-weight: var(--peso-subtitulo);
+  background: #f4f4f4;
+  border-top: 2px solid var(--preto);
+}
+
+td.direita,
+th.direita {
+  text-align: right;
+}
+
+.valor-positivo {
+  color: #047857;
+  font-weight: bold;
+}
+
+.valor-negativo {
+  color: #dc2626;
+  font-weight: bold;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  font-weight: var(--peso-titulo);
+  border: 1px solid var(--preto);
+  text-transform: uppercase;
+}
+
+.tag.pagar {
+  background: #dc2626;
+  color: var(--branco);
+}
+
+.tag.receber {
+  background: #047857;
+  color: var(--branco);
+}
+
+/* DRE Simplificada em 7 linhas */
+.caixa-dre {
+  border: 2px solid var(--preto);
+  background: #fff;
+  padding: var(--espaco-4);
+  max-width: 800px;
+}
+
+.tabela-dre {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--espaco-2) 0;
+}
+
+.tabela-dre td {
+  padding: var(--espaco-2) var(--espaco-3);
+  font-size: 1rem;
+}
+
+.tabela-dre .linha-subtotal {
+  background: #f8fafc;
+  font-weight: bold;
+  border-top: 1px dashed var(--preto);
+  border-bottom: 1px dashed var(--preto);
+}
+
+.tabela-dre .linha-resultado {
+  background: #f1f5f9;
+  font-weight: 900;
+  font-size: 1.1rem;
+  border-top: 2px solid var(--preto);
+  border-bottom: 2px solid var(--preto);
+}
+
+/* Aging buckets de crediário */
+.grade-aging {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-3);
+}
+
+.card-aging {
+  border: 2px solid var(--preto);
+  padding: var(--espaco-2);
+  background: #fafafa;
+  text-align: center;
+}
+
+.card-aging-titulo {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  color: #666;
+}
+
+.card-aging-valor {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+/* Gráfico de fluxo em SVG */
+.area-grafico-fluxo {
+  border: 2px solid var(--preto);
+  background: #fff;
+  padding: var(--espaco-3);
+  margin-bottom: var(--espaco-4);
+}
+
+.titulo-secao {
+  font-family: var(--fonte-display);
+  font-size: 1.1rem;
+  margin: 0 0 var(--espaco-2) 0;
+}
+
+/* Barra de Botões */
+.barra-botoes {
+  display: flex;
+  gap: var(--espaco-2);
+  margin-top: var(--espaco-5);
+  flex-wrap: wrap;
+}
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-texto);
+  font-weight: var(--peso-subtitulo);
+  padding: var(--espaco-3) var(--espaco-4);
+  min-height: 44px;
+  min-width: 96px;
+  background: var(--branco);
+  color: var(--preto);
+  border: 2px solid var(--preto);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.botao:hover {
+  background: var(--cobalto-600);
+  color: var(--branco);
+}
+
+.botao.primario {
+  background: var(--preto);
+  color: var(--branco);
+}
+
+.botao.primario:hover {
+  background: var(--cobalto-600);
+}
+
+.botao.ativo {
+  background: var(--cobalto-600);
+  color: var(--branco);
+}
+
+.tecla {
+  font-weight: var(--peso-titulo);
+  margin-right: var(--espaco-2);
+}
+
+/* Modais */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-conteudo {
+  background: var(--branco);
+  color: var(--preto);
+  border: 2px solid var(--preto);
+  padding: var(--espaco-6);
+  max-width: 480px;
+  width: calc(100% - var(--espaco-4));
+  position: relative;
+}
+
+.modal-titulo {
+  font-family: var(--fonte-display);
+  font-weight: var(--peso-display);
+  font-size: 1.5rem;
+  margin: 0 0 var(--espaco-4);
+}
+
+.campo {
+  margin-bottom: var(--espaco-3);
+}
+
+.campo label {
+  display: block;
+  font-weight: var(--peso-subtitulo);
+  margin-bottom: var(--espaco-1);
+}
+
+.campo input,
+.campo select {
+  width: 100%;
+  padding: var(--espaco-2);
+  border: 2px solid var(--preto);
+  font-family: var(--fonte-texto);
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: var(--espaco-6);
+  right: var(--espaco-6);
+  background: var(--preto);
+  color: var(--branco);
+  padding: var(--espaco-3) var(--espaco-5);
+  font-family: var(--fonte-texto);
+  font-weight: var(--peso-subtitulo);
+  border: 2px solid var(--preto);
+  display: none;
+  z-index: 300;
+}
+
+.toast.visivel {
+  display: block;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   DASHBOARD CHOKKO-MELT: FILTROS RÁPIDOS & BADGES DE PAGAMENTO
+   ════════════════════════════════════════════════════════════════════════ */
+.btn-filtro-rapido {
+  font-family: var(--fonte-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 6px 14px;
+  background: var(--branco);
+  color: var(--preto);
+  border: 2px solid var(--preto);
+  cursor: pointer;
+  box-shadow: 2px 2px 0px #000;
+  text-transform: uppercase;
+}
+
+.btn-filtro-rapido:hover {
+  background: #f1f5f9;
+}
+
+.btn-filtro-rapido.ativo {
+  background: var(--azul-600, #0040D8);
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.badge-metodo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: #ffffff;
+}
+
+.badge-metodo.badge-pix {
+  background: #047857;
+}
+
+.badge-metodo.badge-cartao {
+  background: #0040D8;
+}
+
+.badge-metodo.badge-dinheiro {
+  background: #1E293B;
+}
+
+.badge-metodo.badge-crediario {
+  background: #D97706;
+}
+
+.badge-metodo.badge-outro {
+  background: #475569;
+}

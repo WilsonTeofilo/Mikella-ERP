@@ -126,6 +126,18 @@ pub struct Pagamento {
     pub forma: FormaPagamento,
     pub valor: Money,
     pub recebido: Option<Money>,
+    #[serde(default = "default_uma_parcela")]
+    pub parcelas: u32,
+    #[serde(default)]
+    pub maquininha: Option<String>,
+    #[serde(default)]
+    pub modalidade: Option<String>,
+    #[serde(default)]
+    pub taxa: Money,
+}
+
+fn default_uma_parcela() -> u32 {
+    1
 }
 
 impl Pagamento {
@@ -149,6 +161,10 @@ impl Pagamento {
             forma: FormaPagamento::Dinheiro,
             valor,
             recebido: Some(recebido),
+            parcelas: 1,
+            maquininha: None,
+            modalidade: None,
+            taxa: Money::ZERO,
         })
     }
 
@@ -174,7 +190,30 @@ impl Pagamento {
             forma,
             valor,
             recebido: None,
+            parcelas: 1,
+            maquininha: None,
+            modalidade: None,
+            taxa: Money::ZERO,
         })
+    }
+
+    pub fn com_parcelas(mut self, parcelas: u32) -> Self {
+        self.parcelas = parcelas.max(1);
+        self
+    }
+
+    pub fn com_detalhes_cartao(
+        mut self,
+        parcelas: u32,
+        maquininha: Option<String>,
+        modalidade: Option<String>,
+        taxa: Money,
+    ) -> Self {
+        self.parcelas = parcelas.max(1);
+        self.maquininha = maquininha;
+        self.modalidade = modalidade;
+        self.taxa = taxa;
+        self
     }
 
     /// Troco deste pagamento (só dinheiro pode gerar troco).
@@ -198,6 +237,14 @@ impl Pagamento {
         if self.valor.is_negative() {
             return Err(DomainError::Invalido(
                 "Pagamento não pode ser negativo".into(),
+            ));
+        }
+        if self.parcelas == 0 {
+            return Err(DomainError::Invalido("Número de parcelas deve ser pelo menos 1".into()));
+        }
+        if self.parcelas > 1 && self.forma != FormaPagamento::Credito {
+            return Err(DomainError::Invalido(
+                "Apenas pagamento em cartão de crédito permite mais de uma parcela".into(),
             ));
         }
         if self.forma.movimenta_dinheiro_fisico() {

@@ -34,7 +34,11 @@ pub struct CancelarVendaRepos<'a> {
 pub struct CancelarVendaCmd {
     pub venda_id: VendaId,
     pub usuario_id: UsuarioId,
+    /// Quem autorizou o estorno (SEC-004). Nunca `None` no fluxo HTTP novo.
+    pub aprovador_id: Option<UsuarioId>,
     pub motivo: Option<String>,
+    /// Texto livre do operador, impresso no comprovante.
+    pub observacao: Option<String>,
 }
 
 pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> DomainResult<()> {
@@ -101,6 +105,18 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
         .clone()
         .filter(|m| !m.trim().is_empty())
         .unwrap_or_else(|| "Cancelamento de venda".to_string());
+    let motivo: String = match cmd
+        .observacao
+        .as_deref()
+        .map(str::trim)
+        .filter(|o| !o.is_empty())
+    {
+        Some(obs) => format!("{} — {}", motivo.trim(), obs),
+        None => motivo.trim().to_string(),
+    };
+    // Limite defensivo: o motivo (120) + observação (240) cabem no cupom e no
+    // livro sem truncar a observação quando o motivo é "Outro".
+    let motivo: String = motivo.chars().take(360).collect();
 
     inserir_estorno(
         repos,
@@ -109,6 +125,7 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
         Money::ZERO,
         &motivo,
         cmd.usuario_id,
+        cmd.aprovador_id,
         &mut proxima_sequencia,
         &mut ultimo_hash,
         agora,
@@ -141,6 +158,7 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
                     negativo(pagamento.valor)?,
                     &motivo,
                     cmd.usuario_id,
+                    cmd.aprovador_id,
                     &mut proxima_sequencia,
                     &mut ultimo_hash,
                     agora,
@@ -154,6 +172,7 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
                     negativo(pagamento.valor)?,
                     &motivo,
                     cmd.usuario_id,
+                    cmd.aprovador_id,
                     &mut proxima_sequencia,
                     &mut ultimo_hash,
                     agora,
@@ -167,6 +186,7 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
                     negativo(pagamento.valor)?,
                     &motivo,
                     cmd.usuario_id,
+                    cmd.aprovador_id,
                     &mut proxima_sequencia,
                     &mut ultimo_hash,
                     agora,
@@ -180,6 +200,7 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
                     negativo(pagamento.valor)?,
                     &motivo,
                     cmd.usuario_id,
+                    cmd.aprovador_id,
                     &mut proxima_sequencia,
                     &mut ultimo_hash,
                     agora,
@@ -200,6 +221,7 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
                 negativo(liquido)?,
                 &motivo,
                 cmd.usuario_id,
+                cmd.aprovador_id,
                 &mut proxima_sequencia,
                 &mut ultimo_hash,
                 agora,
@@ -224,6 +246,7 @@ fn inserir_estorno(
     valor_centavos: Money,
     motivo: &str,
     usuario_id: UsuarioId,
+    aprovador_id: Option<UsuarioId>,
     proxima_sequencia: &mut i64,
     ultimo_hash: &mut String,
     agora: DateTime<Utc>,
@@ -240,7 +263,7 @@ fn inserir_estorno(
             tipo: "VENDA".to_string(),
         }),
         usuario_id,
-        aprovador_id: None,
+        aprovador_id,
         motivo: Some(motivo.to_string()),
         prev_hash: ultimo_hash.clone(),
         hash: String::new(),

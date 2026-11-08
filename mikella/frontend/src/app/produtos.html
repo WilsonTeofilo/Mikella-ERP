@@ -8,56 +8,20 @@
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/forms.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
-  <style>
-    [data-tema="caixa"] body { background: var(--branco); color: var(--preto); font-family: var(--fonte-texto); margin: 0; }
-    .corte-m { position: fixed; top: 0; right: 0; width: 0; height: 0; border-top: 64px solid var(--cobalto-600); border-left: 64px solid transparent; }
-    .wordmark { position: fixed; top: var(--espaco-6); left: var(--espaco-6); display: flex; gap: var(--espaco-1); font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; line-height: 1; z-index: 10; }
-    .wordmark .letra { display: inline-flex; align-items: center; justify-content: center; width: 2em; height: 2em; font-size: 1.1rem; color: var(--preto); background: var(--cobalto-600); border: 2px solid var(--preto); }
-    .wordmark .letra:nth-child(odd) { color: var(--branco); background: var(--preto); }
-
-    .app-container { min-height: 100vh; padding: var(--espaco-8) var(--espaco-6) var(--espaco-6) var(--espaco-6); box-sizing: border-box; }
-    .linha-topo { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--espaco-4); gap: var(--espaco-4); flex-wrap: wrap; }
-    .titulo-pagina { font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; margin: 0; }
-    
-    .busca-box input { width: 320px; padding: var(--espaco-3); border: 2px solid var(--preto); font-family: var(--fonte-texto); font-size: 1rem; box-sizing: border-box; }
-    .busca-box input:focus { outline: 3px solid var(--cobalto-600); outline-offset: 0; }
-
-    table { width: 100%; border-collapse: collapse; margin-top: var(--espaco-3); }
-    th, td { border-bottom: 1px solid var(--preto); padding: var(--espaco-3) var(--espaco-2); text-align: left; font-family: var(--fonte-texto); font-size: 0.95rem; }
-    th { font-weight: var(--peso-subtitulo); background: #f4f4f4; border-top: 2px solid var(--preto); }
-    td.direita, th.direita { text-align: right; }
-
-    .barra-botoes { display: flex; gap: var(--espaco-2); margin-top: var(--espaco-5); flex-wrap: wrap; }
-    .botao { display: inline-flex; align-items: center; justify-content: center; font-family: var(--fonte-texto); font-weight: var(--peso-subtitulo); padding: var(--espaco-3) var(--espaco-4); min-height: 48px; min-width: 96px; background: var(--branco); color: var(--preto); border: 2px solid var(--preto); cursor: pointer; text-decoration: none; }
-    .botao:hover { background: var(--cobalto-600); color: var(--branco); }
-    .botao.primario { background: var(--preto); color: var(--branco); }
-    .botao.primario:hover { background: var(--cobalto-600); }
-    .tecla { font-weight: var(--peso-titulo); margin-right: var(--espaco-2); }
-
-    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
-    .modal-conteudo { background: var(--branco); color: var(--preto); border: 2px solid var(--preto); padding: var(--espaco-6); max-width: 520px; width: calc(100% - var(--espaco-4)); position: relative; max-height: 90vh; overflow-y: auto; }
-    .modal-titulo { font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; margin: 0 0 var(--espaco-4); }
-    .modal-conteudo::after { content: ""; position: absolute; top: 0; right: 0; width: 48px; height: 48px; background: var(--cobalto-600); clip-path: polygon(0 0, 0 100%, 100% 0); }
-
-    .campo { margin-bottom: var(--espaco-3); }
-    .campo label { display: block; font-weight: var(--peso-subtitulo); margin-bottom: var(--espaco-1); }
-    .campo input, .campo select { width: 100%; padding: var(--espaco-2); border: 2px solid var(--preto); font-family: var(--fonte-texto); font-size: 1rem; box-sizing: border-box; }
-
-    .toast { position: fixed; bottom: var(--espaco-6); right: var(--espaco-6); background: var(--preto); color: var(--branco); padding: var(--espaco-3) var(--espaco-5); font-family: var(--fonte-texto); font-weight: var(--peso-subtitulo); border: 2px solid var(--preto); display: none; z-index: 300; }
-    .toast.visivel { display: block; }
-  </style>
+  <link rel="stylesheet" href="../features/products/products.css" />
 </head>
 <body data-tema="caixa">
-  <div class="corte-m"></div>
-  <div class="wordmark" aria-label="Mikella">
-    <span class="letra" aria-hidden="true">M</span>
-    <span class="letra" aria-hidden="true">i</span>
-    <span class="letra" aria-hidden="true">k</span>
-    <span class="letra" aria-hidden="true">e</span>
-    <span class="letra" aria-hidden="true">l</span>
-    <span class="letra" aria-hidden="true">l</span>
-    <span class="letra" aria-hidden="true">a</span>
-  </div>
+    <!-- Barra de Topo Unificada -->
+  <header style="background: #000; color: #FFF; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0040D8;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-family: var(--fonte-display); font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; color: #FFF;">MIKELLA <span style="background: #0040D8; padding: 2px 6px; font-size: 0.8rem;">ESTOQUE & PRODUTOS</span></span>
+    </div>
+    <div>
+      <button id="btn-topo-voltar" type="button" class="botao" style="background: #FFF; color: #000; font-weight: 800; font-size: 0.85rem; padding: 4px 12px; height: 32px;" >
+        [ESC] Voltar ao Menu
+      </button>
+    </div>
+  </header>
 
   <main class="app-container">
     <div class="linha-topo">
@@ -101,23 +65,25 @@
   <div id="modal-produto" class="modal" style="display:none;">
     <div class="modal-conteudo">
       <h2 class="modal-titulo">Novo Produto</h2>
-      <form id="form-produto">
-        <div class="campo">
+      <form id="form-produto" autocomplete="off">
+        <div style="display:flex; gap:var(--espaco-2);">
+          <div class="campo-grupo" style="flex:1.5;">
+            <label for="prod-barras">Cód. Barras (Leitor / EAN-13)</label>
+            <input id="prod-barras" type="text" placeholder="Bipe ou digite o código..." autocomplete="off" autofocus />
+          </div>
+          <div class="campo-grupo" style="flex:1;">
+            <label for="prod-sku">SKU / Cód. Interno</label>
+            <input id="prod-sku" type="text" placeholder="Código interno" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="campo-grupo">
           <label for="prod-nome">Nome do Produto *</label>
           <input id="prod-nome" type="text" required placeholder="Ex: Arroz Tipo 1 5kg" autocomplete="off" />
         </div>
+
         <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo" style="flex:1;">
-            <label for="prod-barras">Cód. Barras</label>
-            <input id="prod-barras" type="text" placeholder="EAN-13 opcional" />
-          </div>
-          <div class="campo" style="flex:1;">
-            <label for="prod-sku">SKU</label>
-            <input id="prod-sku" type="text" placeholder="Código interno" />
-          </div>
-        </div>
-        <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo" style="flex:1;">
+          <div class="campo-grupo" style="flex:1;">
             <label for="prod-unidade">Unidade</label>
             <select id="prod-unidade">
               <option value="UN">UN (Unidade)</option>
@@ -127,21 +93,31 @@
               <option value="CX">CX (Caixa)</option>
             </select>
           </div>
-          <div class="campo" style="flex:1;">
-            <label for="prod-preco">Preço de Venda (R$) *</label>
-            <input id="prod-preco" type="text" required placeholder="0,00" style="text-align:right;" />
-          </div>
-        </div>
-        <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo" style="flex:1;">
+          <div class="campo-grupo" style="flex:1;">
             <label for="prod-custo">Preço de Custo (R$)</label>
-            <input id="prod-custo" type="text" placeholder="0,00" style="text-align:right;" />
-          </div>
-          <div class="campo" style="flex:1;">
-            <label for="prod-estoque-min">Estoque Mínimo</label>
-            <input id="prod-estoque-min" type="number" value="0" min="0" />
+            <input id="prod-custo" type="text" placeholder="0,00" style="text-align:right;" autocomplete="off" />
           </div>
         </div>
+
+        <div class="campo-grupo">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <label for="prod-preco">Preço de Venda (R$) *</label>
+            <span id="prod-margem-preview" style="font-size: 0.85rem; font-weight: bold; color: #0040D8;">Margem: --</span>
+          </div>
+          <input id="prod-preco" type="text" required placeholder="0,00" style="text-align:right;" autocomplete="off" />
+        </div>
+
+        <div style="display:flex; gap:var(--espaco-2);">
+          <div class="campo-grupo" style="flex:1;">
+            <label for="prod-qtd-inicial">Qtd. Entrada (Estoque Atual)</label>
+            <input id="prod-qtd-inicial" type="number" value="0" min="0" autocomplete="off" />
+          </div>
+          <div class="campo-grupo" style="flex:1;">
+            <label for="prod-estoque-min">Estoque Mínimo (Alerta)</label>
+            <input id="prod-estoque-min" type="number" value="0" min="0" autocomplete="off" />
+          </div>
+        </div>
+
         <div style="margin-top:var(--espaco-4); display:flex; gap:var(--espaco-2);">
           <button type="submit" class="botao primario" style="flex:1;">Salvar Produto</button>
           <button type="button" id="btn-cancelar-modal" class="botao" style="flex:1;">Cancelar</button>
@@ -150,215 +126,6 @@
     </div>
   </div>
 
-  <script type="module">
-    import { inicializarControlesJanela } from "../shared/ui/window-controls.js";
-    inicializarControlesJanela();
-
-    const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
-    const token = localStorage.getItem("mikella_token");
-    if (!token) { window.location.href = "landing.html"; }
-    const authHeaders = { "Authorization": `Bearer ${token}` };
-
-    let PRODUTOS = [];
-
-    const Money = {
-      fmt(c) {
-        const v = (c < 0 ? "-" : "") + "R$ " + (Math.abs(c)/100).toFixed(2).replace(".", ",");
-        return v;
-      },
-      parse(str) {
-        const digitos = (str || "").replace(/\D/g, "");
-        return parseInt(digitos, 10) || 0;
-      }
-    };
-
-    function toast(msg) {
-      const t = document.getElementById("toast");
-      t.textContent = msg;
-      t.classList.add("visivel");
-      setTimeout(() => t.classList.remove("visivel"), 2500);
-    }
-
-    async function fetchJSON(path, opts = {}) {
-      const res = await fetch(`${API_URL}${path}`, {
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        ...opts,
-      });
-      const data = await res.json().catch(() => ({}));
-      return { ok: res.ok, status: res.status, data };
-    }
-
-    async function carregarProdutos() {
-      const { ok, data } = await fetchJSON("/v1/produtos");
-      if (!ok) {
-        toast(data.erro || "Falha ao carregar lista de produtos.");
-        return;
-      }
-      PRODUTOS = data.produtos || [];
-      renderTabela(PRODUTOS);
-    }
-
-    function renderTabela(lista) {
-      const tbody = document.getElementById("tabela-produtos-corpo");
-      tbody.innerHTML = "";
-      if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:var(--espaco-6);">Nenhum produto cadastrado. Pressione F1 para cadastrar ou F2 para importar CSV.</td></tr>';
-        return;
-      }
-
-      lista.forEach(p => {
-        const tr = document.createElement("tr");
-        const codigo = p.codigo_barras || p.sku || "-";
-        tr.innerHTML = `
-          <td><strong>${p.nome}</strong></td>
-          <td>${codigo}</td>
-          <td>${p.unidade || "UN"}</td>
-          <td class="direita">${Money.fmt(p.preco_centavos)}</td>
-          <td class="direita">${p.estoque_atual !== undefined ? p.estoque_atual : "-"}</td>
-          <td class="direita">
-            <button class="botao" style="min-height:36px; min-width:64px; padding:var(--espaco-1) var(--espaco-2);" data-arquivar="${p.id}">Arquivar</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      // Bind botões de arquivar
-      tbody.querySelectorAll("[data-arquivar]").forEach(btn => {
-        btn.onclick = () => arquivarProduto(btn.dataset.arquivar);
-      });
-    }
-
-    async function arquivarProduto(id) {
-      if (!confirm("Tem certeza que deseja arquivar este produto?")) return;
-      const { ok, data } = await fetchJSON(`/v1/produtos/${id}/arquivar`, { method: "POST" });
-      if (ok) {
-        toast("Produto arquivado.");
-        carregarProdutos();
-      } else {
-        toast(data.erro || "Falha ao arquivar produto.");
-      }
-    }
-
-    // Filtro de busca rápido
-    const inputFiltro = document.getElementById("filtro-busca");
-    inputFiltro.addEventListener("input", () => {
-      const termo = inputFiltro.value.trim().toLowerCase();
-      if (!termo) {
-        renderTabela(PRODUTOS);
-        return;
-      }
-      const filtrados = PRODUTOS.filter(p => 
-        p.nome.toLowerCase().includes(termo) || 
-        (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termo)) ||
-        (p.sku && p.sku.toLowerCase().includes(termo))
-      );
-      renderTabela(filtrados);
-    });
-
-    // Modal de Novo Produto
-    const modalProd = document.getElementById("modal-produto");
-    const btnNovo = document.getElementById("btn-novo");
-    const btnCancelaModal = document.getElementById("btn-cancelar-modal");
-    const formProd = document.getElementById("form-produto");
-
-    btnNovo.onclick = () => {
-      formProd.reset();
-      modalProd.style.display = "flex";
-      document.getElementById("prod-nome").focus();
-    };
-
-    btnCancelaModal.onclick = () => {
-      modalProd.style.display = "none";
-      inputFiltro.focus();
-    };
-
-    // Máscara monetária nos campos de preço e custo
-    ["prod-preco", "prod-custo"].forEach(id => {
-      const el = document.getElementById(id);
-      el.addEventListener("input", () => {
-        const v = el.value.replace(/\D/g, "");
-        if (v.length > 0) {
-          el.value = (parseInt(v, 10) / 100).toFixed(2).replace(".", ",");
-        }
-      });
-    });
-
-    formProd.onsubmit = async (e) => {
-      e.preventDefault();
-      const payload = {
-        nome: document.getElementById("prod-nome").value.trim(),
-        codigo_barras: document.getElementById("prod-barras").value.trim() || null,
-        sku: document.getElementById("prod-sku").value.trim() || null,
-        unidade: document.getElementById("prod-unidade").value,
-        preco_centavos: Money.parse(document.getElementById("prod-preco").value),
-        custo_centavos: Money.parse(document.getElementById("prod-custo").value),
-        estoque_minimo: parseInt(document.getElementById("prod-estoque-min").value, 10) || 0,
-        perecivel: false,
-      };
-
-      const { ok, data } = await fetchJSON("/v1/produtos", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (ok) {
-        toast("Produto cadastrado com sucesso!");
-        modalProd.style.display = "none";
-        carregarProdutos();
-      } else {
-        toast(data.erro || "Falha ao cadastrar produto.");
-      }
-    };
-
-    // Importação de CSV
-    const btnCsv = document.getElementById("btn-csv");
-    const inputCsv = document.getElementById("input-csv-file");
-
-    btnCsv.onclick = () => inputCsv.click();
-    inputCsv.onchange = async () => {
-      const file = inputCsv.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const csvText = e.target.result;
-        toast("Processando importação...");
-        const res = await fetch(`${API_URL}/v1/import/csv`, {
-          method: "POST",
-          headers: { "Content-Type": "text/csv", ...authHeaders },
-          body: csvText
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-          toast(`Importação concluída: ${data.produtos_importados || 0} produtos importados.`);
-          carregarProdutos();
-        } else {
-          toast(data.erro || "Falha ao importar CSV.");
-        }
-        inputCsv.value = "";
-      };
-      reader.readAsText(file);
-    };
-
-    // Voltar
-    document.getElementById("btn-voltar").onclick = () => { window.location.href = "main-menu.html"; };
-
-    // Teclas de atalho
-    document.addEventListener("keydown", (e) => {
-      if (modalProd.style.display === "flex") {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          btnCancelaModal.click();
-        }
-        return;
-      }
-
-      if (e.key === "F1") { e.preventDefault(); btnNovo.click(); }
-      else if (e.key === "F2") { e.preventDefault(); btnCsv.click(); }
-      else if (e.key === "Escape") { e.preventDefault(); document.getElementById("btn-voltar").click(); }
-    });
-
-    carregarProdutos();
-  </script>
+<script type="module" src="../features/products/products.js"></script>
 </body>
 </html>

@@ -16,6 +16,49 @@ use mikella_shared_kernel::{
 use super::{data_hora_sql, limit_seguro, parse_data_hora, parse_id, sql, ParaDominio};
 use crate::error::InfraResult;
 
+/// Filtros do histórico de vendas (query params já validados pelo handler).
+#[derive(Debug, Clone, Default)]
+pub struct FiltroVendas {
+    pub codigo: Option<String>,
+    /// Limite inferior do intervalo (timestamp UTC RFC-3339, inclusivo).
+    pub data_inicio: Option<String>,
+    /// Limite superior do intervalo (timestamp UTC RFC-3339, inclusivo).
+    pub data_fim: Option<String>,
+    /// Quando `true`, o filtro por data é ignorado e retorna todos os registros no limite dado.
+    pub sem_filtro_data: bool,
+    pub limite: i64,
+}
+
+/// Linha crua do read model de vendas (sem formatação monetária).
+#[derive(Debug, Clone)]
+pub struct VendaResumo {
+    pub id: String,
+    pub sessao_id: String,
+    pub operador_id: String,
+    pub estado: String,
+    pub total_centavos: i64,
+    pub recebido_centavos: i64,
+    pub created_at: String,
+    pub coo: i64,
+    pub operador: String,
+}
+
+impl VendaResumo {
+    fn da_linha(row: &Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: row.get(0)?,
+            sessao_id: row.get(1)?,
+            operador_id: row.get(2)?,
+            estado: row.get(3)?,
+            total_centavos: row.get(4)?,
+            recebido_centavos: row.get(5)?,
+            created_at: row.get(6)?,
+            coo: row.get(7)?,
+            operador: row.get(8)?,
+        })
+    }
+}
+
 pub struct VendaRepo<'a> {
     conn: &'a Connection,
 }
@@ -47,6 +90,74 @@ impl<'a> VendaRepo<'a> {
         let pagamentos = self.carregar_pagamentos(id)?;
         let venda = bruto.para_venda(itens, pagamentos)?;
         Ok(Some(venda))
+    }
+
+    /// Read model do histórico de vendas (F3/estorno), com filtro por COO ou
+    /// período e nome do operador. O SQL fica na infraestrutura (ARQ-001).
+    pub fn listar_resumo(&self, filtro: &FiltroVendas) -> InfraResult<Vec<VendaResumo>> {
+        use rusqlite::types::Value;
+
+        let mut sql_query = String::from(
+            "SELECT v.id, v.sessao_id, v.operador_id, v.estado, v.total_centavos, \
+                    v.recebido_centavos, v.created_at, v.rowid, \
+                    COALESCE(u.nome, '—') \
+             FROM vendas v LEFT JOIN usuarios u ON u.id = v.operador_id WHERE 1=1",
+        );
+        let mut args: Vec<Value> = Vec::new();
+
+        if let Some(codigo) = filtro
+            .codigo
+            .as_deref()
+            .map(str::trim)
+            .filter(|c| !c.is_empty())
+        {
+            // COO = rowid; também aceita prefixo do UUID. Tudo parametrizado.
+            sql_query.push_str(" AND (v.id LIKE ? OR CAST(v.rowid AS TEXT) = ?)");
+            args.push(Value::Text(format!("%{codigo}%")));
+            args.push(Value::Text(codigo.to_string()));
+        } else {
+            if let Some(ini) = filtro
+                .data_inicio
+                .as_deref()
+                .map(str::trim)
+                .filter(|d| !d.is_empty())
+            {
+                sql_query.push_str(" AND v.created_at >= ?");
+                args.push(Value::Text(ini.to_string()));
+            }
+            if let Some(fim) = filtro
+                .data_fim
+                .as_deref()
+                .map(str::trim)
+                .filter(|d| !d.is_empty())
+            {
+                sql_query.push_str(" AND v.created_at <= ?");
+                args.push(Value::Text(fim.to_string()));
+            }
+            // Sem filtro de data: `sem_filtro_data` ou o chamador passou os limites explicitamente.
+            // O antigo `date('now')` era UTC — usaria o dia errado entre 21h-0h no fuso de Brasília.
+            // O filtro correto deve ser calculado pelo handler com o fuso IANA da loja_config.
+            // Se nenhum filtro for fornecido e sem_filtro_data == false, retorna registros de hoje
+            // em UTC como fallback conservador (evita retornar tabela inteira).
+            if filtro.data_inicio.is_none() && filtro.data_fim.is_none() && !filtro.sem_filtro_data {
+                sql_query.push_str(" AND date(v.created_at) = date('now')");
+            }
+        }
+
+        sql_query.push_str(" ORDER BY v.created_at DESC, v.rowid DESC LIMIT ?");
+        args.push(Value::Integer(filtro.limite));
+
+        let mut stmt = self.conn.prepare(&sql_query)?;
+        let rows = stmt.query_map(
+            rusqlite::params_from_iter(args.iter()),
+            VendaResumo::da_linha,
+        )?;
+
+        let mut vendas = Vec::new();
+        for row in rows {
+            vendas.push(row?);
+        }
+        Ok(vendas)
     }
 
     fn carregar_itens(&self, venda_id: VendaId) -> InfraResult<Vec<ItemVenda>> {
@@ -92,7 +203,8 @@ impl<'a> VendaRepo<'a> {
 
     fn carregar_pagamentos(&self, venda_id: VendaId) -> InfraResult<Vec<Pagamento>> {
         let mut stmt = self.conn.prepare(
-            "SELECT forma, valor_centavos, recebido_centavos, forma_detalhe
+            "SELECT forma, valor_centavos, recebido_centavos, forma_detalhe,
+                    COALESCE(parcelas, 1), maquininha, modalidade, COALESCE(taxa_centavos, 0)
              FROM venda_pagamentos
              WHERE venda_id = ?1
              ORDER BY created_at ASC, id ASC",
@@ -103,18 +215,26 @@ impl<'a> VendaRepo<'a> {
                 row.get::<_, i64>(1)?,
                 row.get::<_, Option<i64>>(2)?,
                 row.get::<_, Option<String>>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, i64>(7)?,
             ))
         })?;
 
         let mut pagamentos = Vec::new();
         for linha in linhas {
-            let (forma, valor, recebido, detalhe) = linha?;
+            let (forma, valor, recebido, detalhe, parcelas, maquininha, modalidade, taxa_centavos) = linha?;
             let forma = FormaPagamento::from_db_com_detalhe(&forma, detalhe.as_deref())
                 .map_err(|erro| crate::error::erro_campo("venda_pagamentos.forma", erro))?;
             pagamentos.push(Pagamento {
                 forma,
                 valor: Money::from_centavos(valor),
                 recebido: recebido.map(Money::from_centavos),
+                parcelas: (parcelas as u32).max(1),
+                maquininha,
+                modalidade,
+                taxa: Money::from_centavos(taxa_centavos),
             });
         }
         Ok(pagamentos)
@@ -189,8 +309,8 @@ impl VendaRepository for VendaRepo<'_> {
             sql(self.conn.execute(
                 "INSERT INTO venda_pagamentos
                      (id, venda_id, forma, valor_centavos, recebido_centavos, troco_centavos,
-                      forma_detalhe)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                      forma_detalhe, parcelas, maquininha, modalidade, taxa_centavos)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 params![
                     uuid::Uuid::new_v4().to_string(),
                     venda.id.to_string(),
@@ -199,6 +319,10 @@ impl VendaRepository for VendaRepo<'_> {
                     pagamento.recebido.map(|valor| valor.centavos()),
                     pagamento.troco().centavos(),
                     pagamento.forma.as_detalhe(),
+                    pagamento.parcelas,
+                    pagamento.maquininha,
+                    pagamento.modalidade,
+                    pagamento.taxa.centavos(),
                 ],
             ))?;
         }

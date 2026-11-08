@@ -7,509 +7,7 @@
   <link rel="stylesheet" href="../shared/design/tokens.css" />
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      border-radius: 0 !important; /* Bíblia: zero border-radius */
-    }
-
-    body {
-      background: var(--azul-600, #0040D8);
-      color: #000000;
-      font-family: var(--fonte-texto), sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      user-select: none;
-      overflow-x: hidden;
-    }
-
-    /* Top HUD Operacional (Cockpit de Balcão) */
-    .top-hud {
-      background: #000000;
-      color: #FFFFFF;
-      height: 58px;
-      padding: 0 var(--espaco-6);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 3px solid #000000;
-      box-shadow: 0 4px 0px rgba(0, 0, 0, 0.4);
-      z-index: 20;
-    }
-
-    .hud-esquerda {
-      display: flex;
-      align-items: center;
-      gap: var(--espaco-4);
-    }
-
-    .hud-marca {
-      font-family: var(--fonte-display), sans-serif;
-      font-size: 1.5rem;
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      color: #FFFFFF;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .hud-marca-badge {
-      background: #FFFFFF;
-      color: #000000;
-      font-size: 0.75rem;
-      font-weight: 900;
-      padding: 2px 6px;
-      letter-spacing: 0.05em;
-    }
-
-    .hud-status-caixa {
-      display: flex;
-      align-items: center;
-      gap: var(--espaco-2);
-    }
-
-    .tag-caixa {
-      background: var(--amarelo, #FFD21F);
-      color: #000000;
-      font-family: var(--fonte-display);
-      font-size: 0.85rem;
-      font-weight: 900;
-      padding: 3px 10px;
-      border: 2px solid #000000;
-    }
-
-    .tag-sessao {
-      font-family: var(--fonte-display);
-      font-size: 0.85rem;
-      font-weight: 900;
-      padding: 3px 10px;
-      border: 2px solid #000000;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .tag-sessao.aberto {
-      background: var(--verde, #07733C);
-      color: #FFFFFF;
-    }
-    .tag-sessao.fechado {
-      background: #333333;
-      color: #FFFFFF;
-    }
-    .tag-sessao-bullet {
-      width: 8px;
-      height: 8px;
-      background: #FFFFFF;
-      display: inline-block;
-    }
-
-    .hud-direita {
-      display: flex;
-      align-items: center;
-      gap: var(--espaco-4);
-    }
-
-    .hud-operador {
-      font-family: var(--fonte-texto);
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #FFFFFF;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .hud-operador-papel {
-      background: #222222;
-      color: var(--amarelo, #FFD21F);
-      font-size: 0.75rem;
-      font-weight: 900;
-      padding: 2px 6px;
-      border: 1px solid #444444;
-    }
-
-    .btn-voltar-topo {
-      background: #FFFFFF;
-      color: #000000;
-      font-family: var(--fonte-display);
-      font-size: 0.9rem;
-      font-weight: 900;
-      padding: 6px 14px;
-      border: 2px solid #000000;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 3px 3px 0px #FFFFFF;
-      transition: transform 0.08s ease, background 0.08s ease;
-    }
-    .btn-voltar-topo:hover {
-      background: var(--amarelo, #FFD21F);
-      transform: translate(-1px, -1px);
-      box-shadow: 4px 4px 0px #FFFFFF;
-    }
-
-    /* Container Principal do PDV */
-    .pdv-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: var(--espaco-5) var(--espaco-6);
-      width: 100%;
-      max-width: 1240px;
-      margin: 0 auto;
-    }
-
-    .painel-comando {
-      width: 100%;
-      background: #FFFFFF;
-      border: 4px solid #000000;
-      box-shadow: 8px 8px 0px #000000;
-      padding: var(--espaco-6);
-      display: flex;
-      flex-direction: column;
-      gap: var(--espaco-5);
-    }
-
-    /* Título Limpo e Sem Sombras Bugadas */
-    .cabecalho-bloco {
-      border-bottom: 3px solid #000000;
-      padding-bottom: var(--espaco-4);
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-    }
-
-    .titulo-principal {
-      font-family: var(--fonte-display), sans-serif;
-      font-size: 2rem;
-      font-weight: 900;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: #000000;
-      line-height: 1.1;
-    }
-
-    .subtitulo-texto {
-      font-family: var(--fonte-texto);
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #333333;
-      margin-top: 4px;
-    }
-
-    .indicador-atalhos {
-      font-family: var(--fonte-display);
-      font-size: 0.85rem;
-      font-weight: 900;
-      background: #000000;
-      color: #FFFFFF;
-      padding: 6px 12px;
-      letter-spacing: 0.05em;
-    }
-
-    /* Grid de Teclas de Função F1 - F8 */
-    .grid-teclado-pdv {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: var(--espaco-4);
-      width: 100%;
-    }
-
-    @media (max-width: 1024px) {
-      .grid-teclado-pdv {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    /* Tecla / Cartão de Ação do PDV */
-    .tecla-card {
-      background: #FFFFFF;
-      color: #000000;
-      border: 3px solid #000000;
-      box-shadow: 5px 5px 0px #000000;
-      padding: var(--espaco-4);
-      min-height: 140px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      cursor: pointer;
-      position: relative;
-      outline: none;
-      transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.06s ease;
-    }
-
-    .tecla-card:hover, .tecla-card:focus {
-      background: #FFFFF0;
-      transform: translate(-3px, -3px);
-      box-shadow: 8px 8px 0px #000000;
-    }
-
-    .tecla-card:active {
-      transform: translate(2px, 2px);
-      box-shadow: 2px 2px 0px #000000;
-    }
-
-    /* Destaque para F1 e F2 (Vendas Primárias) */
-    .tecla-card.primario {
-      border: 4px solid #000000;
-      background: #F4F8FF;
-    }
-    .tecla-card.primario:hover, .tecla-card.primario:focus {
-      background: #FFFFFF;
-      box-shadow: 8px 8px 0px var(--azul-600, #0040D8);
-    }
-
-    /* Destaque para F8 (Fechamento) */
-    .tecla-card.alerta {
-      background: #FFF5F5;
-      border-color: #000000;
-    }
-    .tecla-card.alerta:hover, .tecla-card.alerta:focus {
-      background: #FFFFFF;
-      box-shadow: 8px 8px 0px var(--vermelho, #C81E16);
-    }
-
-    /* Topo do Card: Badge da Tecla Física */
-    .tecla-topo {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: var(--espaco-2);
-    }
-
-    .badge-tecla {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: #000000;
-      color: #FFFFFF;
-      font-family: var(--fonte-display);
-      font-size: 1.15rem;
-      font-weight: 900;
-      padding: 3px 10px;
-      min-width: 44px;
-      height: 32px;
-      border: 2px solid #000000;
-    }
-
-    .tecla-card.primario .badge-tecla {
-      background: var(--azul-600, #0040D8);
-      border-color: #000000;
-    }
-
-    .tecla-card.alerta .badge-tecla {
-      background: var(--vermelho, #C81E16);
-      border-color: #000000;
-    }
-
-    .tecla-corpo {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .tecla-titulo {
-      font-family: var(--fonte-display);
-      font-size: 1.25rem;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      line-height: 1.15;
-      color: #000000;
-    }
-
-    .tecla-card.alerta .tecla-titulo {
-      color: var(--vermelho, #C81E16);
-    }
-
-    .tecla-desc {
-      font-family: var(--fonte-texto);
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #555555;
-      line-height: 1.25;
-    }
-
-    /* Rodapé do Painel */
-    .painel-rodape {
-      border-top: 2px solid #E5E7EB;
-      padding-top: var(--espaco-3);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: var(--fonte-texto);
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #666666;
-    }
-
-    /* Toast Flutuante */
-    #toast {
-      position: fixed;
-      bottom: var(--espaco-5);
-      right: var(--espaco-5);
-      background: #000000;
-      color: #FFFFFF;
-      border: 3px solid #FFFFFF;
-      padding: var(--espaco-3) var(--espaco-5);
-      font-family: var(--fonte-texto);
-      font-weight: 800;
-      font-size: 1rem;
-      z-index: 9999;
-      display: none;
-      box-shadow: 6px 6px 0px rgba(0,0,0,0.5);
-    }
-
-    /* Modais Estilo Balcão */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.75);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .modal-corpo {
-      background: #FFFFFF;
-      color: #000000;
-      border: 4px solid #000000;
-      box-shadow: 10px 10px 0px #000000;
-      padding: var(--espaco-5);
-      width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-      position: relative;
-    }
-
-    .modal-corpo h2 {
-      font-family: var(--fonte-display);
-      font-size: 1.6rem;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border-bottom: 3px solid #000000;
-      padding-bottom: var(--espaco-2);
-      margin-bottom: var(--espaco-4);
-    }
-
-    .form-linha {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: var(--espaco-3);
-    }
-
-    .form-linha label {
-      font-family: var(--fonte-display);
-      font-size: 0.95rem;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-
-    .form-input {
-      width: 100%;
-      height: 44px;
-      background: #FFFFFF;
-      border: 3px solid #000000;
-      padding: 0 var(--espaco-3);
-      font-family: var(--fonte-texto);
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #000000;
-      outline: none;
-    }
-    .form-input:focus {
-      box-shadow: 4px 4px 0px #000000;
-    }
-
-    .botoes-linha {
-      display: flex;
-      gap: var(--espaco-3);
-      margin-top: var(--espaco-4);
-    }
-
-    .btn-acao {
-      background: #000000;
-      color: #FFFFFF;
-      font-family: var(--fonte-display);
-      font-size: 1.05rem;
-      font-weight: 900;
-      text-transform: uppercase;
-      padding: 10px 20px;
-      border: 3px solid #000000;
-      cursor: pointer;
-      box-shadow: 4px 4px 0px #000000;
-      transition: transform 0.08s ease;
-    }
-    .btn-acao:hover {
-      background: #222222;
-      transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0px #000000;
-    }
-
-    .btn-acao.secundario {
-      background: #FFFFFF;
-      color: #000000;
-    }
-    .btn-acao.secundario:hover {
-      background: #F3F4F6;
-    }
-
-    .btn-acao.danger {
-      background: var(--vermelho, #C81E16);
-      color: #FFFFFF;
-    }
-
-    /* Tabelas em Modal */
-    .tabela-modal {
-      width: 100%;
-      border-collapse: collapse;
-      font-family: var(--fonte-texto);
-      font-size: 0.95rem;
-      margin-top: var(--espaco-2);
-    }
-    .tabela-modal th, .tabela-modal td {
-      border: 2px solid #000000;
-      padding: var(--espaco-2) var(--espaco-3);
-      text-align: left;
-    }
-    .tabela-modal th {
-      background: #000000;
-      color: #FFFFFF;
-      font-family: var(--fonte-display);
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-    .tabela-modal tr:nth-child(even) {
-      background: #F9FAFB;
-    }
-
-    /* Bobina Térmica Monospace */
-    .bobina-termica {
-      background: #FFFFF8;
-      color: #000000;
-      border: 2px solid #000000;
-      padding: var(--espaco-4);
-      font-family: "Courier New", Courier, monospace;
-      font-size: 0.88rem;
-      font-weight: 700;
-      white-space: pre-wrap;
-      max-height: 320px;
-      overflow-y: auto;
-      margin: var(--espaco-3) 0;
-      box-shadow: inset 0 0 4px rgba(0,0,0,0.1);
-    }
-  </style>
+  <link rel="stylesheet" href="../features/pos/pos-menu.css" />
 </head>
 <body data-tema="balcao">
 
@@ -534,10 +32,16 @@
         <span id="user-display">OPERADOR: Carregando...</span>
         <span id="user-papel-tag" class="hud-operador-papel">DONO / ADM</span>
       </div>
-      <button id="btn-esc-voltar" class="btn-voltar-topo" title="Voltar ao Menu Principal [ESC]">
-        <span>[ESC]</span>
-        <span>VOLTAR</span>
-      </button>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="btn-teste-impressora" class="btn-voltar-topo" type="button" title="Testar Impressora Local" style="background: #111; border-color: #333;">
+          <span>[TESTE]</span>
+          <span>IMPRESSORA</span>
+        </button>
+        <button id="btn-esc-voltar" class="btn-voltar-topo" title="Voltar ao Menu Principal [ESC]">
+          <span>[ESC]</span>
+          <span>VOLTAR</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -585,8 +89,8 @@
             <span class="badge-tecla">F3</span>
           </div>
           <div class="tecla-corpo">
-            <div class="tecla-titulo">HISTÓRICO VENDAS</div>
-            <div class="tecla-desc">Filtro por período/COO, pré-visualizar e reimprimir cupom.</div>
+            <div class="tecla-titulo">HISTÓRICO / ESTORNO</div>
+            <div class="tecla-desc">Compras do dia por COO: cupom, reimpressão e estorno com motivo.</div>
           </div>
         </div>
 
@@ -670,7 +174,7 @@
         </div>
         <div class="botoes-linha">
           <button type="submit" class="btn-acao">Iniciar Venda (Enter)</button>
-          <button type="button" class="btn-acao secundario" onclick="fecharModais()">Cancelar (Esc)</button>
+          <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Cancelar (Esc)</button>
         </div>
       </form>
     </div>
@@ -710,13 +214,103 @@
         <div id="hist-preview-cupom" class="bobina-termica"></div>
         <div style="display: flex; gap: var(--espaco-2);">
           <button id="btn-reimprimir-cupom" class="btn-acao" style="height: 44px;">Reimprimir Cupom (ESC/POS)</button>
-          <button type="button" class="btn-acao secundario" style="height: 44px;" onclick="document.getElementById('hist-preview-bloco').style.display='none'">Fechar Cupom</button>
+          <button type="button" class="btn-acao secundario" style="height: 44px;" data-acao="fechar-cupom">Fechar Cupom</button>
         </div>
       </div>
 
       <div class="botoes-linha">
-        <button type="button" class="btn-acao secundario" onclick="fecharModais()">Fechar (Esc)</button>
+        <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Fechar (Esc)</button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL F3: Estorno de Venda (3 passos) -->
+  <div id="modal-estorno" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 580px;">
+      <h2>Estorno de Venda</h2>
+
+      <!-- Passo 1: conferir -->
+      <section id="estorno-passo-1">
+        <div class="estorno-resumo">
+          <div><span>COO</span><strong id="est-coo">—</strong></div>
+          <div><span>Data/Hora</span><strong id="est-data">—</strong></div>
+          <div><span>Operador</span><strong id="est-operador">—</strong></div>
+          <div><span>Total da venda</span><strong id="est-total">—</strong></div>
+        </div>
+        <p class="estorno-aviso">
+          O estorno devolve o estoque, cancela o crediário em aberto e retira o valor
+          do caixa. A venda fica marcada como <strong>ESTORNADA</strong> e não pode ser
+          estornada novamente.
+        </p>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao secundario" id="btn-estorno-cancelar">Cancelar (Esc)</button>
+          <button type="button" class="btn-acao" id="btn-estorno-continuar">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Passo 2: motivo + observação -->
+      <section id="estorno-passo-2" style="display: none;">
+        <div class="form-linha">
+          <label for="est-motivo">Motivo do estorno *</label>
+          <select id="est-motivo" class="form-input">
+            <option value="">Selecione…</option>
+            <option value="Cliente desistiu da compra">Cliente desistiu da compra</option>
+            <option value="Produto com defeito">Produto com defeito</option>
+            <option value="Erro de preço">Erro de preço</option>
+            <option value="Erro na forma de pagamento">Erro na forma de pagamento</option>
+            <option value="Outro">Outro (descreva abaixo)</option>
+          </select>
+        </div>
+        <div class="form-linha">
+          <label for="est-motivo-outro">Descreva o motivo *</label>
+          <input id="est-motivo-outro" class="form-input" type="text" maxlength="120"
+                 placeholder="Obrigatório quando o motivo é Outro" />
+        </div>
+        <div class="form-linha">
+          <label for="est-observacao">Observação (máx. 240, sai no comprovante)</label>
+          <textarea id="est-observacao" class="form-input" rows="3" maxlength="240"
+                    placeholder="Ex.: cliente trouxe o item e o cupom"></textarea>
+        </div>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao secundario" id="btn-estorno-voltar-1">Voltar</button>
+          <button type="button" class="btn-acao" id="btn-estorno-continuar-2">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Passo 3: autorização -->
+      <section id="estorno-passo-3" style="display: none;">
+        <div id="estorno-aprovacao-campos">
+          <p class="estorno-aviso">
+            Operador precisa da autorização de um gerente ou dono. A senha não é
+            armazenada; o nome do aprovador sai no comprovante.
+          </p>
+          <div class="form-linha">
+            <label for="est-aprovador-usuario">Usuário do gerente/dono *</label>
+            <input id="est-aprovador-usuario" class="form-input" type="text" autocomplete="off" />
+          </div>
+          <div class="form-linha">
+            <label for="est-aprovador-senha">Senha do gerente/dono *</label>
+            <input id="est-aprovador-senha" class="form-input" type="password" autocomplete="off" />
+          </div>
+        </div>
+        <p id="estorno-autoaprovado" class="estorno-aviso" style="display: none;">
+          Você é gerente/dono e autoriza esta operação.
+        </p>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao secundario" id="btn-estorno-voltar-2">Voltar</button>
+          <button type="button" class="btn-acao btn-perigo" id="btn-estorno-confirmar">CONFIRMAR ESTORNO</button>
+        </div>
+      </section>
+
+      <!-- Resultado -->
+      <section id="estorno-resultado" style="display: none;">
+        <p id="estorno-resultado-texto" style="font-weight: 800;"></p>
+        <pre id="estorno-cupom" class="bobina-termica" style="max-height: 260px;"></pre>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao" id="btn-estorno-reimprimir">Reimprimir Comprovante</button>
+          <button type="button" class="btn-acao secundario" id="btn-estorno-concluir">Concluir</button>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -732,50 +326,127 @@
       </div>
 
       <!-- Formulário de Cadastro (Exclusivo — Oculta a busca e a tabela) -->
-      <div id="box-form-cliente" style="display: none; background: #F8F9FC; border: 3px solid #000; padding: var(--espaco-4); margin-bottom: var(--espaco-3);">
+      <div id="box-form-cliente" style="display: none; background: #F8F9FC; border: 1px solid #CCC; padding: var(--espaco-3); margin-bottom: var(--espaco-3);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--espaco-3);">
-          <h3 id="form-cli-titulo" style="font-family: var(--fonte-display); font-size: 1.25rem; font-weight: 900; text-transform: uppercase;">Cadastrar Novo Cliente</h3>
-          <button type="button" id="btn-voltar-busca-topo" class="btn-acao secundario" style="padding: 4px 10px; font-size: 0.85rem;">← Voltar para Busca</button>
+          <span style="font-size: 0.9rem; font-weight: 700; color: #555;">Campos marcados com * são obrigatórios</span>
+          
         </div>
         
-        <form id="form-cliente-salvar">
+        <form id="form-cliente-salvar" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
           <input type="hidden" id="cli-id" />
-          <div style="display: flex; gap: var(--espaco-3);">
+          <input type="hidden" id="cli-end" />
+          <div style="display: flex; gap: var(--espaco-3); margin-bottom: var(--espaco-2);">
             <div class="form-linha" style="flex: 1.5;">
-              <label for="cli-nome">Nome Completo *</label>
-              <input id="cli-nome" class="form-input" type="text" required style="height: 42px;" placeholder="Ex: Maria da Silva" />
+              <label for="cli-nome">Nome completo *</label>
+              <input id="cli-nome" class="form-input" type="text" required style="height: 42px;" placeholder="Ex: Maria da Silva" autocomplete="off" />
             </div>
             <div class="form-linha" style="flex: 1;">
-              <label for="cli-cpf">CPF (Chave Única)</label>
-              <input id="cli-cpf" class="form-input" type="text" placeholder="000.000.000-00" style="height: 42px;" />
+              <label for="cli-cpf">CPF (chave única) *</label>
+              <input id="cli-cpf" class="form-input" type="text" required placeholder="000.000.000-00" maxlength="14" style="height: 42px;" autocomplete="off" />
             </div>
           </div>
-          <div style="display: flex; gap: var(--espaco-3);">
+          <div style="display: flex; gap: var(--espaco-3); margin-bottom: var(--espaco-3);">
             <div class="form-linha" style="flex: 1;">
-              <label for="cli-tel">Celular / Tel Residencial</label>
-              <input id="cli-tel" class="form-input" type="text" placeholder="(00) 00000-0000" style="height: 42px;" />
+              <label for="cli-tel">Celular / WhatsApp</label>
+              <input id="cli-tel" class="form-input" type="text" placeholder="(00) 00000-0000" maxlength="15" style="height: 42px;" autocomplete="off" />
             </div>
             <div class="form-linha" style="flex: 1;">
               <label for="cli-email">E-mail</label>
-              <input id="cli-email" class="form-input" type="email" placeholder="cliente@email.com" style="height: 42px;" />
+              <input id="cli-email" class="form-input" type="email" placeholder="cliente@email.com" style="height: 42px;" autocomplete="off" />
             </div>
           </div>
-          <div class="form-linha">
-            <label for="cli-end">Endereço Completo (Opcional — Usado para Entregas)</label>
-            <input id="cli-end" class="form-input" type="text" placeholder="Rua, Número, Bairro, Ponto de Referência" style="height: 42px;" />
+
+          <!-- Endereço Estruturado -->
+          <div style="background: #FFFFFF; border: 2px solid #000; padding: var(--espaco-3); margin-bottom: var(--espaco-3);">
+            <div style="font-weight: 800; font-size: 0.9rem; margin-bottom: var(--espaco-2); color: #000;">
+              Endereço para entrega / cobrança (opcional)
+            </div>
+            <div style="display: flex; gap: var(--espaco-2); align-items: flex-end; margin-bottom: var(--espaco-2);">
+              <div class="form-linha" style="flex: 1;">
+                <label for="cli-cep">CEP</label>
+                <input id="cli-cep" class="form-input" type="text" placeholder="00000-000" maxlength="9" style="height: 40px;" autocomplete="off" />
+              </div>
+              <button type="button" id="btn-buscar-cep" class="btn-acao secundario" style="height: 40px; margin-bottom: 2px;">Buscar CEP</button>
+            </div>
+            <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-2);">
+              <div class="form-linha" style="flex: 2.5;">
+                <label for="cli-logradouro">Logradouro / rua</label>
+                <input id="cli-logradouro" class="form-input" type="text" placeholder="Rua, Avenida, etc." style="height: 40px;" autocomplete="off" />
+              </div>
+              <div class="form-linha" style="flex: 1;">
+                <label for="cli-numero">Número</label>
+                <div style="display: flex; gap: 4px;">
+                  <input id="cli-numero" class="form-input" type="text" placeholder="Nº" style="height: 40px; flex: 1;" autocomplete="off" />
+                  <button type="button" id="btn-sn-num" class="btn-acao secundario" style="padding: 0 8px; font-size: 0.75rem; height: 40px;" title="Sem Número">S/N</button>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-2);">
+              <div class="form-linha" style="flex: 1.2;">
+                <label for="cli-complemento">Complemento</label>
+                <input id="cli-complemento" class="form-input" type="text" placeholder="Apto, Bloco, Fundos..." style="height: 40px;" autocomplete="off" />
+              </div>
+              <div class="form-linha" style="flex: 1;">
+                <label for="cli-bairro">Bairro</label>
+                <input id="cli-bairro" class="form-input" type="text" placeholder="Bairro" style="height: 40px;" autocomplete="off" />
+              </div>
+            </div>
+            <div style="display: flex; gap: var(--espaco-2);">
+              <div class="form-linha" style="flex: 2;">
+                <label for="cli-cidade">Cidade</label>
+                <input id="cli-cidade" class="form-input" type="text" placeholder="Cidade" style="height: 40px;" autocomplete="off" />
+              </div>
+              <div class="form-linha" style="flex: 0.8;">
+                <label for="cli-uf">UF</label>
+                <select id="cli-uf" class="form-input" style="height: 40px; font-weight: bold;">
+                  <option value="">UF</option>
+                  <option value="AC">AC</option>
+                  <option value="AL">AL</option>
+                  <option value="AP">AP</option>
+                  <option value="AM">AM</option>
+                  <option value="BA">BA</option>
+                  <option value="CE">CE</option>
+                  <option value="DF">DF</option>
+                  <option value="ES">ES</option>
+                  <option value="GO">GO</option>
+                  <option value="MA">MA</option>
+                  <option value="MT">MT</option>
+                  <option value="MS">MS</option>
+                  <option value="MG">MG</option>
+                  <option value="PA">PA</option>
+                  <option value="PB">PB</option>
+                  <option value="PR">PR</option>
+                  <option value="PE">PE</option>
+                  <option value="PI">PI</option>
+                  <option value="RJ">RJ</option>
+                  <option value="RN">RN</option>
+                  <option value="RS">RS</option>
+                  <option value="RO">RO</option>
+                  <option value="RR">RR</option>
+                  <option value="SC">SC</option>
+                  <option value="SP">SP</option>
+                  <option value="SE">SE</option>
+                  <option value="TO">TO</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <!-- Termo de Privacidade e Proteção de Dados (Art. 7º, I e 8º da Lei nº 13.709/2018 - LGPD) -->
-          <div style="background: #FFFFFF; border: 2px solid #000; padding: 10px; margin-top: var(--espaco-2); font-size: 0.82rem; line-height: 1.3;">
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: 700;">
-              <input type="checkbox" id="cli-lgpd-consentimento" checked required style="margin-top: 3px;" />
-              <span><strong>Conformidade LGPD:</strong> O titular autoriza a coleta e o armazenamento de seus dados exclusivamente para identificação no cupom fiscal, emissão de crediário/cobrança e entregas de pedidos pela loja.</span>
+          <!-- Base Legal e Consentimento LGPD (CLI-010, CLI-011) -->
+          <div style="background: #FFFFFF; border: 2px solid #000; padding: 12px; margin-bottom: var(--espaco-3); font-size: 0.82rem; line-height: 1.4;">
+            <p style="margin: 0 0 8px 0; color: #444;">
+              <strong>Base legal LGPD (Art. 7º, V da Lei 13.709/2018):</strong> Os dados de identificação e contato são coletados para identificação do cliente na venda, controle de crediário e combinar entregas de mercadorias.
+            </p>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #000;">
+              <input type="checkbox" id="cli-lgpd-marketing" />
+              <span>Aceito receber novidades e promoções por WhatsApp / SMS (opcional)</span>
             </label>
           </div>
 
-          <div style="display: flex; gap: var(--espaco-3); margin-top: var(--espaco-3);">
-            <button type="submit" class="btn-acao" style="height: 46px;">Salvar Cliente (Enter)</button>
-            <button type="button" id="btn-cancelar-cliente" class="btn-acao secundario" style="height: 46px;">Cancelar e Voltar</button>
+          <div style="display: flex; gap: var(--espaco-3);">
+            <button type="submit" id="btn-salvar-cli-form" class="btn-acao" style="height: 46px; flex: 1;">Salvar cliente (Enter)</button>
+            <button type="button" id="btn-cancelar-cliente" class="btn-acao secundario" style="height: 46px; flex: 1;">Cancelar e voltar</button>
+            <button type="button" id="btn-anonimizar-cliente" class="btn-acao danger" style="height: 46px; display: none;">Anonimizar Titular (LGPD)</button>
           </div>
         </form>
       </div>
@@ -799,7 +470,7 @@
       </div>
 
       <div class="botoes-linha" id="box-botoes-clientes-rodape">
-        <button type="button" class="btn-acao secundario" onclick="fecharModais()">Voltar (Esc)</button>
+        <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Voltar (Esc)</button>
       </div>
     </div>
   </div>
@@ -818,9 +489,23 @@
           <label for="sangria-motivo">Observação da Sangria (Até 256 caracteres)</label>
           <textarea id="sangria-motivo" class="form-input" style="height: 80px; padding: var(--espaco-2); font-size: 0.95rem; resize: none;" maxlength="256" placeholder="Ex: Retirada de sangria para cofre central"></textarea>
         </div>
+        <div id="sangria-aprovacao-campos" style="display: none;">
+          <p class="estorno-aviso">
+            Operador precisa da autorização de um gerente ou dono. A senha
+            não é armazenada.
+          </p>
+          <div class="form-linha">
+            <label for="sangria-aprovador-usuario">Usuário do gerente/dono *</label>
+            <input id="sangria-aprovador-usuario" class="form-input" type="text" autocomplete="off" />
+          </div>
+          <div class="form-linha">
+            <label for="sangria-aprovador-senha">Senha do gerente/dono *</label>
+            <input id="sangria-aprovador-senha" class="form-input" type="password" autocomplete="off" />
+          </div>
+        </div>
         <div class="botoes-linha">
           <button type="submit" class="btn-acao danger">Confirmar Sangria (Enter)</button>
-          <button type="button" class="btn-acao secundario" onclick="fecharModais()">Cancelar (Esc)</button>
+          <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Cancelar (Esc)</button>
         </div>
       </form>
     </div>
@@ -830,9 +515,12 @@
   <div id="modal-devedores" class="modal-overlay" style="display: none;">
     <div class="modal-corpo" style="max-width: 760px;">
       <h2>Pagar Dívidas — Crediário</h2>
-      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Catálogo em ordem alfabética de quem possui débito pendente na loja:</p>
+      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Catálogo de clientes com débito pendente na loja:</p>
       
-      <input id="dev-filtro" class="form-input" style="width: 100%; height: 42px; margin-bottom: var(--espaco-3);" type="text" placeholder="Filtrar devedor por nome ou CPF..." />
+      <div class="form-linha" style="margin-bottom: var(--espaco-3);">
+        <label for="dev-filtro" style="font-weight: 700; margin-bottom: 4px; display: block;">Buscar por Nome, CPF ou Telefone:</label>
+        <input id="dev-filtro" class="form-input" style="width: 100%; height: 42px;" type="text" placeholder="Digite ao menos 2 letras do nome ou dígitos do CPF/telefone..." autocomplete="off" autofocus />
+      </div>
 
       <div style="max-height: 280px; overflow-y: auto;">
         <table class="tabela-modal">
@@ -874,13 +562,13 @@
           </div>
           <div style="display: flex; gap: var(--espaco-2); margin-top: var(--espaco-2);">
             <button type="submit" class="btn-acao">Confirmar Recebimento</button>
-            <button type="button" class="btn-acao secundario" onclick="document.getElementById('dev-submodal-pagar').style.display='none'">Cancelar</button>
+            <button type="button" class="btn-acao secundario" data-acao="fechar-submodal-devedor">Cancelar</button>
           </div>
         </form>
       </div>
 
       <div class="botoes-linha">
-        <button type="button" class="btn-acao secundario" onclick="fecharModais()">Fechar (Esc)</button>
+        <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Fechar (Esc)</button>
       </div>
     </div>
   </div>
@@ -918,7 +606,7 @@
           </div>
           <div class="botoes-linha">
             <button type="submit" class="btn-acao danger">Fechar Caixa e Emitir Bobina</button>
-            <button type="button" class="btn-acao secundario" onclick="fecharModais()">Cancelar</button>
+            <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Cancelar</button>
           </div>
         </form>
       </div>
@@ -930,585 +618,12 @@
         <div id="fech-cupom-texto" class="bobina-termica"></div>
         <div class="botoes-linha">
           <button id="btn-imprimir-fechamento" class="btn-acao">Imprimir Bobina (ESC/POS)</button>
-          <button id="btn-sair-apos-fechamento" class="btn-acao secundario" onclick="window.location.href='main-menu.html'">Sair para Menu Principal</button>
+          <button id="btn-sair-apos-fechamento" class="btn-acao secundario" data-acao="ir-menu-principal">Sair para Menu Principal</button>
         </div>
       </div>
     </div>
   </div>
 
-  <script type="module">
-    import { inicializarControlesJanela } from "../shared/ui/window-controls.js";
-    inicializarControlesJanela();
-
-    const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
-    const token = localStorage.getItem("mikella_token");
-    if (!token) { window.location.href = "landing.html"; }
-
-    // Cabeçalho de autorização limpo (sem Content-Type fixo para suportar Form ou JSON)
-    const authHeaders = {
-      "Authorization": `Bearer ${token}`
-    };
-
-    let usuarioAtual = JSON.parse(localStorage.getItem("mikella_usuario") || "{}");
-    let sessaoAtual = null;
-
-    const Money = {
-      fmt(c) {
-        return (c < 0 ? "-" : "") + "R$ " + (Math.abs(c)/100).toFixed(2).replace(".", ",");
-      },
-      parse(v) {
-        const dig = (v || "").replace(/\D/g, "");
-        return parseInt(dig, 10) || 0;
-      }
-    };
-
-    function toast(msg) {
-      const el = document.getElementById("toast");
-      el.textContent = msg;
-      el.style.display = "block";
-      setTimeout(() => { el.style.display = "none"; }, 3000);
-    }
-
-    async function fetchJSON(path, opts = {}) {
-      const headers = { ...authHeaders, ...(opts.headers || {}) };
-      if (opts.body && typeof opts.body === "string" && !headers["Content-Type"]) {
-        headers["Content-Type"] = "application/json";
-      }
-      const res = await fetch(`${API_URL}${path}`, {
-        ...opts,
-        headers,
-      });
-      const data = await res.json().catch(() => ({}));
-      return { ok: res.ok, status: res.status, data };
-    }
-
-    // Inicialização da Tela
-    async function inicializar() {
-      // Exibe operador e papel
-      const nomeOperador = usuarioAtual.nome || usuarioAtual.username || "ADMIN";
-      document.getElementById("user-display").textContent = `OPERADOR: ${nomeOperador}`;
-      const papel = (usuarioAtual.papel || "DONO").toUpperCase();
-      document.getElementById("user-papel-tag").textContent = papel;
-
-      // Carrega status da sessão do caixa
-      const { ok, data } = await fetchJSON("/v1/caixa/status");
-      if (ok && data.aberta) {
-        sessaoAtual = data;
-        localStorage.setItem("mikella_sessao_id", data.sessao_id);
-        document.getElementById("hud-caixa-num").textContent = `CAIXA 0${data.numero_caixa || 1}`;
-        const tagEstado = document.getElementById("hud-caixa-estado");
-        tagEstado.className = "tag-sessao aberto";
-        document.getElementById("hud-caixa-estado-texto").textContent = "ABERTO";
-      } else {
-        sessaoAtual = null;
-        const tagEstado = document.getElementById("hud-caixa-estado");
-        tagEstado.className = "tag-sessao fechado";
-        document.getElementById("hud-caixa-estado-texto").textContent = "FECHADO";
-      }
-    }
-
-    // Garante que o caixa esteja aberto antes de vender ou operar
-    async function garantirCaixaAberto() {
-      // 1. Se já sabemos que está aberto na memória local, prossegue
-      if (sessaoAtual && sessaoAtual.sessao_id) return true;
-
-      // 2. Consulta o backend para checar se já existe sessão aberta no banco
-      const statusRes = await fetchJSON("/v1/caixa/status");
-      if (statusRes.ok && statusRes.data && statusRes.data.aberta) {
-        sessaoAtual = statusRes.data;
-        localStorage.setItem("mikella_sessao_id", statusRes.data.sessao_id);
-        await inicializar();
-        return true;
-      }
-
-      // 3. Se estiver fechado, abre a sessão 01 com suporte irrestrito
-      toast("Abrindo sessão do Caixa 01...");
-      const payload = {
-        sessao_id: crypto.randomUUID(),
-        numero_caixa: 1,
-        dispositivo_id: "00000000-0000-4000-8000-0000000000d1",
-        saldo_inicial_centavos: 0,
-        fechamento_cego: false
-      };
-
-      const res = await fetchJSON("/v1/caixa/abrir", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok && res.data && res.data.sessao_id) {
-        sessaoAtual = { sessao_id: res.data.sessao_id, numero_caixa: res.data.numero_caixa || 1 };
-        localStorage.setItem("mikella_sessao_id", res.data.sessao_id);
-        await inicializar();
-        toast("Caixa 01 aberto com sucesso!");
-        return true;
-      }
-
-      // 4. Se a abertura retornou conflito/idempotência, recupera a sessão ativa
-      const retryStatus = await fetchJSON("/v1/caixa/status");
-      if (retryStatus.ok && retryStatus.data && retryStatus.data.aberta) {
-        sessaoAtual = retryStatus.data;
-        localStorage.setItem("mikella_sessao_id", retryStatus.data.sessao_id);
-        await inicializar();
-        return true;
-      }
-
-      console.error("[garantirCaixaAberto] Erro na resposta da API:", res);
-      const msgErro = (res.data && res.data.erro) ? res.data.erro : "Falha ao abrir sessão de caixa.";
-      toast(msgErro);
-      return false;
-    }
-
-    // Ações F1 - F8
-    async function acaoF1() {
-      if (await garantirCaixaAberto()) {
-        window.location.href = "pos.html?modo=balcao";
-      }
-    }
-
-    async function acaoF2() {
-      if (await garantirCaixaAberto()) {
-        document.getElementById("input-num-comanda").value = "";
-        abrirModal("modal-comanda");
-        document.getElementById("input-num-comanda").focus();
-      }
-    }
-
-    document.getElementById("form-comanda").onsubmit = (e) => {
-      e.preventDefault();
-      const num = document.getElementById("input-num-comanda").value.trim();
-      if (!num) return;
-      window.location.href = `pos.html?modo=comanda&comanda=${encodeURIComponent(num)}`;
-    };
-
-    // F3: Histórico de Vendas
-    let ultimaVendaIdComprovante = null;
-    function acaoF3() {
-      abrirModal("modal-historico");
-      carregarHistoricoVendas();
-    }
-
-    async function carregarHistoricoVendas() {
-      const cod = document.getElementById("hist-filtro-cod").value.trim();
-      const ini = document.getElementById("hist-data-ini").value;
-      const fim = document.getElementById("hist-data-fim").value;
-
-      let qs = "?limite=100";
-      if (cod) qs += `&codigo=${encodeURIComponent(cod)}`;
-      if (ini) qs += `&data_inicio=${encodeURIComponent(ini)}`;
-      if (fim) qs += `&data_fim=${encodeURIComponent(fim)}`;
-
-      const { ok, data } = await fetchJSON(`/v1/vendas${qs}`);
-      const tbody = document.getElementById("hist-tabela-corpo");
-      tbody.innerHTML = "";
-
-      if (!ok || !Array.isArray(data) || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 16px;">Nenhuma venda encontrada no período.</td></tr>';
-        return;
-      }
-
-      data.forEach(v => {
-        const tr = document.createElement("tr");
-        const cooCurto = v.id.slice(0, 8);
-        tr.innerHTML = `
-          <td><strong>#${cooCurto}</strong><br><span style="font-size:0.75rem; color:#666;">${v.id}</span></td>
-          <td>${v.created_at ? v.created_at.slice(0, 16).replace("T", " ") : "-"}</td>
-          <td><span style="font-weight:900; color:${v.estado === 'FINALIZADA' ? 'green' : 'red'};">${v.estado}</span></td>
-          <td style="text-align: right; font-weight: 900;">${v.total}</td>
-          <td style="text-align: center;">
-            <button class="badge-tecla" style="cursor: pointer; font-size: 0.8rem; height: 28px; padding: 2px 8px;" data-ver-venda="${v.id}">Cupom</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      tbody.querySelectorAll("[data-ver-venda]").forEach(btn => {
-        btn.onclick = () => exibirPreviewCupom(btn.dataset.verVenda);
-      });
-    }
-
-    document.getElementById("btn-hist-filtrar").onclick = carregarHistoricoVendas;
-
-    async function exibirPreviewCupom(vendaId) {
-      ultimaVendaIdComprovante = vendaId;
-      const { ok, data } = await fetchJSON(`/v1/vendas/${vendaId}/comprovante`);
-      if (ok && data.texto_58mm) {
-        document.getElementById("hist-preview-cupom").textContent = data.texto_58mm;
-        document.getElementById("hist-preview-bloco").style.display = "block";
-      } else {
-        toast("Falha ao gerar comprovante da venda.");
-      }
-    }
-
-    document.getElementById("btn-reimprimir-cupom").onclick = async () => {
-      if (!ultimaVendaIdComprovante) return;
-      toast("Enviando para impressora ESC/POS...");
-      const { ok } = await fetchJSON(`/v1/vendas/${ultimaVendaIdComprovante}/imprimir`, { method: "POST" });
-      if (ok) toast("Cupom reimpresso com sucesso!");
-      else toast("Comprovante enviado para bobina local.");
-    };
-
-    // F4: Clientes & Crediário
-    function acaoF4() {
-      // Reseta estado para modo busca/lista
-      mostrarModoBuscaCliente();
-      abrirModal("modal-clientes");
-      carregarClientes();
-    }
-
-    function mostrarModoBuscaCliente() {
-      document.getElementById("box-busca-cliente").style.display = "flex";
-      document.getElementById("box-tabela-clientes").style.display = "block";
-      document.getElementById("box-botoes-clientes-rodape").style.display = "flex";
-      document.getElementById("box-form-cliente").style.display = "none";
-      document.getElementById("modal-cli-titulo").textContent = "Clientes da Loja";
-    }
-
-    function mostrarModoNovoCliente(titulo = "Cadastrar Novo Cliente") {
-      // OMITIR BUSCA E TABELA (Exigência do usuário: SUMIR busca ao cadastrar)
-      document.getElementById("box-busca-cliente").style.display = "none";
-      document.getElementById("box-tabela-clientes").style.display = "none";
-      document.getElementById("box-botoes-clientes-rodape").style.display = "none";
-      document.getElementById("box-form-cliente").style.display = "block";
-      document.getElementById("modal-cli-titulo").textContent = titulo;
-      document.getElementById("cli-nome").focus();
-    }
-
-    document.getElementById("btn-novo-cliente-form").onclick = () => {
-      document.getElementById("form-cliente-salvar").reset();
-      document.getElementById("cli-id").value = "";
-      document.getElementById("form-cli-titulo").textContent = "Cadastrar Novo Cliente";
-      mostrarModoNovoCliente("Cadastrar Novo Cliente");
-    };
-
-    document.getElementById("btn-voltar-busca-topo").onclick = mostrarModoBuscaCliente;
-    document.getElementById("btn-cancelar-cliente").onclick = mostrarModoBuscaCliente;
-
-    async function carregarClientes() {
-      const termo = document.getElementById("cli-filtro-termo").value.trim();
-      const { ok, data } = await fetchJSON(`/v1/clientes?busca=${encodeURIComponent(termo)}`);
-      const tbody = document.getElementById("cli-tabela-corpo");
-      tbody.innerHTML = "";
-
-      if (!ok || !data.clientes || data.clientes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px;">Nenhum cliente cadastrado. Clique em "+ Novo Cliente" para cadastrar.</td></tr>';
-        return;
-      }
-
-      data.clientes.forEach(c => {
-        const tr = document.createElement("tr");
-        const temDivida = c.saldo_devedor_centavos > 0;
-        const statusCrediario = temDivida 
-          ? `<span style="color:${c.tem_vencido ? 'red' : '#D97706'}; font-weight:900;">${c.saldo_devedor_fmt} ${c.tem_vencido ? '(VENCIDO)' : '(A VENCER)'}</span>`
-          : `<span style="color:green; font-weight:700;">Sem dívidas</span>`;
-
-        tr.innerHTML = `
-          <td><strong>${c.nome}</strong></td>
-          <td>${c.cpf || "-"}</td>
-          <td>${c.telefone || "-"}</td>
-          <td style="text-align: right;">${statusCrediario}</td>
-          <td style="text-align: center;">
-            <button class="badge-tecla" style="cursor: pointer; font-size: 0.8rem; height: 28px; padding: 2px 8px;" data-edit-cli='${JSON.stringify(c)}'>Editar</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      tbody.querySelectorAll("[data-edit-cli]").forEach(b => {
-        b.onclick = () => {
-          const cli = JSON.parse(b.dataset.editCli);
-          document.getElementById("cli-id").value = cli.id;
-          document.getElementById("cli-nome").value = cli.nome;
-          document.getElementById("cli-cpf").value = cli.cpf || "";
-          document.getElementById("cli-tel").value = cli.telefone || "";
-          document.getElementById("cli-email").value = cli.email || "";
-          document.getElementById("cli-end").value = cli.endereco || "";
-          document.getElementById("form-cli-titulo").textContent = "Editar Cliente";
-          mostrarModoNovoCliente(`Editar Cliente: ${cli.nome}`);
-        };
-      });
-    }
-
-    document.getElementById("cli-filtro-termo").addEventListener("input", carregarClientes);
-
-    document.getElementById("form-cliente-salvar").onsubmit = async (e) => {
-      e.preventDefault();
-      const payload = {
-        id: document.getElementById("cli-id").value || null,
-        nome: document.getElementById("cli-nome").value.trim(),
-        cpf: document.getElementById("cli-cpf").value.trim() || null,
-        telefone: document.getElementById("cli-tel").value.trim() || null,
-        email: document.getElementById("cli-email").value.trim() || null,
-        endereco: document.getElementById("cli-end").value.trim() || null,
-      };
-
-      const { ok, data } = await fetchJSON("/v1/clientes", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (ok) {
-        toast("Cliente salvo com sucesso!");
-        mostrarModoBuscaCliente();
-        carregarClientes();
-      } else {
-        toast(data.erro || "Falha ao salvar cliente.");
-      }
-    };
-
-    // F5: Sangria de Caixa
-    function acaoF5() {
-      if (!sessaoAtual || !sessaoAtual.sessao_id) {
-        toast("Abra o caixa antes de realizar sangria.");
-        return;
-      }
-      document.getElementById("form-sangria").reset();
-      abrirModal("modal-sangria");
-      document.getElementById("sangria-valor").focus();
-    }
-
-    document.getElementById("sangria-valor").addEventListener("input", (e) => {
-      const c = Money.parse(e.target.value);
-      if (c > 0) e.target.value = (c / 100).toFixed(2).replace(".", ",");
-    });
-
-    document.getElementById("form-sangria").onsubmit = async (e) => {
-      e.preventDefault();
-      const centavos = Money.parse(document.getElementById("sangria-valor").value);
-      if (centavos <= 0) {
-        toast("Digite o valor da sangria.");
-        return;
-      }
-
-      const payload = {
-        sessao_id: sessaoAtual.sessao_id,
-        valor_centavos: centavos,
-        motivo: document.getElementById("sangria-motivo").value.trim()
-      };
-
-      const res = await fetchJSON("/v1/caixa/sangria", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        toast(`Sangria realizada com sucesso: ${Money.fmt(centavos)}`);
-        fecharModais();
-      } else {
-        toast(res.data.erro || "Falha ao registrar sangria.");
-      }
-    };
-
-    // F6: Pagar Dívidas (Crediário)
-    let DEVEDORES_CACHE = [];
-    function acaoF6() {
-      abrirModal("modal-devedores");
-      carregarDevedores();
-    }
-
-    async function carregarDevedores() {
-      const { ok, data } = await fetchJSON("/v1/crediario/devedores");
-      const tbody = document.getElementById("dev-tabela-corpo");
-      tbody.innerHTML = "";
-
-      if (!ok || !data.devedores || data.devedores.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px;">Nenhum cliente com dívida em aberto no momento!</td></tr>';
-        DEVEDORES_CACHE = [];
-        return;
-      }
-
-      DEVEDORES_CACHE = data.devedores;
-      renderDevedoresTabela(DEVEDORES_CACHE);
-    }
-
-    function renderDevedoresTabela(lista) {
-      const tbody = document.getElementById("dev-tabela-corpo");
-      tbody.innerHTML = "";
-
-      lista.forEach(d => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><strong>${d.cliente_nome}</strong><br><span style="font-size:0.75rem; color:#666;">${d.cliente_cpf || d.cliente_telefone || "-"}</span></td>
-          <td>${d.descricao} (Parc. ${d.parcela_numero})</td>
-          <td>${d.vencimento} ${d.vencido ? `<span style="color:red; font-weight:900;">(${d.dias_atraso}d atrás)</span>` : ''}</td>
-          <td style="text-align: right; font-weight: 900; color: #B91C1C;">${d.valor_fmt}</td>
-          <td style="text-align: center;">
-            <button class="badge-tecla" style="cursor: pointer; font-size: 0.85rem; height: 28px; padding: 2px 8px;" data-liq='${JSON.stringify(d)}'>Receber</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      tbody.querySelectorAll("[data-liq]").forEach(btn => {
-        btn.onclick = () => {
-          const item = JSON.parse(btn.dataset.liq);
-          document.getElementById("dev-liq-conta-id").value = item.conta_id;
-          document.getElementById("dev-liq-parc-num").value = item.parcela_numero;
-          document.getElementById("dev-liq-valor").value = item.valor_fmt;
-          document.getElementById("dev-liq-titulo").textContent = `Receber Dívida de: ${item.cliente_nome}`;
-          document.getElementById("dev-submodal-pagar").style.display = "block";
-        };
-      });
-    }
-
-    document.getElementById("dev-filtro").addEventListener("input", (e) => {
-      const t = e.target.value.toLowerCase().trim();
-      const filtrados = DEVEDORES_CACHE.filter(d => 
-        d.cliente_nome.toLowerCase().includes(t) || 
-        (d.cliente_cpf && d.cliente_cpf.includes(t))
-      );
-      renderDevedoresTabela(filtrados);
-    });
-
-    document.getElementById("form-dev-liquidar").onsubmit = async (e) => {
-      e.preventDefault();
-      const payload = {
-        conta_id: document.getElementById("dev-liq-conta-id").value,
-        parcela_numero: parseInt(document.getElementById("dev-liq-parc-num").value, 10),
-        forma_pagamento: document.getElementById("dev-liq-forma").value,
-        sessao_id: sessaoAtual ? sessaoAtual.sessao_id : null,
-      };
-
-      const { ok, data } = await fetchJSON("/v1/crediario/liquidar", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (ok) {
-        toast("Dívida quitada e recebida no caixa com sucesso!");
-        document.getElementById("dev-submodal-pagar").style.display = "none";
-        carregarDevedores();
-      } else {
-        toast(data.erro || "Falha ao liquidar dívida.");
-      }
-    };
-
-    // F7: Atualizar Caixa / Sync
-    async function acaoF7() {
-      toast("Sincronizando caixa e banco local...");
-      await inicializar();
-      toast("Caixa sincronizado com sucesso!");
-    }
-
-    // F8: Fechar Caixa
-    function acaoF8() {
-      if (!sessaoAtual || !sessaoAtual.sessao_id) {
-        toast("O caixa já está fechado.");
-        return;
-      }
-      document.getElementById("fech-etapa-1").style.display = "block";
-      document.getElementById("fech-etapa-2").style.display = "none";
-      document.getElementById("fech-etapa-3").style.display = "none";
-      abrirModal("modal-fechar-fluxo");
-    }
-
-    document.getElementById("btn-fech-sim-sangria").onclick = () => {
-      document.getElementById("fech-etapa-1").style.display = "none";
-      document.getElementById("fech-etapa-2").style.display = "block";
-      document.getElementById("fech-user-id").value = `${usuarioAtual.nome || usuarioAtual.username} (${usuarioAtual.id || "ID-ATUAL"})`;
-      document.getElementById("fech-contado").value = "";
-      document.getElementById("fech-obs").value = "";
-      document.getElementById("fech-contado").focus();
-    };
-
-    document.getElementById("btn-fech-nao-sangria").onclick = () => {
-      fecharModais();
-      acaoF5(); // Redireciona para sangria prévia
-    };
-
-    document.getElementById("fech-contado").addEventListener("input", (e) => {
-      const c = Money.parse(e.target.value);
-      if (c > 0) e.target.value = (c / 100).toFixed(2).replace(".", ",");
-    });
-
-    document.getElementById("form-fechamento-exec").onsubmit = async (e) => {
-      e.preventDefault();
-      const contadoCentavos = Money.parse(document.getElementById("fech-contado").value);
-      const obs = document.getElementById("fech-obs").value.trim();
-
-      const payload = {
-        sessao_id: sessaoAtual.sessao_id,
-        saldo_contado_centavos: contadoCentavos,
-        observacao: obs || null
-      };
-
-      toast("Gravando fechamento com integridade BLAKE3...");
-      const res = await fetchJSON("/v1/caixa/fechar", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        // Busca comprovante térmico do fechamento
-        const resComp = await fetchJSON(`/v1/caixa/fechamento/${sessaoAtual.sessao_id}/comprovante`);
-        const cupomTexto = (resComp.ok && resComp.data.texto_58mm) ? resComp.data.texto_58mm : "Comprovante gerado com sucesso.";
-
-        document.getElementById("fech-cupom-texto").textContent = cupomTexto;
-        document.getElementById("fech-etapa-2").style.display = "none";
-        document.getElementById("fech-etapa-3").style.display = "block";
-
-        document.getElementById("btn-imprimir-fechamento").onclick = async () => {
-          await fetchJSON(`/v1/caixa/fechamento/${sessaoAtual.sessao_id}/imprimir`, { method: "POST" });
-          toast("Bobina enviada para impressão!");
-        };
-
-        // Reset estado
-        sessaoAtual = null;
-        localStorage.removeItem("mikella_sessao_id");
-        inicializar();
-      } else {
-        toast(res.data.erro || "Falha ao fechar caixa.");
-      }
-    };
-
-    // Gerenciador de Modais
-    function abrirModal(id) {
-      fecharModais();
-      const el = document.getElementById(id);
-      if (el) el.style.display = "flex";
-    }
-
-    function fecharModais() {
-      document.querySelectorAll(".modal-overlay").forEach(m => m.style.display = "none");
-    }
-    window.fecharModais = fecharModais;
-
-    // Teclas de Atalho [F1 a F8] e [ESC]
-    window.addEventListener("keydown", (e) => {
-      if (document.querySelector(".modal-overlay[style*='display: flex']")) {
-        if (e.key === "Escape") {
-          fecharModais();
-          e.preventDefault();
-        }
-        return;
-      }
-
-      switch (e.key) {
-        case "F1": e.preventDefault(); acaoF1(); break;
-        case "F2": e.preventDefault(); acaoF2(); break;
-        case "F3": e.preventDefault(); acaoF3(); break;
-        case "F4": e.preventDefault(); acaoF4(); break;
-        case "F5": e.preventDefault(); acaoF5(); break;
-        case "F6": e.preventDefault(); acaoF6(); break;
-        case "F7": e.preventDefault(); acaoF7(); break;
-        case "F8": e.preventDefault(); acaoF8(); break;
-        case "Escape": e.preventDefault(); window.location.href = "main-menu.html"; break;
-      }
-    });
-
-    // Cliques nos Cards
-    document.getElementById("card-f1").onclick = acaoF1;
-    document.getElementById("card-f2").onclick = acaoF2;
-    document.getElementById("card-f3").onclick = acaoF3;
-    document.getElementById("card-f4").onclick = acaoF4;
-    document.getElementById("card-f5").onclick = acaoF5;
-    document.getElementById("card-f6").onclick = acaoF6;
-    document.getElementById("card-f7").onclick = acaoF7;
-    document.getElementById("card-f8").onclick = acaoF8;
-    document.getElementById("btn-esc-voltar").onclick = () => window.location.href = "main-menu.html";
-
-    // Boot
-    inicializar();
-  </script>
+<script type="module" src="../features/pos/pos-menu.js"></script>
 </body>
 </html>

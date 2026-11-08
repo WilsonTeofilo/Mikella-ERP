@@ -8,9 +8,15 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 
-use mikella_app_sales::{finalizar_venda, CrediarioCmd, FinalizarVendaCmd, ItemCmd, PoliticaEstoque, VendaRepos};
+use mikella_app_sales::{
+    finalizar_venda, CrediarioCmd, FinalizarVendaCmd, ItemCmd, PoliticaEstoque, VendaRepos,
+};
 use mikella_domain_sales::venda::{FormaPagamento, Pagamento};
-use mikella_infra_sqlite::{Blake3HashChain, ContaReceberRepo, LivroRepo, LoteRepo, MovimentacaoRepo, ProdutoRepo, SessaoRepo, VendaRepo};
+use mikella_infra_hardware::{EscPosGerador, LarguraPapel};
+use mikella_infra_sqlite::{
+    Blake3HashChain, ContaReceberRepo, DiagnosticoRepo, LivroRepo, LoteRepo, MovimentacaoRepo,
+    ProdutoRepo, SessaoRepo, VendaRepo,
+};
 use mikella_shared_kernel::clock::SystemClock;
 use mikella_shared_kernel::ids::{DispositivoId, LoteId, ProdutoId, SessaoId, VendaId};
 use mikella_shared_kernel::money::Money;
@@ -129,16 +135,26 @@ pub async fn finalizar_venda_handler(
                 _ => return bad_request(&format!("forma desconhecida: {}", p.forma)),
             };
             let valor = Money::from_centavos(p.valor_centavos);
+            let num_parcelas = p.parcelas.unwrap_or(1).max(1);
+            if num_parcelas > 1 && forma != FormaPagamento::Credito {
+                return bad_request("Apenas pagamento em cartão de crédito permite parcelamento");
+            }
+            let taxa = Money::from_centavos(p.taxa_centavos.unwrap_or(0));
             let pag = if forma == FormaPagamento::Dinheiro {
                 let recebido_centavos = p.recebido_centavos.unwrap_or(p.valor_centavos);
                 let recebido = Money::from_centavos(recebido_centavos);
                 match Pagamento::dinheiro(valor, recebido) {
-                    Ok(p) => p,
+                    Ok(pag_criado) => pag_criado,
                     Err(e) => return bad_request(&e.to_string()),
                 }
             } else {
                 match Pagamento::eletronico(forma, valor) {
-                    Ok(p) => p,
+                    Ok(pag_criado) => pag_criado.com_detalhes_cartao(
+                        num_parcelas,
+                        p.maquininha.clone(),
+                        p.modalidade.clone(),
+                        taxa,
+                    ),
                     Err(e) => return bad_request(&e.to_string()),
                 }
             };
@@ -278,7 +294,10 @@ pub async fn autorizar_cancelamento_handler(
     }
 
     // SEG-006: senha de autorização também é alvo de força bruta.
-    let chave_rate = format!("autorizar-cancelamento:{}", AppState::chave_usuario(username));
+    let chave_rate = format!(
+        "autorizar-cancelamento:{}",
+        AppState::chave_usuario(username)
+    );
     {
         let mut rl = state.rate_limit.lock().await;
         if !rl.permitir(&chave_rate) {
@@ -305,7 +324,9 @@ pub async fn autorizar_cancelamento_handler(
             state.rate_limit.lock().await.registrar_falha(&chave_rate);
             return (
                 StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({ "erro": "Usuário de autorização não encontrado ou inativo." })),
+                Json(
+                    serde_json::json!({ "erro": "Usuário de autorização não encontrado ou inativo." }),
+                ),
             );
         }
         Err(e) => {
@@ -393,7 +414,10 @@ pub async fn autorizar_cancelamento_handler(
     }
 }
 
-/// `POST /v1/vendas/:id/cancelar`
+/// `POST /v1/vendas/:id/cancelar` e `POST /v1/vendas/:id/estornar`.
+///
+/// O estorno é total, atômico e exige aprovador quando quem opera não é
+/// gerente/dono (SEC-004). Devolve o comprovante interno para impressão.
 pub async fn cancelar_venda_handler(
     State(state): State<AppState>,
     ator: Ator,
@@ -402,13 +426,45 @@ pub async fn cancelar_venda_handler(
 ) -> impl IntoResponse {
     exigir!(ator, "venda.cancelar");
 
+    // O motivo é obrigatório: o estorno precisa de justificativa no livro e no
+    // comprovante. Não confiamos apenas na validação do cliente.
+    if payload
+        .motivo
+        .as_deref()
+        .map(str::trim)
+        .filter(|m| !m.is_empty())
+        .is_none()
+    {
+        return crate::util::bad_request("informe o motivo do estorno");
+    }
+
+    // SEC-004: a aprovação é consumida aqui, não em um endpoint separado.
+    let aprovacao = match crate::util::exigir_aprovador(
+        &state,
+        &ator,
+        payload.credenciais_aprovador(),
+        "estorno",
+    )
+    .await
+    {
+        Ok(a) => a,
+        Err(resposta) => return resposta,
+    };
+    tracing::info!(
+        aprovador = %aprovacao.nome,
+        papel = %aprovacao.papel,
+        venda_id = %venda_id,
+        "estorno autorizado"
+    );
+
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {
         Ok(t) => t,
         Err(e) => {
+            tracing::error!(erro = %e, "falha ao abrir transação de estorno");
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": e.to_string() })),
+                Json(serde_json::json!({ "erro": "erro interno" })),
             );
         }
     };
@@ -424,8 +480,7 @@ pub async fn cancelar_venda_handler(
         }
     };
 
-    // Operador só cancela venda do próprio caixa; gerente/dono cancelam em
-    // qualquer caixa. A checagem é feita aqui, não no cliente.
+    // Valida dono do caixa e sessão aberta antes de qualquer escrita.
     {
         use mikella_domain_cash::ports::SessaoRepository as _;
         use mikella_domain_sales::ports::VendaRepository as _;
@@ -442,7 +497,7 @@ pub async fn cancelar_venda_handler(
             }
             Err(e) => {
                 let _ = tx.rollback();
-                tracing::error!(erro = %e, "falha ao buscar venda para cancelamento");
+                tracing::error!(erro = %e, "falha ao buscar venda para estorno");
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(serde_json::json!({ "erro": "falha de banco" })),
@@ -450,28 +505,45 @@ pub async fn cancelar_venda_handler(
             }
         };
 
-        if ator.papel().nivel() < 2 {
-            let sessoes = mikella_infra_sqlite::SessaoRepo::novo(&tx);
-            match sessoes.buscar_por_id(venda.sessao_id) {
-                Ok(Some(sessao)) if sessao.operador_id == ator.id() => {}
-                Ok(_) => {
-                    let _ = tx.rollback();
-                    return (
-                        StatusCode::FORBIDDEN,
-                        Json(serde_json::json!({
-                            "erro": "Operador só pode cancelar vendas do próprio caixa. Chame o gerente."
-                        })),
-                    );
-                }
-                Err(e) => {
-                    let _ = tx.rollback();
-                    tracing::error!(erro = %e, "falha ao buscar sessão da venda");
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(serde_json::json!({ "erro": "falha de banco" })),
-                    );
-                }
+        let sessoes = mikella_infra_sqlite::SessaoRepo::novo(&tx);
+        let sessao = match sessoes.buscar_por_id(venda.sessao_id) {
+            Ok(Some(s)) => s,
+            Ok(None) => {
+                let _ = tx.rollback();
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({ "erro": "sessão da venda não encontrada" })),
+                );
             }
+            Err(e) => {
+                let _ = tx.rollback();
+                tracing::error!(erro = %e, "falha ao buscar sessão da venda");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha de banco" })),
+                );
+            }
+        };
+
+        if ator.papel().nivel() < 2 && sessao.operador_id != ator.id() {
+            let _ = tx.rollback();
+            return (
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({
+                    "erro": "operador só pode estornar vendas do próprio caixa; chame o gerente"
+                })),
+            );
+        }
+
+        // DAT-008: estorno não pode reescrever um fechamento já feito.
+        if !sessao.is_aberta() {
+            let _ = tx.rollback();
+            return (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({
+                    "erro": "sessão do caixa já foi fechada; estorno exige caixa aberto"
+                })),
+            );
         }
     }
 
@@ -490,35 +562,97 @@ pub async fn cancelar_venda_handler(
         contas_receber: Some(&contas_receber),
     };
 
+    let motivo_audit = payload.motivo.as_deref().unwrap_or("-").to_string();
     let cmd = mikella_app_sales::CancelarVendaCmd {
         venda_id: vid,
         usuario_id: ator.id(),
+        aprovador_id: Some(aprovacao.id),
         motivo: payload.motivo,
+        observacao: payload.observacao,
     };
 
     match mikella_app_sales::cancelar_venda(&repos, cmd) {
         Ok(()) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "venda",
+                &vid.to_string(),
+                "ESTORNO_VENDA",
+                Some(&ator.id().to_string()),
+                None,
+                None,
+                Some(&format!(
+                    "motivo: {}, aprovador: {}",
+                    motivo_audit, aprovacao.id
+                )),
+            );
+
             if let Err(e) = tx.commit() {
+                tracing::error!(erro = %e, venda_id = %venda_id, "falha ao confirmar estorno");
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({ "erro": format!("Falha ao confirmar cancelamento: {}", e) })),
+                    Json(serde_json::json!({ "erro": "erro interno" })),
                 );
             }
 
-            (
-                StatusCode::OK,
-                Json(serde_json::json!({
-                    "sucesso": true,
-                    "mensagem": "Venda cancelada e estornada com sucesso."
-                })),
-            )
+            // O comprovante é gerado depois do commit. Se falhar, o estorno
+            // continua válido e a UI permite reimprimir depois.
+            // Usa o id normalizado do domínio (UUID canônico), não o texto cru
+            // da URL, para casar com a referência gravada no livro-caixa.
+            let venda_id_canonico = vid.to_string();
+            match crate::handlers::receipt::carregar_comprovante_estorno(
+                db.conn(),
+                &venda_id_canonico,
+            ) {
+                Ok(c) => {
+                    let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
+                    let texto_58mm =
+                        EscPosGerador::gerar_texto_estorno(&c, LarguraPapel::Colunas32, &fuso);
+                    let texto_80mm =
+                        EscPosGerador::gerar_texto_estorno(&c, LarguraPapel::Colunas48, &fuso);
+                    let bytes_58mm =
+                        EscPosGerador::gerar_bytes_estorno(&c, LarguraPapel::Colunas32, true, &fuso);
+                    let bytes_80mm =
+                        EscPosGerador::gerar_bytes_estorno(&c, LarguraPapel::Colunas48, true, &fuso);
+                    let hex_58mm: String =
+                        bytes_58mm.iter().map(|b| format!("{:02x}", b)).collect();
+                    let hex_80mm: String =
+                        bytes_80mm.iter().map(|b| format!("{:02x}", b)).collect();
+
+                    (
+                        StatusCode::OK,
+                        Json(serde_json::json!({
+                            "sucesso": true,
+                            "mensagem": "Venda estornada com sucesso.",
+                            "coo": c.coo,
+                            "valor_estornado_centavos": c.valor_estornado.centavos(),
+                            "texto_58mm": texto_58mm,
+                            "texto_80mm": texto_80mm,
+                            "escpos_hex_58mm": hex_58mm,
+                            "escpos_hex_80mm": hex_80mm,
+                        })),
+                    )
+                }
+                Err((_, msg)) => {
+                    tracing::warn!(
+                        venda_id = %venda_id,
+                        erro = msg,
+                        "estorno concluído, mas comprovante não pôde ser montado"
+                    );
+                    (
+                        StatusCode::OK,
+                        Json(serde_json::json!({
+                            "sucesso": true,
+                            "mensagem": "Venda estornada com sucesso.",
+                            "aviso": "comprovante indisponível; use a reimpressão do histórico",
+                        })),
+                    )
+                }
+            }
         }
         Err(e) => {
             let _ = tx.rollback();
-            (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "erro": e.to_string() })),
-            )
+            crate::util::error_para_http(e)
         }
     }
 }

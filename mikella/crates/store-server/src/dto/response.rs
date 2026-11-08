@@ -60,6 +60,8 @@ pub struct VendaSummary {
     pub coo: i64,
     pub sessao_id: String,
     pub operador_id: String,
+    /// Nome do operador que finalizou a venda (para o passo de conferência).
+    pub operador: String,
     pub estado: String,
     pub total: String,
     pub total_centavos: i64,

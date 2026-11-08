@@ -20,16 +20,19 @@ pub mod sales_write;
 pub mod system;
 pub mod users;
 
-pub use auth::{auth_me, login, onboarding_create, onboarding_status, solicitar_2fa, verificar_2fa};
+pub use auth::{
+    auth_me, login, logout, onboarding_create, onboarding_status, solicitar_2fa, verificar_2fa,
+};
 pub use cash::{abrir_caixa_handler, caixa_status, fechar_caixa_handler, realizar_sangria_handler};
 pub use csv::import_csv_handler;
 pub use customers::{
-    listar_clientes_handler, listar_devedores_handler, liquidar_divida_handler,
-    salvar_cliente_handler,
+    exportar_titular_handler, listar_clientes_handler, listar_devedores_handler,
+    liquidar_divida_handler, salvar_cliente_handler, excluir_ou_anonimizar_cliente_handler,
 };
 pub use donation::{donation_ack, donation_prompt};
 pub use finance::{
     listar_contas_abertas_handler, liquidar_parcela_handler, liquidar_parcela_receber_handler,
+    obter_fluxo_caixa_handler, obter_resultado_dre_handler, obter_resumo_dashboard_handler,
     registrar_conta_pagar_handler, registrar_conta_receber_handler,
 };
 pub use health::health;
@@ -38,14 +41,14 @@ pub use products::{
     criar_produto_handler,
 };
 pub use receipt::{
-    imprimir_comprovante, imprimir_comprovante_fechamento, obter_comprovante,
-    obter_comprovante_fechamento,
+    imprimir_comprovante, imprimir_comprovante_estorno, imprimir_comprovante_fechamento,
+    obter_comprovante, obter_comprovante_estorno, obter_comprovante_fechamento,
 };
-pub use sales::{listar_produtos, livro_caixa, vendas_listar};
+pub use sales::{listar_produtos, livro_caixa, simular_parcelas, vendas_listar};
 pub use sales_write::{
     autorizar_cancelamento_handler, cancelar_venda_handler, finalizar_venda_handler,
 };
-pub use system::{backup_local, diagnostico};
+pub use system::{backup_local, consultar_cep, diagnostico, teste_impressora_handler};
 pub use users::{
     atualizar_senha_handler, atualizar_usuario_handler, buscar_usuario_handler,
     criar_usuario_handler, desativar_usuario_handler, gerenciar_capacidades_handler,

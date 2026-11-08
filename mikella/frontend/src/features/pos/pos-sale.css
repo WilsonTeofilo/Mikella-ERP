@@ -1,0 +1,567 @@
+/* Extraído de app/pos.html — estilos específicos desta tela. */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+[data-tema="caixa"] body {
+  background: var(--branco);
+  color: var(--preto);
+  font-family: var(--fonte-texto);
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* Barra de status superior (§9.3) */
+.barra-status-caixa {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-4);
+  background: var(--papel);
+  border-bottom: 2px solid var(--preto);
+  padding: var(--espaco-2) var(--espaco-5);
+  font-size: var(--tamanho-auxiliar);
+  font-weight: var(--peso-subtitulo);
+  flex-wrap: wrap;
+}
+.barra-status-caixa .item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-1);
+}
+.marca-estado {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  font-weight: var(--peso-titulo);
+  text-transform: uppercase;
+  border: 1px solid var(--preto);
+  background: var(--branco);
+  color: var(--preto);
+}
+.marca-modo {
+  background: #000000;
+  color: #ffffff;
+}
+.marca-cli {
+  background: var(--amarelo, #ffd21f);
+  color: #000000;
+  font-weight: 900;
+}
+
+/* Layout principal de 2 colunas (§10.1) */
+.caixa-layout {
+  display: flex;
+  flex: 1;
+  min-height: calc(100vh - 84px);
+  background: var(--preto);
+  gap: 2px;
+}
+
+/* Coluna esquerda: Operador (Busca + Fita de Itens) */
+.caixa-operador {
+  flex: 1.6;
+  background: var(--branco);
+  display: flex;
+  flex-direction: column;
+}
+
+.busca-container {
+  padding: var(--espaco-4);
+  border-bottom: 2px solid var(--preto);
+  display: flex;
+  gap: var(--espaco-3);
+}
+.busca-container .campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.busca-container label {
+  font-size: var(--tamanho-auxiliar);
+  font-weight: var(--peso-subtitulo);
+  color: var(--cinza-500);
+  text-transform: uppercase;
+}
+.busca-campo {
+  height: 48px;
+  font-family: var(--fonte-texto);
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0 var(--espaco-3);
+  border: 3px solid var(--preto);
+  background: var(--branco);
+  color: var(--preto);
+  box-sizing: border-box;
+  outline: none;
+}
+.busca-campo:focus {
+  outline: 3px solid var(--azul-600, #0040d8);
+}
+
+/* Fita de itens em bobina contínua (§7.4) */
+.fita-itens-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--espaco-4);
+}
+.fita-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--fonte-texto);
+}
+.fita-tabela th {
+  border-bottom: 2px solid var(--preto);
+  padding: var(--espaco-2) var(--espaco-1);
+  text-align: left;
+  font-size: var(--tamanho-auxiliar);
+  font-weight: var(--peso-subtitulo);
+  color: var(--cinza-500);
+  text-transform: uppercase;
+}
+.fita-tabela td {
+  border-bottom: 1px solid var(--linha, #c9ccd8);
+  padding: var(--espaco-2) var(--espaco-1);
+  font-size: 1rem;
+}
+.fita-tabela th.direita,
+.fita-tabela td.direita {
+  text-align: right;
+  font-feature-settings:
+    "tnum" 1,
+    "lnum" 1;
+}
+.fita-tabela tr.selecionada td {
+  background: var(--azul-100, #dce6ff);
+}
+
+/* Coluna direita: Total Dominante + Pagamento (§10.1) */
+.caixa-total {
+  flex: 1;
+  background: var(--branco);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Bloco do Total: Cobalto sólido, Corte-M 45°, número 72px branco */
+.bloco-total {
+  background: var(--azul-600, #0040d8);
+  color: var(--branco);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  padding: var(--espaco-5);
+  margin: var(--espaco-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 180px;
+  box-sizing: border-box;
+  box-shadow: 4px 4px 0px #000000;
+}
+.bloco-total .label {
+  font-family: var(--fonte-texto);
+  font-size: 0.875rem;
+  font-weight: var(--peso-subtitulo);
+  letter-spacing: 0.1em;
+  opacity: 0.9;
+  margin-bottom: var(--espaco-1);
+}
+.bloco-total .valor {
+  font-family: var(--fonte-display);
+  font-size: 4rem; /* 64-72px */
+  font-weight: 900;
+  line-height: 1;
+  color: var(--branco);
+  display: inline-flex;
+  align-items: baseline;
+}
+.bloco-total .meta {
+  font-size: 0.95rem;
+  opacity: 0.85;
+  margin-top: var(--espaco-2);
+  font-family: var(--fonte-texto);
+  font-weight: 700;
+}
+
+.resumo-itens {
+  background: var(--papel);
+  border-top: 2px solid var(--preto);
+  border-bottom: 2px solid var(--preto);
+  padding: var(--espaco-3) var(--espaco-4);
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  font-weight: var(--peso-subtitulo);
+}
+
+.area-pagamento {
+  padding: var(--espaco-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+  margin-top: auto;
+}
+.btn-finalizar {
+  height: 56px;
+  font-family: var(--fonte-display);
+  font-size: 1.3rem;
+  font-weight: 900;
+  background: #000000;
+  color: #ffffff;
+  border: 3px solid #000000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-2);
+  box-shadow: 4px 4px 0px var(--amarelo, #ffd21f);
+  transition: background 0.1s ease;
+}
+.btn-finalizar:hover {
+  background: var(--azul-600, #0040d8);
+  box-shadow: 4px 4px 0px #000000;
+}
+
+/* Rodapé de atalhos (§9.4) */
+.rodape-atalhos {
+  display: flex;
+  background: var(--preto);
+  color: var(--branco);
+  font-family: var(--fonte-texto);
+  font-size: var(--tamanho-auxiliar);
+  flex-wrap: wrap;
+}
+.rodape-atalhos .item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-1);
+  padding: var(--espaco-2) var(--espaco-3);
+  border-right: 1px solid #333;
+  cursor: pointer;
+}
+.rodape-atalhos .item:hover {
+  background: #222;
+}
+.tecla-atalho {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  border: 1px solid var(--branco);
+  color: var(--branco);
+  font-weight: var(--peso-titulo);
+  font-size: 0.8rem;
+  background: #111;
+}
+
+/* Modais com assinatura Corte-M (§12.5) */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.modal-conteudo {
+  background: var(--branco);
+  color: var(--preto);
+  border: 4px solid var(--preto);
+  padding: var(--espaco-6);
+  max-width: 520px;
+  width: calc(100% - var(--espaco-4));
+  position: relative;
+  box-shadow: 8px 8px 0px #000000;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-titulo {
+  font-family: var(--fonte-display);
+  font-weight: var(--peso-display);
+  font-size: 1.5rem;
+  margin: 0 0 var(--espaco-3);
+  text-transform: uppercase;
+  border-bottom: 2px solid #000000;
+  padding-bottom: var(--espaco-2);
+}
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fonte-display);
+  font-weight: 900;
+  font-size: 1rem;
+  padding: var(--espaco-3) var(--espaco-4);
+  min-height: 44px;
+  background: var(--branco);
+  color: var(--preto);
+  border: 3px solid var(--preto);
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 3px 3px 0px #000000;
+  text-transform: uppercase;
+}
+.botao:hover {
+  background: #eeeeee;
+}
+.botao.primario {
+  background: #000000;
+  color: #ffffff;
+}
+.botao.primario:hover {
+  background: var(--azul-600, #0040d8);
+}
+.botao.danger {
+  border-color: var(--vermelho, #c81e16);
+  background: var(--vermelho, #c81e16);
+  color: #fff;
+}
+.botao.danger:hover {
+  background: #990011;
+}
+
+.toast {
+  position: fixed;
+  bottom: var(--espaco-6);
+  right: var(--espaco-6);
+  background: var(--preto);
+  color: var(--branco);
+  padding: var(--espaco-3) var(--espaco-5);
+  font-family: var(--fonte-texto);
+  font-weight: var(--peso-subtitulo);
+  border: 3px solid var(--branco);
+  display: none;
+  z-index: 300;
+  box-shadow: 4px 4px 0px #000000;
+}
+.toast.visivel {
+  display: block;
+}
+
+/* Dropdown flutuante de sugestões de produtos (BUS-001 a BUS-003, esboço do Paint) */
+.dropdown-sugestoes {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--branco);
+  border: 3px solid var(--preto);
+  box-shadow: 4px 4px 0px #000000;
+  z-index: 150;
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.item-sugestao {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 2px solid #000000;
+  cursor: pointer;
+  background: #ffffff;
+  color: #000000;
+  width: 100%;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  text-align: left;
+  font-family: var(--fonte-texto);
+  transition: background 120ms ease;
+}
+.item-sugestao:last-child {
+  border-bottom: none;
+}
+.item-sugestao.selecionado,
+.item-sugestao:hover {
+  background: var(--cobalto-600, #0040D8);
+  color: #ffffff;
+}
+.item-sugestao-nome {
+  font-weight: 800;
+  font-size: 1rem;
+}
+.item-sugestao-meta {
+  font-size: 0.82rem;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+.item-sugestao-direita {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  text-align: right;
+}
+.item-sugestao-estoque {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.item-sugestao-preco {
+  font-weight: 900;
+  font-size: 1.15rem;
+  white-space: nowrap;
+}
+.item-sugestao:not(.selecionado) .item-sugestao-preco {
+  color: #047857;
+}
+.item-sugestao.selecionado .item-sugestao-preco {
+  color: #ffffff;
+}
+.item-sugestao-vazio {
+  padding: 14px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #555555;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MODAL DE PAGAMENTO DIRETO & DESCOMPLICADO (Persona 3 Neo-Brutalist)
+   ════════════════════════════════════════════════════════════════════════ */
+.modal-pagamento-conteudo {
+  max-width: 560px;
+  width: 100%;
+}
+
+.pg-resumo-grade {
+  background: #F8F9FC;
+  border: 3px solid var(--preto);
+  padding: var(--espaco-2) var(--espaco-3);
+  margin-bottom: var(--espaco-3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pg-resumo-rotulo {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: #555555;
+  display: block;
+}
+
+.pg-resumo-valor {
+  font-family: var(--fonte-display);
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #000000;
+}
+
+.pg-forma-ativa-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--espaco-3);
+  background: var(--branco);
+  border: 3px solid var(--preto);
+  padding: 10px 14px;
+}
+
+.pg-forma-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pg-forma-icone-wrapper {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pg-forma-nome {
+  font-family: var(--fonte-display);
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #000000;
+  letter-spacing: 0.5px;
+}
+
+.pg-input-wrapper {
+  margin-bottom: var(--espaco-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pg-input-label {
+  font-family: var(--fonte-display);
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  color: #000000;
+}
+
+.pg-input-campo {
+  width: 100%;
+  height: 54px;
+  font-family: var(--fonte-display);
+  font-size: 2rem;
+  font-weight: 900;
+  text-align: right;
+  padding: 0 16px;
+  border: 3px solid var(--preto);
+  background: var(--branco);
+  color: var(--preto);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.pg-input-campo:focus {
+  outline: 3px solid var(--azul-600, #0040D8);
+}
+
+.pg-prazo-card {
+  margin-bottom: var(--espaco-3);
+  background: #F8F9FC;
+  border: 3px solid var(--preto);
+  padding: 12px 14px;
+}
+
+.pg-parcelas-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.pg-parcelas-input {
+  width: 72px;
+  height: 42px;
+  text-align: center;
+  font-family: var(--fonte-display);
+  font-size: 1.25rem;
+  font-weight: 900;
+  border: 2px solid var(--preto);
+  background: var(--branco);
+  box-sizing: border-box;
+}
+
+.pg-parcelas-input:focus {
+  outline: 2px solid var(--azul-600, #0040D8);
+}
+
+.pg-parcelas-preview {
+  font-family: var(--fonte-texto);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--azul-600, #0040D8);
+  flex: 1;
+  min-width: 220px;
+}
+
+.pg-aviso-maquininha {
+  font-size: 0.8rem;
+  color: #555555;
+  font-weight: 600;
+}

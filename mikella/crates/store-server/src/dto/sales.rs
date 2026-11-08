@@ -38,6 +38,41 @@ pub struct PagamentoForm {
     pub valor_centavos: i64,
     #[serde(default)]
     pub recebido_centavos: Option<i64>,
+    #[serde(default)]
+    pub parcelas: Option<u32>,
+    #[serde(default)]
+    pub maquininha: Option<String>,
+    #[serde(default)]
+    pub modalidade: Option<String>,
+    #[serde(default)]
+    pub taxa_centavos: Option<i64>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SimularParcelasQuery {
+    pub total_centavos: i64,
+    #[serde(default = "default_max_parcelas")]
+    pub max_parcelas: u32,
+}
+
+fn default_max_parcelas() -> u32 {
+    12
+}
+
+#[derive(serde::Serialize)]
+pub struct PlanoParcelaDto {
+    pub parcelas: u32,
+    pub valor_parcela_centavos: i64,
+    pub ultima_parcela_centavos: i64,
+    pub total_centavos: i64,
+    pub texto: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct SimularParcelasResponse {
+    pub total_centavos: i64,
+    pub planos: Vec<PlanoParcelaDto>,
 }
 
 fn default_politica_estoque() -> String {
@@ -79,10 +114,44 @@ pub struct AutorizarCancelamentoPayload {
     pub sessao_id: String,
 }
 
-/// Payload para efetuar o cancelamento de uma venda
+/// Payload para efetuar o cancelamento/estorno de uma venda.
+///
+/// `aprovador_username`/`aprovador_senha` são obrigatórios quando quem opera
+/// não é gerente/dono (SEC-004). O servidor nunca aceita autoaprovação.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CancelarVendaPayload {
     #[serde(default)]
     pub motivo: Option<String>,
+    #[serde(default)]
+    pub observacao: Option<String>,
+    #[serde(default)]
+    pub aprovador_username: Option<String>,
+    #[serde(default)]
+    pub aprovador_senha: Option<String>,
+}
+
+impl CancelarVendaPayload {
+    pub fn credenciais_aprovador(&self) -> Option<crate::util::CredenciaisAprovador> {
+        credenciais(
+            self.aprovador_username.as_deref(),
+            self.aprovador_senha.as_deref(),
+        )
+    }
+}
+
+/// Monta credenciais apenas quando usuário e senha vieram preenchidos.
+pub(crate) fn credenciais(
+    username: Option<&str>,
+    senha: Option<&str>,
+) -> Option<crate::util::CredenciaisAprovador> {
+    match (username, senha) {
+        (Some(username), Some(senha)) if !username.trim().is_empty() && !senha.is_empty() => {
+            Some(crate::util::CredenciaisAprovador {
+                username: username.to_string(),
+                senha: senha.to_string(),
+            })
+        }
+        _ => None,
+    }
 }

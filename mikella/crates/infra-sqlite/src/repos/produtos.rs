@@ -42,6 +42,92 @@ impl<'a> ProdutoRepo<'a> {
         )?;
         bruto.map(Produto::try_from).transpose()
     }
+
+    /// Read model da tela de produtos: produto + saldo projetado do estoque.
+    ///
+    /// Mantém o SQL fora dos handlers Axum (ARQ-001) e devolve tipos crus;
+    /// a formatação (Money, unidade) é responsabilidade da camada HTTP.
+    pub fn listar_ativos_view(&self) -> InfraResult<Vec<ProdutoView>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT p.id, p.codigo_barras, p.sku, p.nome, p.categoria_id, p.unidade,
+                    p.preco_centavos, p.custo_centavos, p.estoque_minimo,
+                    p.perecivel, p.alerta_validade_dias, p.arquivado, p.arquivado_em,
+                    COALESCE(s.saldo_atual, 0), p.created_at, p.updated_at
+             FROM produtos p
+             LEFT JOIN vw_estoque_atual s ON s.produto_id = p.id
+             WHERE p.arquivado = 0
+             ORDER BY p.nome",
+        )?;
+        let rows = stmt.query_map([], ProdutoView::da_linha)?;
+        let mut produtos = Vec::new();
+        for row in rows {
+            produtos.push(row?);
+        }
+        Ok(produtos)
+    }
+
+    /// Busca um produto (ativo ou arquivado) pelo ID no formato de read model.
+    pub fn buscar_view(&self, id: &str) -> InfraResult<Option<ProdutoView>> {
+        let view = self
+            .conn
+            .query_row(
+                "SELECT p.id, p.codigo_barras, p.sku, p.nome, p.categoria_id, p.unidade,
+                        p.preco_centavos, p.custo_centavos, p.estoque_minimo,
+                        p.perecivel, p.alerta_validade_dias, p.arquivado, p.arquivado_em,
+                        COALESCE(s.saldo_atual, 0), p.created_at, p.updated_at
+                 FROM produtos p
+                 LEFT JOIN vw_estoque_atual s ON s.produto_id = p.id
+                 WHERE p.id = ?1",
+                params![id],
+                ProdutoView::da_linha,
+            )
+            .optional()?;
+        Ok(view)
+    }
+}
+
+/// Linha crua do read model de produto (sem formatação de apresentação).
+#[derive(Debug, Clone)]
+pub struct ProdutoView {
+    pub id: String,
+    pub codigo_barras: Option<String>,
+    pub sku: Option<String>,
+    pub nome: String,
+    pub categoria_id: Option<String>,
+    pub unidade: String,
+    pub preco_centavos: i64,
+    pub custo_centavos: i64,
+    pub estoque_minimo: i64,
+    pub perecivel: bool,
+    pub alerta_validade_dias: i64,
+    pub arquivado: bool,
+    pub arquivado_em: Option<String>,
+    pub saldo_atual: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl ProdutoView {
+    fn da_linha(row: &Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: row.get(0)?,
+            codigo_barras: row.get(1)?,
+            sku: row.get(2)?,
+            nome: row.get(3)?,
+            categoria_id: row.get(4)?,
+            unidade: row.get(5)?,
+            preco_centavos: row.get(6)?,
+            custo_centavos: row.get(7)?,
+            estoque_minimo: row.get(8)?,
+            perecivel: row.get::<_, i64>(9)? != 0,
+            alerta_validade_dias: row.get(10)?,
+            arquivado: row.get::<_, i64>(11)? != 0,
+            arquivado_em: row.get(12)?,
+            saldo_atual: row.get(13)?,
+            created_at: row.get(14)?,
+            updated_at: row.get(15)?,
+        })
+    }
 }
 
 impl ProdutoRepository for ProdutoRepo<'_> {

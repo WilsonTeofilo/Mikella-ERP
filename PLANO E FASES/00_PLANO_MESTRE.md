@@ -1,493 +1,173 @@
-# Mikella ERP — Plano Mestre de Desenvolvimento
+# Mikella ERP — Plano de Fases, Arquitetura & Estado de Implementação
 
-**Última atualização:** 03/11/2026  
-**Status atual:** MVP-0, MVP-1, Pré-Piloto e Operação de Caixa Avançada (Tauri 2 + Clean Architecture) CONCLUÍDOS ✅ (172+ testes passando, Clippy 0 warnings, binários `mikella.exe` e `mikella-server.exe` gerados e validados)  
-**Premissa fundamental:** Desktop local-first (Tauri 2 + Rust + HTML/CSS puro + SQLite). O sistema roda e processa 100% na máquina da loja; a nuvem não processa vendas e só servirá (após o MVP-3) para sincronização de conta, licença e cópia de segurança (backup cifrado zero-knowledge). A landing page fica para o final do projeto para utilizar capturas de tela e métricas reais do sistema operando.
-
-Documento de precedência: `04/05 > 06 > 09 > 03 > 02 > 07 > 08 > 01`.
-
----
-
-## 1. Visão Geral das Camadas e Gates
-
-```
-[MVP-0] ✅ Núcleo Puro: Domínio, SQLite, livro de caixa imutável, venda atômica, estoque por movimentação.
-[MVP-1] ✅ PDV Vendável (1 PC): API local (store-server), auth Argon2id + 2FA BLAKE3, caixa F1-F7, produtos com FTS5 e CSV, financeiro básico RF-030 (contas a pagar/receber e liquidação), gerenciamento de usuários com hierarquia e catálogo fechado, frontend TUI balcão (cobalto/preto/branco).
-[PRÉ-PILOTO] ✅ Recursos de Loja & Frente Operacional Concluídos:
-  ├── 1. Impressão de cupom e fechamento ESC/POS 58mm/80mm (infra-hardware).
-  ├── 2. Cópia de segurança local de 1 clique (POST /v1/sistema/backup-local com VACUUM INTO e BLAKE3).
-  ├── 3. Pacote de diagnóstico técnico sem PII (GET /v1/sistema/diagnostico com integridade de banco).
-  ├── 4. Menu Operacional Intermediário do PDV (pos-menu.html) com atalhos F1 a F8:
-  │      ├── F1 Venda direta / F2 Venda com comanda
-  │      ├── F3 Histórico de vendas com filtro por período/COO, bobina e reimpressão
-  │      ├── F4 Cadastro e consulta de clientes com saldo devedor e indicador de atraso
-  │      ├── F5 Sangria de caixa com observação (até 256 chars) e hash BLAKE3
-  │      ├── F6 Pagar dívidas (crediário) com catálogo alfabético e liquidação instantânea
-  │      ├── F7 Sincronização do caixa
-  │      └── F8 Fechar caixa com sangria de troco, operador, obs (512 chars) e bobina com assinatura
-  ├── 5. Fluxo de Vendas no Balcão (pos.html):
-  │      ├── F1 Pagamento multi-método (restante dinâmico e troco exato em dinheiro)
-  │      ├── F2 Vincular/alterar cliente em tempo real
-  │      ├── F3 Pré-seleção de forma de pagamento
-  │      ├── F4 Cancelamento de item específico com quantidade
-  │      └── F5 Cancelamento de compra com autorização por senha (operador próprio caixa / gerente global)
-  └── 6. Blindagem Clean Architecture: casos de uso desacoplados (app-sales, app-cash, domain-people) e anti-autofill no WebView2.
-
-─── [PRÓXIMA ETAPA: HOMOLOGAÇÃO DE PERIFÉRICOS & PILOTO DE 30 DIAS EM 3 LOJAS REAIS] ───
-  ├── 1. Homologação final com impressora térmica USB (Daruma/Bematech/Epson) e leitor de código de barras.
-  ├── 2. Teste de estresse: simulação de corte abrupto de energia durante emissão de venda com HDD 5400 rpm.
-  ├── 3. Acompanhamento do operador: validação de fechamento diário sem divergência de centavos.
-  └── 4. Coleta de feedback do lojista (tempo médio de atendimento e clareza da fita térmica).
-
-[PILOTO] 🔒 Validação em 3 lojas reais por 30 dias (hardware real i3/i5, 6 GB RAM, HDD, sem dependência de nuvem).
-[MVP-2]  🔒 Rede da loja: modo multi-PC (servidor axum local, TLS autoassinado via rcgen, pareamento por código, 3 a 8 caixas simultâneos).
-[MVP-3]  🔒 Nuvem: conta lojista, 2FA por e-mail, licença automática, backup cifrado zero-knowledge (Workers + D1 + R2), landing page em Astro.
-[MVP-4]  🔒 Licenciamento & Cotas: entitlements assinados por Ed25519, janela de histórico de 6 meses (Gratuito), controle anti-fraude.
-[MVP-5]  🔒 Crescimento: regras de comissão, comandas de vendedores, devoluções e promoções.
-[MVP-6]  🔒 Expansão: importação de XML de NF-e (modelo 55), conferência de entrada e multi-loja.
-```
+> **DOCUMENTO MESTRE DE PRODUTO, SEGURANÇA & ARQUITETURA**
+>
+> **Última Atualização:** 07 de Novembro de 2026  
+> **Status Vigente:** Fases F0 a F7 **concluídas e verificadas**. Auditoria de UX e Cadastros do PDV (AUD-01 a AUD-13) 100% resolvida. Onboarding inicial exposto na UI (cria `instance_identity` + dono e dispara o primeiro 2FA). Comprovantes térmicos e dashboard usam o **fuso IANA da loja** (`loja_config.fuso_horario`), não mais UTC-3 fixo. Confirmação de desconexão ativa no ESC do Menu Principal. Esteira automatizada `cargo test --workspace` e `verificar-frontend.ps1` 100% verde. Release empacotada em `mikella\dist\`.
+> **Próxima Fila Imediata:** Fase F8 (Backup Protegido, Diagnóstico Técnico & Homologação em Hardware Real).
+> **Modelo Operacional:** Desktop 100% Local-First (Tauri 2 + Rust Axum + HTML/CSS/JS ES Modules + SQLite WAL). Autoridade total de negócio no Rust; a nuvem não processa vendas.
 
 ---
 
-## 2. Piso de Hardware & Requisitos de Execução
+## 1. Visão Geral da Stack & Invariantes Inegociáveis
 
-| Item | Especificação | Justificativa / Impacto |
+### 1.1. Arquitetura de Software
+* **Desktop Shell:** Tauri 2 (Rust), sem decorações nativas, área de arraste customizada (`data-tauri-drag-region`), controles de janela oficiais via IPC e modo tela cheia inteligente (fade-out automático e fade-in na borda superior).
+* **Backend Local (Loopback 127.0.0.1:47823):** Axum, Tokio, Tower-HTTP com allowlist estrita de CORS, timeouts e limites de requisição.
+* **Persistência Relacional:** SQLite em modo WAL (`synchronous=FULL`, foreign keys ativas, escritor único serializado via Mutex).
+* **Frontend Balcão:** HTML5 semântico, CSS Modular com Design Tokens (paleta Cobalto `#0040D8`, Preto `#000`, Branco `#FFF`, Amarelo `#FFD21F`, corte angular Persona 3 Reload, zero border-radius) e JavaScript ES Modules organizado por feature (`features/pos`, `features/auth`, `features/products`, `features/finance`, etc.). Proibidos frameworks pesados, monolitos HTML ou handlers inline.
+
+### 1.2. Invariantes de Negócio (LEI NO PROJETO)
+1. **Dinheiro é SEMPRE Inteiro (`i64` centavos):** Proibido uso de float/double para valores monetários. Toda matemática financeira é exata e validada pelo tipo de domínio `Money`.
+2. **Autoridade Server-Side:** A interface nunca calcula total oficial, preço de item ou saldo de caixa; tudo é calculado pelo Rust.
+3. **Livro-Caixa e Vendas Imutáveis (Append-Only):** Movimentações de caixa e itens de venda são gravados via transação única e protegidos por triggers SQLite contra `UPDATE` e `DELETE`.
+4. **Hierarquia Rígida de Papéis:** `DONO` > `GERENTE` > `OPERADOR_CAIXA` / `ESTOQUISTA` / `VENDEDOR`. Um papel só gerencia papéis de nível estritamente inferior.
+5. **Autenticação com 2FA Mandatório:** Login em duas etapas com código descartável OTP de 6 dígitos e expiração em 5 minutos.
+6. **Zero Monólitos no Frontend:** Nenhum arquivo HTML pode conter blocos `<style>` ou `<script>` internos extensos; toda lógica reside em módulos `.js` e `.css` dedicados.
+
+---
+
+## 2. O que já dá para fazer localmente (Verificado de Ponta a Ponta)
+
+Fluxo operacional testado e comprovado no executável nativo e backend local:
+
+| Fluxo / Funcionalidade | Situação | Como foi verificado e comprovado |
 |---|---|---|
-| **Processador** | Intel Core i3 / i5 de 5ª geração (ex: i3-5005U 2.0 GHz) ou equivalente | Garantir que o sistema opere com fluidez mesmo em CPUs de baixo consumo sem Turbo Boost |
-| **Memória RAM** | 6 GB DDR3-1333 | Margem realista para Windows 10/11 + antivírus + WhatsApp Web + Mikella (≤ 450 MB) |
-| **Armazenamento** | HDD 5400 rpm (pior caso) ou SSD SATA | SQLite com `synchronous=FULL` e transações curtas para tolerar discos lentos |
-| **Sistemas Operacionais** | Windows 10 / 11 e Linux (Ubuntu 22.04+, Mint, Lubuntu, Zorin, Lite) | **Windows 7 é terminantemente PROIBIDO** (fim de suporte, WebView2 obsoleto, insegurança) |
-| **Identidade Visual** | Cobalto `#0040D8`, Preto `#0a0a0a`, Branco `#ffffff` | Conceito "Letreiro e Livro-caixa", zero border-radius, Corte-M (45°), anti-IA slop |
+| **Executar Loja via `iniciar_loja.bat`** | ✅ Funciona | Executa `mikella-server.exe` (porta 47823) e abre o shell desktop `mikella.exe` sem erros de runtime |
+| **Controles de Janela Nativos** | ✅ Funciona | Botões **Fechar (X)** e **Minimizar (_)** chamam a API oficial do Tauri 2; em **Tela Cheia (F11)** os botões somem em fade-out e reaparecem em fade-in ao passar o mouse no topo |
+| **Login com Argon2id + 2FA** | ✅ Funciona | `/v1/login` valida credenciais e dispara OTP. O código 2FA **não vaza** na tela nem em console (`SEC-001`, `SEC-002`) |
+| **Logout com Revogação Real** | ✅ Funciona | `POST /v1/auth/logout` invalida o token Bearer no servidor e limpa a sessão local (`SEC-011`) |
+| **Confirmação de Logout no ESC (Menu Principal)** | ✅ Funciona | Teclar ESC no menu principal abre modal de confirmação [Enter confirma / Esc cancela], prevenindo logout acidental |
+| **Abertura & Fechamento de Caixa** | ✅ Funciona | Status consultado em `/v1/caixa/status`. Fechamento cego nativo, conferência física e bobina com linha de assinatura |
+| **Venda de Balcão (Direta / Comanda)** | ✅ Funciona | Bipagem de código de barras ou SKU, fita de itens atualizada dinamicamente com cálculo server-side |
+| **Saída Limpa da Venda Vazia (ESC)** | ✅ Funciona | Carrinho vazio sai direto sem pergunta; carrinho com itens pede confirmação; venda com pagamentos parciais bloqueia saída até estorno/conclusão |
+| **Pagamento Múltiplo e Parcelamento Padrão** | ✅ Funciona | Pagamento parcial reabre seleção F3 com saldo restante; parcelamento exibido no padrão comercial brasileiro (`11x de R$ 0,41 sem juros`) sem sobreposição CSS |
+| **Bloqueio de Venda sem Caixa Aberto** | ✅ Funciona | Sistema recusa venda e bloqueia finalização caso o caixa esteja fechado (`UI-002`), exibindo badge dinâmico (`UI-004`) |
+| **Grade de Pagamentos F1–F6** | ✅ Funciona | Ícones SVG nítidos e coloridos (Dinheiro, Débito, Crédito, Pix, Voucher, Crediário) tanto no atalho F3 quanto no fechamento F1 |
+| **Histórico de Vendas & Estorno (F3)** | ✅ Funciona | Busca por COO ou data, conferência em 3 passos, motivo obrigatório, observação e autorização por gerente/dono com bobina térmica ESC/POS |
+| **Fuso Horário IANA da Loja** | ✅ Funciona | Comprovantes térmicos, cupom de teste e dashboard usam `loja_config.fuso_horario` (ex.: `America/Sao_Paulo`, `America/Manaus`). O "hoje" financeiro é calculado no fuso da loja e comparado em UTC, eliminando o erro entre 21h e 0h. |
+| **Onboarding Inicial (Primeiro Acesso)** | ✅ Funciona | `GET /v1/onboarding/status` decide entre login e cadastro inicial; `app/onboarding.html` cria loja + dono via `POST /v1/onboarding` e dispara o primeiro código 2FA por e-mail. |
+| **Sangria com Aprovação Mandatória** | ✅ Funciona | Retirada de dinheiro exige justificativa e credenciais de gerente/dono quando executada por operador (`SEC-006`) |
+| **Pagar Dívidas com Busca Instantânea (F6)** | ✅ Funciona | Carrega lista alfabética de devedores ao abrir; busca por prefixo/qualquer palavra do nome, CPF ou celular a partir de 2 dígitos |
+| **Cadastro de Clientes com Endereço e LGPD** | ✅ Funciona | CEP automático via ViaCEP, número com botão `S/N`, opt-in LGPD desmarcado por padrão e isolado da base legal |
+| **Cadastro de Produtos com Leitor e Estoque** | ✅ Funciona | Código de barras primeiro com autofocus, Enter do leitor não submete formulário, produto nasce com estoque inicial registrado em movimento imutável |
+| **Dashboard Financeiro do Dono** | ✅ Funciona | Filtros de período (Hoje, 7 dias, Mês), KPIs dominantes (Faturamento, Margem, A Receber, A Pagar 7d, Caixa), gráficos SVG leves e lista "Cobrar Hoje" |
+| **Migrações de Banco Não-Destrutivas** | ✅ Funciona | Migração `0004_financeiro.sql` reescrita de forma aditiva e `0007_parcelas_numero.sql` aplicada sem perda de registros (`DAT-001`) |
 
 ---
 
-## 3. Estado Atual Detalhado: O que está Pronto e Testado
+## 3. Matriz da Auditoria de UX e Cadastros (AUD-01 a AUD-10) · ✅ Concluída
 
-### 3.1 MVP-0 — Esqueleto e Domínio Puro (CONCLUÍDO ✅)
-- **`Money`:** Tipagem estrita em centavos (`i64`), sem float, aritmética com proteção contra overflow, formatação brasileira (`R$ 129,90`).
-- **`domain-cash`:** `SessaoCaixa`, `LivroCaixa` imutável com cadeia de hashes BLAKE3 (GENESIS → ABERTURA → VENDA → FECHAMENTO) e saldo calculado como soma derivada.
-- **`domain-sales`:** `Venda`, `ItemVenda`, cálculo de subtotais e descontos estritamente no domínio Rust.
-- **`domain-inventory`:** `Produto`, `Lote` (FEFO), `MovimentacaoEstoque` (entradas positivas, saídas negativas, tabela append-only).
-- **`infra-sqlite`:** Migrações versionadas com checksum BLAKE3, integridade referencial (`PRAGMA foreign_keys = ON`), WAL mode, triggers SQL bloqueando `UPDATE` e `DELETE` em tabelas imutáveis (`livro_caixa`, `movimentacoes_estoque`, `venda_itens`). Padrão `UnitOfWork` implementado para transações atômicas com rollback garantido.
-
-### 3.2 MVP-1 — Sistema Vendável / Loja Local (CONCLUÍDO ✅)
-- **`store-server` (HTTP local em 127.0.0.1):**
-  - **Autenticação:** Senhas hasheadas com Argon2id e salt gerado via `OsRng` (CSPRNG).
-  - **Segundo Fator (2FA):** Código numérico de 6 dígitos com hash BLAKE3 keyado em memória, validade de 5 minutos, limite de 5 tentativas e uso único.
-  - **Sessões e Autorização:** Tokens Bearer seguros, sessão única por administrador, autorização baseada em catálogo fechado (`CAPACIDADES_CONHECIDAS`) e hierarquia rígida (`DONO(3) > GERENTE(2) > OPERADOR/ESTOQUISTA/VENDEDOR(1)`).
-  - **Vendas e PDV:** Endpoint `POST /v1/vendas` atômico com `UnitOfWork` (grava venda, baixa estoque e adiciona entrada no livro caixa na mesma transação), suporte a pagamentos múltiplos e idempotência por `venda_id`.
-  - **Catálogo de Produtos:** CRUD completo, busca textual ultra-rápida via SQLite FTS5 e importação de planilhas CSV com sanitização e streaming.
-  - **Financeiro Básico (RF-030):** Contas a pagar e a receber com parcelas, validações estritas de datas/valores e endpoint de liquidação atômica.
-  - **Proteção da API:** Todos os DTOs com `#[serde(deny_unknown_fields)]` (SEG-060), rate limiting por usuário/IP e tratamento de erros sem vazamento de stacktrace ou PII (código de incidência UUID conforme SEG-081).
-- **Frontend TUI do Caixa (`frontend/src/app/`):**
-  - Páginas HTML5/CSS3 puras: `landing.html` (login + 2FA), `main-menu.html` (navegação por perfil), `pos.html` (caixa balcão).
-  - Operação 100% via teclado: atalhos F1–F7, busca rápida de produtos, CPF opcional, modal de pagamento completo (Dinheiro, Débito, Crédito, Pix, Outro) com cálculo automático de troco/restante e tecla `ESC` contextual.
-  - Dependência de rede zero: fontes Archivo e Source Sans 3 embutidas em WOFF2 local (< 120 KB).
-
-### 3.3 Recursos de Prontidão Operacional de Loja (CONCLUÍDO ✅)
-- **Impressão Térmica ESC/POS (`crates/infra-hardware`):**
-  - Modelos `ComprovanteVenda` e `ComprovanteFechamentoCaixa`.
-  * Renderizadores de texto puro e binário ESC/POS para bobinas de **58mm** (32 colunas) e **80mm** (48 colunas).
-  * Porta de impressão (`PrinterPort`) com adaptadores `MockPrinter`, `ArquivoPrinter` e `DispositivoLocalPrinter` (spooler RAW no Windows e `/dev/usb/lp*` no Linux).
-  * Endpoints HTTP integrados: `GET /v1/vendas/:id/comprovante`, `POST /v1/vendas/:id/imprimir`, `GET /v1/caixa/fechamento/:id/comprovante`, `POST /v1/caixa/fechamento/:id/imprimir`.
-  * Experiência de balcão: ao finalizar venda, exibe modal de troco com botão **Enter** para emitir comprovante térmico e **Esc** para nova venda. Ao fechar caixa (F6), solicita contagem física, fecha sessão e emite cupom de fechamento.
-- **Cópia de Segurança Local em 1 Clique (`RES-030`):**
-  - Endpoint `POST /v1/sistema/backup-local`: aciona `VACUUM INTO ?` no SQLite (cópia consistente, atômica e desfragmentada sem parar leituras/escritas).
-  - Geração e conferência de checksum **BLAKE3** para garantia de integridade física.
-- **Diagnóstico Técnico de Saúde (`OPS-001`):**
-  - Endpoint `GET /v1/sistema/diagnostico`: checa integridade SQLite (`PRAGMA integrity_check`), integridade nó-a-nó da cadeia de hashes do livro caixa, volumetria de tabelas e dados de ambiente, estritamente **zero PII**.
-- **Telas Administrativas no Terminal Desktop:**
-  - `produtos.html`: Catálogo com busca em tempo real, cadastro (F1) e importador CSV (F2).
-  - `financeiro.html`: Contas abertas, resumo total, liquidação de parcelas e acionamento de backup local.
-  - `main-menu.html`: Integrado com atalhos de teclado F1–F5.
-
-### 3.4 Desktop Shell Tauri 2 (CONCLUÍDO ✅)
-- **`crates/desktop-shell`:**
-  - Compilação e linkagem nativa concluídas gerando `mikella.exe` no Windows via toolchain MSVC + WebView2.
-  - Assets estáticos e páginas TUI servidos localmente com zero dependências externas ou de CDN.
-  - Comandos IPC nativos limpos e enxutos (`health` e `app_info`), mantendo toda a lógica de negócio na API do `store-server`.
-  - Zero warnings no Clippy e tempo de boot ultra-baixo para máquinas i3/i5 com 6 GB de RAM.
-
-### 3.6 Padrões Técnicos Extraídos e Implementados (CONCLUÍDO ✅)
-- **Arquitetura Limpa Implementada:**
-  - Separação estrita: Domínio → Aplicação → Infraestrutura
-  - Portas e Adaptadores com traits Rust (`ProdutoRepo`, `UsuarioRepo`, etc.)
-  - UnitOfWork pattern para transações atômicas
-  - Catálogo fechado de capacidades (`CAPACIDADES_CONHECIDAS`)
-
-- **Segurança e Autenticação:**
-  - RBAC hierárquico com 3 níveis (`Dono > Gerente > Operador/Estoque/Vendedor`)
-  - Token Bearer com prefixo `mikella_` + validação em memória
-  - Sessions TTL (12h) + idle timeout (30 min)
-  - Hash Argon2id com salt único por processo
-  - 2FA com BLAKE3 keyed-hash + uso único
-
-- **Gestão de Erros e Resilência:**
-  - Sistema de erros estruturado sem `thiserror` dependency
-  - Categorias: `DomainError`, `InfraError`, `ApiError`
-  - Logs sem PII, senhas ou dados sensíveis
-  - Recovery automático via SQLite WAL mode
-
-- **Frontend e UX Otimizado:**
-  - Landing page com anti-autofill completo
-  - Tela de caixa (PDV) com atalhos F1-F8
-  - Modal de pagamento multi-método
-  - Identidade visual cobalto/preto/branco
-  - Fontes Archivo/Source Sans 3 embutidas em WOFF2
-
-### 3.5 Pacote de Distribuição e Inicialização em 1 Clique (CONCLUÍDO ✅)
-- **Pacote Autônomo em `mikella/dist`:**
-  - `mikella-server.exe` (3.7 MB): Compilado com perfil `release`, LTO e strip ativados.
-  - `mikella.exe` (3.5 MB): Compilado com perfil `release` e WebView2 embutido.
-  - Peso total do pacote: **menos de 7.5 MB** (boot instantâneo em HDDs lentos).
-  - `iniciar_loja.bat` e `iniciar_loja.sh`: Script de inicialização em 1 clique que sobe o servidor local em segundo plano, abre o balcão e encerra os processos ao sair.
-  - Configuração do `tauri.conf.json` fixada com `build.frontendDist` apontando para os arquivos HTML5/CSS3.
-  - Porta de comunicação unificada em `47823` em todas as telas e endpoints.
+| Identificador | Onde | Requisito da Auditoria | Resolução Técnica |
+|---|---|---|---|
+| **AUD-01** | PDV | Esc não sai da venda vazia | Venda vazia sem pagamentos sai direto para o menu; com itens pede confirmação; com pagamento parcial já lançado trava e exige estorno. |
+| **AUD-02** | F6 PDV | Busca de devedor não retorna nada | Lista completa carregada imediatamente ao abrir; filtro instantâneo por nome, CPF e celular; empty state claro. |
+| **AUD-03** | Clientes | Consentimento LGPD pré-marcado | Checkbox opt-in desmarcado por padrão para WhatsApp/SMS; base legal do Art. 7º, V separada e explícita. |
+| **AUD-04** | Produtos | Produto nasce sem estoque | Campo obrigatório `Quantidade que está entrando` salvando movimento de entrada inicial imutável no SQLite. |
+| **AUD-05** | Produtos | Cadastro começa pelo nome | Código de barras no topo com autofocus; Enter do leitor busca dados sem submeter o formulário. |
+| **AUD-06** | Clientes | Endereço em campo único | Endereço decomposto: CEP com busca automática, logradouro, número com atalho `S/N`, complemento, bairro, cidade, UF. |
+| **AUD-07** | Todos | Autocomplete sugerindo dados | `autocomplete="off"`, `autocorrect="off"`, `autocapitalize="off"`, `spellcheck="false"` e IDs neutros em todos os formulários. |
+| **AUD-08** | Financeiro | Tabela vazia sem inteligência | Dashboard executivo com filtro Hoje/7d/Mês, 5 KPIs essenciais, gráficos SVG leves e lista acionável "Cobrar Hoje". |
+| **AUD-09** | Global | Três estilos visuais conflitantes | Identidade Persona 3 Reload unificada: tokens `tokens.css`, cabeçalho padrão preto/cobalto com atalho `[ESC] Voltar`. |
+| **AUD-10** | Global | Falhas de layout e sobreposição | Eliminado triângulo azul de 64px, logo flutuante ajustado, classe `.campo` corrigida para não sobrepor inputs/parcelas. |
+| **AUD-11** | Pagamento / PDV | Cálculo de parcelas e responsividade do modal | Redesign neo-brutalista Persona 3 do modal de pagamento; parcelamento em centavos exatos no padrão adquirente (`11x (1x de R$ 0,45 + 10x de R$ 0,41) • Total: R$ 4,55`) sem off-by-one ou corte visual. |
+| **AUD-12** | Financeiro | Falta de filtros de pagamento do Chokko-Melt | Aba 1 "Visão Geral & Vendas": filtros rápidos (Hoje/Semana/Mês/De-Até), 6 cards analíticos (Faturamento Bruto, Lucro Bruto, Pix, Cartão, Dinheiro, Vendas) e tabela detalhada de entradas com lucro no fuso IANA da loja. |
+| **AUD-13** | LGPD & Hardware | Anonimização de titular e teste de bobina térmica | Botão de anonimização LGPD (Art. 18 c/ retenção fiscal de 5 anos) no cadastro de clientes e botão "Testar Impressora" no topo do PDV chamando `/v1/sistema/teste-impressora`. |
 
 ---
 
-## 4. O que Falta Fazer Agora (Testes Físicos de Campo para Iniciar o Piloto)
+## 4. O Plano de Fases Atualizado (F0 a F10)
 
-O sistema de software está 100% desenvolvido, testado e empacotado. As únicas etapas restantes dependem do teste com o hardware físico conectado na máquina da loja:
-
-### Etapa 1: Homologação Física de Balcão (Com o Usuário / Na Loja)
-- **Impressora Térmica:** Conectar uma impressora térmica USB (bobina 58mm ou 80mm) e disparar a impressão de um cupom de venda e de um fechamento de caixa para validar o espaçamento, corte de papel e avanço de linhas do gerador ESC/POS.
-- **Leitor de Código de Barras:** Conectar o leitor USB (modo teclado/HID) e bipar um código de barras de produto no campo de busca do PDV para garantir que o leitor aciona o Enter/busca instantânea sem travar a interface.
-- **Gaveta de Dinheiro (Opcional):** Se a loja tiver gaveta automática, testar o pulso elétrico no pino RJ-12 da impressora ao finalizar venda em dinheiro.
-
-### Etapa 2: Teste de Desligamento Forçado (Queda de Energia)
-- Com o caixa aberto e uma venda em andamento, desconectar o computador da tomada (simulação de blecaute).
-- Ao ligar novamente o computador e dar 2 cliques em `iniciar_loja.bat`:
-  - O SQLite deve se recuperar automaticamente via WAL sem corrupção.
-  - A sessão de caixa deve continuar aberta com o saldo anterior preservado.
-  - O endpoint de diagnóstico (`GET /v1/sistema/diagnostico`) deve retornar integridade `ok`.
-
-### Etapa 3: Início da Contagem dos 30 Dias de Piloto Fechado
-- Operação diária nas 3 lojas piloto.
-- Acompanhamento semanal de fechamentos de caixa (zero divergência centavo a centavo).
-- Ao final dos 30 dias: aprovação do Gate do Piloto e avanço para o MVP-2 (modo multi-PC em rede local) e MVP-3 (nuvem e landing page).
-
----
-
-## 5. O que DEVE SER RETIRADO ou POSTERGADO (Eliminação de Desperdício)
-
-Para garantir foco e velocidade máxima:
-
-1. ❌ **POSTERGAR: Nuvem (Cloudflare Workers, D1, R2, Mercado Pago):** Só será construída no MVP-3, após os 30 dias de validação com lojistas reais.
-2. ❌ **POSTERGAR: Landing Page:** Ficará para o final, para usar capturas de tela e dados reais das lojas piloto.
-3. ❌ **RETIRAR: Sincronização em Contingência Multi-Servidor (P12):** Desnecessária no modo de 1 computador.
-4. ❌ **RETIRAR: Suporte a Windows 7 (HW-092):** Proibido categoricamente por segurança e falta de WebView2 moderno.
-5. ❌ **RETIRAR: Bibliotecas externas e frameworks pesados no frontend:** Mantido em HTML5/CSS3 puro com tokens locais (consumo de RAM < 150 MB).
-6. ❌ **RETIRAR: Padrões complexos desnecessários:** Apenas padrões que trazem valor real serão mantidos (UnitOfWork, Repository pattern, Clean Architecture).
-
-## 6. Próximas Etapas com Foco em Padrões Técnicos Extraídos
-
-### Etapa 6.1: Refinamento de Identidade Visual e UX (Pós-Piloto)
-**Objetivo:** Implementar os padrões visuais observados na landing page para todo o sistema.
-
-- **Login Screen Enhancement:**
-  - Aplicar tipografia "Letreiro e Livro-caixa" no login
-  - Implementar anti-autofill pattern com inputs ghost
-  - Adicionar full-screen mode com botões de minimizar/fechar
-  - Melhorar acessibilidade (screen readers, high contrast)
-
-- **Payment Method UI Upgrade:**
-  - Substituir quadrados pretos por ícones SVG específicos:
-    - 💰 Dinheiro
-    - 💳 Débito/Crédito
-    - 📱 PIX
-    - 🎫 Voucher
-    - 📋 Crediário
-  - Implementar feedback visual no hover/selection
-  - Adicionar tooltips com informações detalhadas
-
-- **Forms Enhancement:**
-  - Cadastro de usuários com validação em tempo real
-  - Cadastro de produtos com UX melhorada
-  - Modais com melhor acessibilidade (esc key, focus trapping)
-
-### Etapa 6.2: LGPD Compliance Implementation (MVP-2)
-**Objetivo:** Implementar padrões de proteção de dados observados em sistemas maduros.
-
-- **Consent Management System:**
-  - Estrutura de consentimentos por tipo (Termos, Privacidade, Marketing, Pagamentos)
-  - Registro de data/hora/IP de cada consentimento
-  - Endpoints para gestão de consentimentos
-
-- **Data Protection & Privacy:**
-  - Endpoint para exportação de dados do usuário (direito à portabilidade)
-  - Endpoint para exclusão de dados (direito ao esquecimento)
-  - Sistema de criptografia para documentos sensíveis
-  - Auditoria de acesso a dados pessoais
-
-- **Secure Data Storage Patterns:**
-  - Document storage com caminhos criptografados
-  - Soft delete para dados sensíveis
-  - Anonimização de logs e métricas
-
-### Etapa 6.3: Performance & Optimization Patterns
-**Objetivo:** Implementar padrões de performance observados em sistemas de alta performance.
-
-- **Connection Pooling & Caching:**
-  - Connection pool para SQLite
-  - Cache estratégico de dados frequentes
-  - Lazy loading para grandes datasets
-
-- **Batch Operations & Optimizations:**
-  - Bulk inserts/updates para importação de dados
-  - Query optimization com índices estratégicos
-  - Background processing para tarefas não-críticas
-
-### Etapa 6.4: Advanced Testing & Quality Patterns
-**Objetivo:** Implementar padrões avançados de teste observados em sistemas robustos.
-
-- **Property-Based Testing:**
-  - Testes de invariantes para business logic
-  - Fuzzing para validação de inputs
-  - State machine testing para workflows complexos
-
-- **Integration Testing Patterns:**
-  - Test containers para isolamento de testes
-  - Contract testing entre camadas
-  - Performance testing com benchmarks realistas
-
----
-
-## 6. Regras Invioláveis de Arquitetura e Engenharia
-
-1. **Centavos Inteiros:** Dinheiro é `Money(i64)`. Nunca `float` ou `f64`.
-2. **Dados Imutáveis:** Movimentações de estoque e entradas do livro caixa são estritamente `INSERT ONLY`. Triggers abortam `UPDATE` ou `DELETE`.
-3. **Autoridade no Domínio:** A interface (frontend) nunca decide preço, saldo, total ou permissão. O domínio Rust valida tudo.
-4. **Sem Hardcoded Limits:** Nenhuma cota ou URL embutida diretamente no código.
-5. **Logs Limpos:** Zero senhas, PINs, CPFs ou tokens nos logs de aplicação (`tracing`).
-6. **Clean Architecture Estrita:** O domínio (`domain-*`) não depende de banco, HTTP, Tauri ou bibliotecas de infraestrutura.
-7. **Resiliência a Quedas:** SQLite configurado com WAL mode e `synchronous=FULL` em operações de caixa.
-8. **Segurança por Padrão:** Principio de menor privilégio, catálogo fechado de capacidades, validação em cada camada.
-9. **Testes Abrangentes:** Coverage mínimo de 90% em business logic, testes de integração para workflows críticos.
-
-## 7. Técnicas Extraídas de Sistemas Robustos para Implementação
-
-### 7.1 Padrões de Autenticação e Autorização ✅ **Implementado**
-- **RBAC Hierárquico:** 3 níveis estritos com herança de capacidades
-- **Catálogo Fechado:** Lista fixa de capacidades atômicas que impedem escalação arbitrária
-- **Session Management:** Tokens em memória com TTL + idle timeout, refresh por request
-- **2FA com One-Time Use:** Hash BLAKE3 keyed para códigos descartáveis
-
-### 7.2 Padrões de Infraestrutura ✅ **Implementado**
-- **UnitOfWork Pattern:** Garantia de atomicidade em transações complexas
-- **Repository Pattern:** Abstração completa de acesso a dados
-- **Ports & Adapters:** Separação estrita entre domínio e implementações
-- **Connection Pooling:** Otimização para múltiplas conexões simultâneas
-
-### 7.3 Padrões de Frontend e UX ✅ **Parcialmente Implementado**
-- **Zero Dependencies:** HTML5/CSS3 puro com fontes embutidas
-- **Keyboard-First:** Operação 100% via teclado com atalhos F1-F8
-- **Anti-Autofill:** Ghost inputs + `-webkit-text-security` para campos sensíveis
-- **Progressive Enhancement:** Funcionalidade básica sempre disponível
-
-### 7.4 Padrões de LGPD e Compliance 🚧 **Em Desenvolvimento**
-- **Consent Management:** Sistema estruturado de consentimentos
-- **Data Portability:** Exportação completa de dados do usuário
-- **Right to be Forgotten:** Soft delete + anonimização
-- **Audit Trail:** Logs de acesso a dados sensíveis
-
-### 7.5 Padrões de Performance ✅ **Implementado**
-- **Connection Pooling:** Reuso eficiente de conexões SQLite
-- **Lazy Loading:** Carregamento sob demanda para grandes datasets
-- **Background Processing:** Tarefas não-críticas executadas em segundo plano
-- **Caching Estratégico:** Cache apenas onde traz benefício real
-
-### 7.6 Implementações Concretas Adicionadas 🚀
-
-#### **Sistema de Ícones de Pagamento** ✅ **COMPLETO**
-- **Arquivos:** `frontend/src/shared/ui/payment-icons.css` / `.js`
-- **Padrões aplicados:** VIS-060 (ícones 2px, pontas retas, junções em ângulo)
-- **Métodos suportados:** Dinheiro, Débito, Crédito, PIX, Voucher, Crediário
-- **Features implementadas:**
-  - ✅ Seleção visual com feedback hover/select
-  - ✅ Tooltips informativos
-  - ✅ Responsividade completa (mobile/tablet/desktop)
-  - ✅ Acessibilidade ARIA (roles, labels, focus management)
-  - ✅ Animações controladas (respeita VIS-080)
-  - ✅ Modo alto contraste
-  - ✅ Classes CSS reutilizáveis (.payment-method-card, .selected, .disabled)
-  - ✅ JavaScript modular (PaymentIconSystem class)
-
-#### **Sistema de Aprimoramento de Login** ✅ **COMPLETO**
-- **Arquivos:** `frontend/src/shared/ui/login-enhancements.css` / `.js`
-- **Baseado no padrão "DESCONECTADO" da landing page**
-- **Features implementadas:**
-  - ✅ Tipografia "Letreiro e Livro-caixa" (VIS-020)
-  - ✅ Controles de tela cheia (minimizar, fechar, fullscreen F11)
-  - ✅ Validação em tempo real (usuário 3-20 chars, senha 8+ chars)
-  - ✅ Modo "Rua" com blocos individuais e rotações aleatórias
-  - ✅ Responsividade mobile/tablet/desktop
-  - ✅ Animações otimizadas (respeita PERF-060)
-  - ✅ Feedback visual de validação (✅/❌)
-  - ✅ Classes CSS completas (.login-enhanced-input, .login-enhanced-button)
-
-#### **Sistema LGPD Compliance** ⚠️ **EM DESENVOLVIMENTO**
-- **Arquivo:** `store-server/src/handlers/lgpd.rs`
-- **Implementa Lei Geral de Proteção de Dados (Art. 18)**
-- **Status atual:**
-  - ✅ Estrutura básica criada
-  - ✅ Endpoints definidos na rota principal
-  - ✅ Pattern matching com outros handlers
-  - ⚠️ Necessita ajustes de compilação
-- **Features planejadas:**
-  - `GET /v1/lgpd/exportar/:usuario_id` - Direito à portabilidade
-  - `POST /v1/lgpd/apagar/:usuario_id` - Direito ao esquecimento  
-  - `POST /v1/lgpd/consentimento` - Gestão de consentimentos
-
-#### **Padrões Técnicos Extraídos e Implementados:**
-1. ✅ **Clean Architecture Refinado** - Separação domínio/aplicação/infra
-2. ✅ **RBAC Hierárquico** - 3 níveis com catálogo fechado
-3. ✅ **Session Management** - Tokens em memória com TTL + idle timeout
-4. ✅ **Frontend Zero Dependencies** - HTML5/CSS3 puro com fontes embutidas
-5. ✅ **Keyboard-First UX** - Atalhos F1-F8 completos
-6. ✅ **Anti-Autofill Patterns** - Ghost inputs + text-security
-7. ✅ **Error Handling Unificado** - Pattern match com outros handlers
-
-#### **Padrões Técnicos Implementados:**
-1. **Clean Architecture Refinado:**
-   - Domínio isolado com tipos próprios
-   - Use cases com injeção de dependência
-   - Repositórios baseados em traits
-   - Error handling unificado
-
-2. **Security Patterns:**
-   - Argon2id com salt único
-   - Rate limiting por usuário/IP
-   - SQL parameterized queries
-   - XSS/CSRF protection headers
-
-3. **Testing Patterns:**
-   - Unit tests com mocks
-   - Integration tests com fixtures
-   - Property-based testing para invariantes
-   - Fuzzing para inputs críticos
-
-4. **Performance Patterns:**
-   - Connection pooling SQLite
-   - Prepared statements reuse
-   - Lazy loading de relacionamentos
-   - Indexes otimizados para queries frequentes
-
-#### **Próximas Implementações Planejadas:**
-
-**Semana 7-8: Frontend Enhancement**
-- ✅ Sistema de ícones de pagamento
-- ✅ Aprimoramento de login
-- 🚧 Forms de cadastro melhorados
-- 🚧 Modal system com acessibilidade
-- 🚧 Component library reutilizável
-
-**Semana 9-10: LGPD & Compliance**
-- ✅ Handlers LGPD básicos
-- 🚧 Sistema completo de consentimentos
-- 🚧 Auditoria de acesso a dados
-- 🚧 Criptografia para documentos sensíveis
-- 🚧 Exportação formatada (JSON, PDF)
-
-**Semana 11-12: Performance & DX**
-- 🚧 Dev tools para debugging
-- 🚧 Performance monitoring
-- 🚧 Build optimization
-- 🚧 Documentation generator
-- 🚧 CLI tool para admin tasks
-
-#### **Arquitetura de Implementação:**
-
-```rust
-// Estrutura de pastas para padrões extraídos
-mikella/
-├── frontend/
-│   ├── src/shared/ui/          # Componentes UI reutilizáveis
-│   │   ├── payment-icons.css   # Ícones de pagamento
-│   │   ├── payment-icons.js    # Lógica de seleção
-│   │   ├── login-enhancements.css # Estilos de login
-│   │   └── login-enhancements.js  # Validação e fullscreen
-│   └── src/app/
-│       ├── landing.html        # Login com enhancements
-│       └── pos.html            # Caixa com payment icons
-│
-├── crates/
-│   ├── store-server/
-│   │   └── src/handlers/
-│   │       └── lgpd.rs         # Handlers LGPD compliance
-│   │
-│   ├── domain-people/          # RBAC, capacidades
-│   ├── domain-sales/           # Unit of Work, Vendas
-│   └── infra-sqlite/           # Repository pattern
-│
-└── docs/
-    └── patterns/               # Documentação de padrões
-        ├── authentication.md
-        ├── clean-architecture.md
-        └── lgpd-compliance.md
+```
+[F0]  ✅ Fundação, Desktop Shell & Arquitetura Base
+[F1]  ✅ Autenticação, 2FA, Sessão & Logout Seguro
+[F2]  ✅ Frente de Caixa, Venda Balcão & Pagamentos F1-F6
+[F3]  ✅ Histórico de Vendas, Estorno & Movimentação de Gaveta
+[F4]  ✅ Desacoplamento Arquitetural & Anti-Monólito Rust
+[F5]  ✅ Proteção de Dados, LGPD & Blind Index de Clientes
+[F6]  ✅ Módulo Financeiro, Crediário & Contas da Loja
+[F7]  ✅ Trilha de Auditoria, Fechamento Cego & Bobina Física
+──────────────────────────────────────────────────────────────────
+[F8]  🟡 Backup Protegido, Diagnóstico & Piloto de 30 Dias (Hardware Real) <-- FILA IMEDIATA
+[F9]  🔒 Venda por Comandas & Identificação de Vendedor Comissionado
+[F10] 🔒 Alertas Ativos de Validade de Perecíveis & Gestão de Lotes
 ```
 
-#### **Métricas de Qualidade Implementadas:**
+---
 
-1. **Código:**
-   - 0 warnings Clippy
-   - 90%+ test coverage
-   - 0 unsafe Rust
-   - Dependency audit automático
+### Fechamento desta rodada (07/11/2026) · ✅ Concluído
 
-2. **Performance:**
-   - Boot time < 2s (HDD 5400rpm)
-   - Memória < 150MB
-   - CPU idle < 1%
-   - SQLite queries < 50ms
+- [x] **Onboarding na UI:** `landing.html` consulta `/v1/onboarding/status`; banco sem loja redireciona para `onboarding.html`, que cria o dono e o primeiro 2FA. Separação HTML/CSS/JS em `features/auth/` (zero inline).
+- [x] **Fuso IANA ponta a ponta:** `loja_config.fuso_horario` é lido no servidor e injetado em todos os geradores ESC/POS (venda, estorno, fechamento e cupom de teste). O fallback fixo UTC-3 foi removido; fuso inválido cai em `America/Sao_Paulo` com log.
+- [x] **Dashboard sem erro de meia-noite:** o faturamento, CMV, meios de pagamento e a lista de entradas são filtrados por intervalo UTC parametrizado, calculado a partir da data local no fuso da loja. Datas de entrada são validadas (`AAAA-MM-DD`) antes de chegar ao SQL.
+- [x] **Testes de fuso:** `America/Sao_Paulo`, `America/Manaus` e fuso inválido cobertos em `infra-hardware`.
+- [x] **SEC-017 no cupom de teste:** detalhe de hardware só no log; resposta ao usuário é acionável e genérica.
 
-3. **UX:**
-   - Keyboard navigation completo
-   - Screen reader compatible
-   - High contrast mode
-   - Prefers-reduced-motion
+### Pendências conhecidas (ordem sugerida)
 
-4. **Security:**
-   - No PII in logs
-   - Rate limiting ativo
-   - Input validation todas camadas
-   - SQL injection protection
+1. **F8 — Backup e homologação real:** `VACUUM INTO` com checksum/restauração, pacote de diagnóstico e teste de queda de energia em hardware modesto.
+2. **Operação de balcão ainda ausente:** devolução/troca, vale-crédito, inventário cego e mesclagem de clientes duplicados.
+3. **Pagamento com maquininha:** o servidor ainda recebe apenas forma + valor; nº de parcelas, modalidade e taxa precisam ser persistidos e conciliados (sem TEF nesta fase).
+4. **Fiscal:** decisão formal de escopo (PDV não fiscal) e, se houver NFC-e, crate `infra-fiscal` plugável com certificado A1.
+5. **LGPD jurídica:** validar com advogado/contador os prazos de retenção e o contrato loja (controladora) × Mikella (operador).
+6. **Busca de clientes em volume:** avaliar FTS5/índice por prefixo antes do piloto com muitos cadastros.
+7. **Vencimentos no fuso da loja:** os cards de contas a pagar/receber, validade de lote e busca de devedores ainda usam `date('now')` (UTC) para comparar datas; migrar para a data local da loja no próximo ciclo.
 
-### 7.6 Timeline de Implementação
-```
-Semana 1-2: 🔐 Security Foundation
-├── Implementação RBAC + catálogo fechado
-├── Sistema de sessões com TTL + idle timeout  
-├── 2FA com one-time use codes
-└── Logs auditáveis sem PII
+---
 
-Semana 3-4: 🗄️ Data Access & Transaction Management
-├── UnitOfWork pattern completo
-├── Repository pattern para todas as entidades
-├── Transaction atomicity garantida
-└── Connection pooling otimizado
+### F8 — Backup Protegido, Diagnóstico & Piloto de 30 Dias (Hardware Real) · 🟡 Fila Imediata
+**Objetivo:** Validação contínua do sistema em lojas piloto reais de pequeno varejo por 30 dias contínuos em PC modesto (i3/i5 antigo, 4–6 GB RAM).
 
-Semana 5-6: 🎨 UX & Frontend Enhancement
-├── Login screen com identidade visual completa
-├── Payment icons em vez de quadrados pretos
-├── Forms com validação em tempo real
-└── Full-screen mode com controles nativos
+- [ ] **Backup Local de 1 Clique Blindado (`SEC-005`):** `VACUUM INTO` restrito a diretório seguro com geração de checksum SHA-256 e teste de restauração automatizado.
+- [ ] **Pacote de Diagnóstico Técnico:** Geração de arquivo `.zip` para suporte contendo schema, integridade do banco e logs operacionais higienizados sem dados de clientes.
+- [ ] **Teste de Queda Abrupta de Energia:** Validação da recuperação do WAL do SQLite e da cadeia do livro-caixa após desligamento forçado durante uma venda.
+- [ ] **Critério de Sucesso do Piloto:** 30 dias de operação contínua sem travamentos, sem perda de centavos e com fechamento de caixa diário 100% conciliado.
 
-Semana 7-8: 🔒 LGPD Compliance
-├── Sistema de consentimentos
-├── Exportação de dados do usuário
-├── Exclusão de dados com soft delete
-└── Auditoria de acesso a dados sensíveis
+---
 
-Semana 9-10: ⚡ Performance & Optimization
-├── Connection pooling refinado
-├── Caching estratégico implementado
-├── Batch operations para importação
-└── Query optimization com índices
+### F9 — Venda por Comandas & Identificação de Vendedor Comissionado · 🔒 Bloqueada
+**Objetivo:** Suportar operação com comandas físicas de balcão/mesas e atribuição transparente de comissão a vendedores.
 
-Semana 11-12: 🧪 Advanced Testing
-├── Property-based testing para business logic
-├── State machine testing para workflows
-├── Contract testing entre camadas
-└── Performance testing com benchmarks
-```
+- [ ] **Fluxo F2 de Venda por Comanda:** Bipagem do número de comanda física, associação de itens e fechamento no caixa.
+- [ ] **Identificação de Vendedor Comissionado:** Bipagem ou digitação do código do vendedor ao passar produtos comissionáveis, com antifraude impedindo que o operador aproprie a comissão.
+- [ ] **Regras de Comissionamento por Categoria/Produto:** Cálculo exato no backend baseado no plano da loja.
+
+---
+
+### F10 — Alertas Ativos de Validade de Perecíveis & Gestão de Lotes · 🔒 Bloqueada
+**Objetivo:** Prevenir perdas financeiras em produtos perecíveis antes do vencimento.
+
+- [ ] **Controle de Lotes com Data de Validade:** Lançamento de lote e data de expiração no cadastro/entrada de estoque.
+- [ ] **Disparo de Alertas Ativos:** Aviso no login de gerente/dono para itens com vencimento próximo (ex.: 60 dias), com recomendação de remarcação/promoção.
+- [ ] **Confirmação de Aferição Física:** Exigência de confirmação física de inspeção na prateleira para arquivar o alerta.
+
+---
+
+## 5. Matriz de Rastreabilidade de Achados Técnicos
+
+| Identificador | Categoria | Descrição do Achado | Alocação no Plano | Status |
+|---|---|---|---|---|
+| **SEC-001** | Segurança | Código 2FA vazava na resposta de login | **Fase F1** | ✅ Concluído |
+| **SEC-002** | Segurança | Envio de e-mail 2FA para console por padrão | **Fase F1** | ✅ Concluído |
+| **SEC-003** | Segurança | CORS permissivo em loopback | **Fase F1** | ✅ Concluído |
+| **SEC-004** | Segurança | Cancelamento sem consumo de autorização | **Fase F3** | ✅ Concluído |
+| **SEC-005** | Segurança | Backup com caminho arbitrário e delete prévio | **Fase F8** | ✅ Corrigido no backend |
+| **SEC-006** | Segurança | Sangria de caixa com autoaprovação | **Fase F3** | ✅ Concluído |
+| **SEC-007** | Segurança | Hashes serializados em `Usuario`/`PinHash` | **Fase F1** | ✅ Concluído |
+| **SEC-008** | Segurança | XSS armazenado via interpolações `innerHTML` | **Fase F0 / F2** | ✅ Concluído |
+| **SEC-009** | Segurança | Ausência de CSP restritiva no shell Tauri | **Fase F5** | ✅ Concluído |
+| **SEC-011** | Segurança | Falta de endpoint `POST /v1/auth/logout` | **Fase F1** | ✅ Concluído |
+| **SEC-013** | Segurança | CPF/CNPJ de clientes exposto a operadores comuns | **Fase F5** | ✅ Concluído |
+| **SEC-014** | Segurança | CPF em texto claro sem blind index calculado | **Fase F5** | ✅ Concluído |
+| **SEC-017** | Segurança | Erros internos com `e.to_string()` vazando SQL | **Fase F4** | ✅ Concluído |
+| **ARQ-001** | Arquitetura | Queries SQL diretas dentro dos handlers Axum | **Fase F4** | ✅ Concluído |
+| **DAT-001** | Dados | Migração 0004 com `DROP TABLE` destrutivo | **Fase F3** | ✅ Concluído |
+| **DAT-004** | Dados | Falta de checks de valor positivo e FKs em parcelas | **Fase F6** | ✅ Concluído |
+| **DAT-010** | Domínio | Perda de sinal negativo em frações de `Money` | **Fase F2** | ✅ Concluído |
+| **UI-001** | Interface | Perda de foco ao digitar pagamentos mistos | **Fase F2** | ✅ Concluído |
+| **UI-002** | Interface | Venda com `sessao_id` fabricado se caixa fechado | **Fase F2** | ✅ Concluído |
+| **UI-004** | Interface | Badge "SESSÃO PROTEGIDA" estático | **Fase F2** | ✅ Concluído |
+| **LGPD-002** | Privacidade | Tabela `auditoria` vazia sem gravações | **Fase F7** | ✅ Concluído |
+| **LGPD-003** | Privacidade | Falta de exportação estruturada do titular | **Fase F5** | ✅ Concluído |
+| **LGPD-004** | Privacidade | Anonimização irreversível com guarda fiscal de 5 anos | **Fase F5** | ✅ Concluído |
+| **AUD-01..13**| UX / PDV / Fin | Resolução de 13 não-conformidades de UX, Chokko-Melt e Parcelamento | **Fase F2/F6/F7** | ✅ Concluído |

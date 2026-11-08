@@ -1,0 +1,271 @@
+/* Resumo Executivo do Dono — Estilo Balcão e Livro-Caixa */
+
+.resumo-grid-principal {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--espaco-4);
+  margin-top: var(--espaco-3);
+}
+
+@media (max-width: 900px) {
+  .resumo-grid-principal {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Seletor de Período */
+.seletor-periodo {
+  display: flex;
+  gap: var(--espaco-2);
+}
+
+.btn-periodo {
+  height: 34px;
+  padding: 0 var(--espaco-3);
+  background: var(--branco);
+  border: 2px solid var(--preto);
+  font-weight: bold;
+  font-size: 0.85rem;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+
+.btn-periodo.ativo {
+  background: var(--azul-600);
+  color: var(--branco);
+  border-color: var(--azul-600);
+}
+
+/* 5 Grandes Números (Pergunta 1: Quanto entrou, quanto sobra?) */
+.bloco-dominante {
+  border: 2px solid var(--preto);
+  padding: var(--espaco-4);
+  background: var(--branco);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  margin-bottom: var(--espaco-4);
+}
+
+.faturamento-destaque-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid var(--preto);
+  padding-bottom: var(--espaco-3);
+  margin-bottom: var(--espaco-3);
+}
+
+.rotulo-kpi {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--cinza-500);
+  letter-spacing: 0.05em;
+}
+
+.faturamento-valor-grande {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--azul-600);
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 1;
+}
+
+.comparativo-tag {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border: 1px solid var(--preto);
+  margin-top: 4px;
+}
+
+.comparativo-tag.positivo {
+  background: #E6F4EA;
+  color: #137333;
+}
+
+.comparativo-tag.negativo {
+  background: #FCE8E6;
+  color: #C5221F;
+}
+
+.submetricas-trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--espaco-3);
+  margin-bottom: var(--espaco-3);
+}
+
+.submetrica-item {
+  border-right: 1px solid var(--linha);
+  padding-right: var(--espaco-2);
+}
+
+.submetrica-item:last-child {
+  border-right: none;
+}
+
+.submetrica-valor {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--preto);
+}
+
+/* Barra do Ponto de Equilíbrio */
+.ponto-equilibrio-box {
+  margin-top: var(--espaco-3);
+  padding-top: var(--espaco-3);
+  border-top: 1px solid var(--linha);
+}
+
+.barra-progresso-container {
+  height: 16px;
+  background: var(--papel);
+  border: 2px solid var(--preto);
+  margin: var(--espaco-2) 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.barra-progresso-preenchimento {
+  height: 100%;
+  background: var(--azul-600);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Faixa Dinheiro e Contas (Pergunta 2) */
+.faixa-dinheiro-contas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--espaco-3);
+  margin-bottom: var(--espaco-4);
+}
+
+.card-conta-faixa {
+  border: 2px solid var(--preto);
+  padding: var(--espaco-3);
+  background: var(--branco);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+
+.card-conta-faixa .valor {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Gráfico em SVG Puro (VIZ-010 a VIZ-024) */
+.area-grafico-svg {
+  border: 2px solid var(--preto);
+  background: var(--branco);
+  padding: var(--espaco-3);
+  margin-bottom: var(--espaco-4);
+}
+
+.area-grafico-svg h3 {
+  margin: 0 0 var(--espaco-2) 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+/* Coluna Lateral de Atenção (Pergunta 3 - Máximo 3 selos) */
+.coluna-atencao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+}
+
+.card-atencao {
+  border: 2px solid var(--preto);
+  background: var(--branco);
+  padding: var(--espaco-3);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.selo-atencao-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--espaco-2);
+}
+
+.selo-tag {
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  clip-path: polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%);
+  color: var(--branco);
+}
+
+.selo-tag.validade {
+  background: #D97706; /* Laranja escuro com alto contraste */
+  color: var(--branco);
+}
+
+.selo-tag.quebra {
+  background: var(--vermelho);
+  color: var(--branco);
+}
+
+.selo-tag.devedor {
+  background: var(--azul-600);
+  color: var(--branco);
+}
+
+.selo-tag.backup {
+  background: #047857;
+  color: var(--branco);
+}
+
+.card-atencao-titulo {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--preto);
+  margin-bottom: 2px;
+}
+
+.card-atencao-desc {
+  font-size: 0.85rem;
+  color: #444;
+  margin-bottom: var(--espaco-3);
+}
+
+.card-atencao-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-decoration: none;
+  background: var(--papel);
+  border: 1px solid var(--preto);
+  color: var(--preto);
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+
+.card-atencao-btn:hover {
+  background: var(--azul-600);
+  color: var(--branco);
+  border-color: var(--azul-600);
+}
+
+/* Fita do Dia */
+.fita-do-dia-container {
+  border: 2px solid var(--preto);
+  background: var(--branco);
+  padding: var(--espaco-3);
+  margin-top: var(--espaco-4);
+}
+
+.fita-do-dia-titulo {
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: var(--espaco-2);
+  border-bottom: 2px solid var(--preto);
+  padding-bottom: 4px;
+}

@@ -64,6 +64,54 @@ esse login e senha é a LOJA dele, a MARCA dele.
 
 
 
+o caixa ele está abrindo direto na tela de vendas, mas tipo a parte do caixa vai abrir um segundo menu quando tu clicar nele....
+que é o menu do próprio sistema interno do PDV, onde uma pessoa que trabalha com o caixa deve conseguir ter acesso quando necessário
+
+
+f1 - venda sem bipar comanda
+f2 - venda bipando comanda
+f3 - histórico de vendas por filtro de data e horas, também possível digitar código da venda (COO) dentro desse histórico de venda você pode clicar e pré visualizar e também imprimir a nota novamente.
+f4 - cadastrar um cliente na loja e colocar os dados dele : CPF, NOME, CELULAR/TELEFONE RESIDENCIAL, EMAIL.... OPCIONAIS (ENDEREÇOS) > SÓ EM CASO DA LOJA TRABALHAR COM ENTREGA , MAIORIA DAS VEZES DEIXAR VAZIO POR PADRAO MSM QUANDO O CLIENTE LIGAR E PEDIR ENTREGA É SÓ DIGITAR O CPF PRA ACHAR O CADASTRO E PEDIR AS INFORMAÇOES, AI JA ATUALIZA AS INFO E PEGA O ENDEREÇO E NAS PROXIMAS N PRECISA FICAR PEDINDO, SÓ CONFIRMA POR LIGAÇÃO.
+nessa parte do cadastro/ver clientes deve mostrar se o cliente deve crediário ou se está vencido o crediário.
+f5 - SANGRIA ( opcional colocar observação da sangria , até 256 caracteres ta ótimo).
+f6 - pagar dívidas > digita/procura na lista de clientes por filtro de quem está com divida em ordem alfabética.... se o cara comprou no crediário 2 reais de paçoca agora 3:08, na mesma hora ja deve aparecer ele no catalogo de "devedores"".
+f7 - atualizar caixa/sync
+f8 - fechar caixa > perguntar se ja realizou a sangria final antes de fechar (deixar o {valor padrão} para troco) > confirma? >s/n >
+ confirmou > id numero user > campo de observação para colocar na nota, até 512 caracteres > fechar> (sai a nota final na bobina do operador+id, se houve quebras positivas/negativas, quanto vendeu, de que horas até que horas o usuário trabalhou no caixa).
+Sangrias (retiradas) totais.
+Cancelamentos e Estornos:
+
+campo para:
+Assinatura do Operador de Caixa
+
+
+
+
+
+
+DENTRO DO FLUXO DE VENDAS DO F1/F2.
+
+tela:
+CPF/NUMERO DE CELULAR/ nome completo do cliente (o cliente pode sim ALTERAR O NUMERO, mas tem que ser sempre unique.... se for loucura isso e ter chance de dar merda me corrija, seja imparcial).
+>inseriu os dados ? ele vai mostrar  o nome do cliente , selecionou e confirma... por mais que ele tenha digitado o CPF, nome completo ou numero de celular para achar qual cliente é, o que vai no final da nota é o CPF NA NOTA.
+confirmou vai pra tela do caixa agora....
+
+f1 - Pagar (ou outro nome melhor)
+f2 - buscar cliente (ou outro nome melhor) > se clicar aqui leva pra mesma função lá de colocar o dado do cliente, em caso de a loja liberar desconto em certos produtos para quem tem cadastro na loja, após selecionar aplicar corretamente o desconto sem necessariamente ter que passar tudo dnv, e se o usuário não tiver terminado de passar todos os produtos > segue bipando normal e os preços dos outros itens cujo terão desconto continuará aplicando normalmente.
+f3 - selecionar método de pagamento > abre outra tela da seleção > f1 - dinheiro , f2 - débito , f3 - crédito , f4 - Voucher,  f5 - PIX, f6 - crediário. <selecionou a forma de pagamento, volta pra tela dos produtos que foram passado até então, ainda pode continuar passando o restante da compra tranquilamente sem travas, quem vai determinar o fim de passar os produtos é quando for pro f1 hora oficial de pagar>
+f4 - cancelar um item  específico> modal para bipar qual produto vai ser cancelado > quantas un ? se houver mais de 1 un  > confirmar qual produto e quantidade vai ser cancelada (sim/não).
+f5 - Cancelar compra > modal para digitar o usuário e senha > se colocar user e senha do admin cancela em qualquer caixa, gerente e fiscal de caixa também.... agora se um operador de caixa que tem permissão padrão de caixa que é cancelar compras APENAS do seu caixa, se a operadora tentar cancelar compra no caixa de um amigo em quanto ele foi no banheiro , se ela digitar sua senha e user deve dar ERRO e não executar o cancelamento, de caixa pra caixa só o respectivo dono do login do pdv deve conseguir cancelar.... 
+
+
+voltando no pagar > se a pessoa selecionou dinheiro e dps foi em f1 e o dinheiro recebido da compra foi 75,00 e a compra deu  100,00 > ir para tela de selecionar método de pagamento com o valor restante sendo exibido o quanto falta.
+ai da a opção do cara pagar a compra com 2 ou mais métodos de pagamentos.
+em caso da compra de 100,00 o cara dar 150,00, após o usuário colocar o quanto recebeu, o sistema informar o troco exato que deve passar ao cliente.
+> fim da venda , volta pro menu inicial do caixa onde temos todas as opções.
+
+
+
+corrija as moscadas que deixei passar porém implemente desse jeito aí.
+
 
 
 o sistema deve respeitar a risca LGPD

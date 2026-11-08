@@ -45,19 +45,32 @@ pub async fn caixa_status(State(state): State<AppState>, ator: Ator) -> impl Int
     };
 
     match abertas.first() {
-        Some(sessao) => (
-            StatusCode::OK,
-            Json(serde_json::json!({
-                "aberta": true,
-                "sessao_id": sessao.id.to_string(),
-                "numero_caixa": sessao.numero_caixa,
-                "saldo_esperado_centavos": sessao.saldo_esperado_centavos.centavos(),
-                "saldo_esperado": sessao.saldo_esperado_centavos.to_string(),
-                "estado": sessao.estado.as_str(),
-                "aberta_em": sessao.aberta_em.to_rfc3339(),
-                "operador_id": sessao.operador_id.to_string(),
-            })),
-        ),
+        Some(sessao) => {
+            let saldo_oculto = sessao.fechamento_cego && ator.papel().nivel() < 2;
+            let (saldo_centavos, saldo_display) = if saldo_oculto {
+                (0, "Oculto (Fechamento Cego)".to_string())
+            } else {
+                (
+                    sessao.saldo_esperado_centavos.centavos(),
+                    sessao.saldo_esperado_centavos.to_string(),
+                )
+            };
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "aberta": true,
+                    "sessao_id": sessao.id.to_string(),
+                    "numero_caixa": sessao.numero_caixa,
+                    "saldo_esperado_centavos": saldo_centavos,
+                    "saldo_esperado": saldo_display,
+                    "fechamento_cego": sessao.fechamento_cego,
+                    "saldo_oculto": saldo_oculto,
+                    "estado": sessao.estado.as_str(),
+                    "aberta_em": sessao.aberta_em.to_rfc3339(),
+                    "operador_id": sessao.operador_id.to_string(),
+                })),
+            )
+        }
         None => (
             StatusCode::OK,
             Json(serde_json::json!({
@@ -177,6 +190,20 @@ pub async fn abrir_caixa_handler(
 
     match abrir_caixa(&repos, cmd) {
         Ok(sessao) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "sessao_caixa",
+                &sessao.id.to_string(),
+                "ABERTURA_CAIXA",
+                Some(&ator.id().to_string()),
+                Some(&dispositivo_id.to_string()),
+                None,
+                Some(&format!(
+                    "caixa: {}, saldo_inicial: {}",
+                    sessao.numero_caixa, sessao.saldo_inicial_centavos
+                )),
+            );
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -313,6 +340,20 @@ pub async fn fechar_caixa_handler(
 
     match fechar_caixa(&repos, cmd) {
         Ok(diferenca) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "sessao_caixa",
+                &sessao_id.to_string(),
+                "FECHAMENTO_CAIXA",
+                Some(&ator.id().to_string()),
+                None,
+                Some(&format!("esperado: {}", diferenca.esperado)),
+                Some(&format!(
+                    "contado: {}, diferenca: {}",
+                    diferenca.contado, diferenca.diferenca
+                )),
+            );
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -372,16 +413,29 @@ pub async fn realizar_sangria_handler(
     }
 
     let operador_id = ator.id();
-    let motivo = form.motivo.unwrap_or_else(|| "Sangria de caixa".to_string());
+    let motivo = form
+        .motivo
+        .clone()
+        .unwrap_or_else(|| "Sangria de caixa".to_string());
     let motivo_truncado: String = motivo.trim().chars().take(256).collect();
+
+    // SEC-006: sangria exige aprovador real e diferente do operador.
+    let aprovacao =
+        match crate::util::exigir_aprovador(&state, &ator, form.credenciais_aprovador(), "sangria")
+            .await
+        {
+            Ok(a) => a,
+            Err(resposta) => return resposta,
+        };
 
     let mut db = state.db.lock().await;
     let tx = match db.transacao() {
         Ok(t) => t,
         Err(e) => {
+            tracing::error!(erro = %e, "falha ao abrir transação de sangria");
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": e.to_string() })),
+                Json(serde_json::json!({ "erro": "falha de banco" })),
             );
         }
     };
@@ -390,6 +444,29 @@ pub async fn realizar_sangria_handler(
 
     let sessoes = SessaoRepo::novo(&tx);
     let livro = LivroRepo::novo(&tx);
+
+    // SEC-006: operador só movimenta o caixa em que é o operador da sessão.
+    if ator.papel().nivel() < 2 {
+        use mikella_domain_cash::ports::SessaoRepository as _;
+        match sessoes.buscar_por_id(sessao_id) {
+            Ok(Some(sessao)) if sessao.operador_id == operador_id => {}
+            Ok(_) => {
+                let _ = tx.rollback();
+                return crate::middleware::proibido(
+                    "operador só pode fazer sangria no próprio caixa",
+                );
+            }
+            Err(e) => {
+                let _ = tx.rollback();
+                tracing::error!(erro = %e, "falha ao validar sessão da sangria");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha de banco" })),
+                );
+            }
+        }
+    }
+
     let hash = Blake3HashChain;
     let clock = SystemClock;
     let repos = CaixaRepos {
@@ -404,10 +481,24 @@ pub async fn realizar_sangria_handler(
         sessao_id,
         Money::from_centavos(form.valor_centavos),
         operador_id,
-        operador_id,
+        aprovacao.id,
         motivo_truncado.clone(),
     ) {
         Ok(()) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "sangria",
+                &sessao_id.to_string(),
+                "SANGRIA",
+                Some(&operador_id.to_string()),
+                None,
+                None,
+                Some(&format!(
+                    "valor_centavos: {}, motivo: {}, aprovador: {}",
+                    form.valor_centavos, motivo_truncado, aprovacao.id
+                )),
+            );
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,

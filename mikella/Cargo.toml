@@ -45,7 +45,7 @@ tokio       = { version = "1", features = ["rt-multi-thread", "macros", "sync", 
 # Web framework (servidor local)
 axum        = { version = "0.7", features = ["http2"] }
 tower       = "0.4"
-tower-http  = { version = "0.5", features = ["cors", "trace"] }
+tower-http  = { version = "0.5", features = ["cors", "trace", "timeout"] }
 
 # TLS
 rustls          = "0.23"
@@ -69,6 +69,7 @@ zeroize     = { version = "1", features = ["derive"] }
 uuid        = { version = "1", features = ["v4", "serde"] }
 ulid        = "1"
 chrono      = { version = "0.4", features = ["serde"] }
+chrono-tz   = { version = "0.10", features = ["serde"] }
 
 # Erros
 thiserror   = "2"

@@ -6,12 +6,18 @@
 //! ou a venda inteira (cabeçalho, itens, pagamentos, estoque, caixa) entra,
 //! ou nada entra.
 
+pub mod auditoria;
 pub mod caixa;
+pub mod doacao;
 pub mod financeiro;
+pub mod financeiro_dashboard;
+pub mod instance;
 pub mod lotes;
 pub mod movimentacoes;
 pub mod pessoas;
 pub mod produtos;
+pub mod recibos;
+pub mod sistema;
 pub mod vendas;
 
 use std::str::FromStr;

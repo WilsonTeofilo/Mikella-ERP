@@ -11,6 +11,7 @@ use mikella_shared_kernel::{
 
 use super::{bool_para_inteiro, inteiro_para_bool, parse_data_hora, parse_id, sql, ParaDominio};
 use crate::error::InfraResult;
+use crate::hash::blind_index_documento;
 
 /// Repositório de usuários.
 ///
@@ -74,6 +75,19 @@ impl<'a> UsuarioRepo<'a> {
         bruto
             .map(|b| Self::usuario_bruto_para_dominio(self.conn, b))
             .transpose()
+    }
+
+    /// Username do usuário (para revogar sessões por id sem SQL no handler).
+    pub fn username_por_id(&self, id: UsuarioId) -> InfraResult<Option<String>> {
+        let username = self
+            .conn
+            .query_row(
+                "SELECT username FROM usuarios WHERE id = ?1",
+                params![id.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(username)
     }
 
     fn listar(&self, ativo_apenas: bool) -> InfraResult<Vec<Usuario>> {
@@ -245,29 +259,115 @@ use mikella_domain_people::{Pessoa, TipoPessoa};
 
 pub struct PessoaRepo<'a> {
     pub conn: &'a Connection,
+    /// Chave estável da loja para blind index de CPF (SEC-014 / LGPD-003).
+    /// `None` em contextos sem chave (testes legados) — blind index fica NULL.
+    chave_loja: Option<[u8; 32]>,
 }
 
 impl<'a> PessoaRepo<'a> {
     pub fn novo(conn: &'a Connection) -> Self {
-        Self { conn }
+        Self {
+            conn,
+            chave_loja: None,
+        }
+    }
+
+    /// Variante com chave da loja para habilitar blind index de CPF/CNPJ.
+    pub fn com_chave(conn: &'a Connection, chave_loja: &[u8; 32]) -> Self {
+        Self {
+            conn,
+            chave_loja: Some(*chave_loja),
+        }
+    }
+
+    /// Calcula o blind index do documento, se chave disponível.
+    ///
+    /// Normaliza para dígitos — a mesma forma gravada por `Pessoa::novo_cliente`
+    /// — para que registros antigos com pontuação gerem o mesmo índice.
+    fn blind_documento(&self, documento: &str) -> Option<String> {
+        let digits: String = documento.chars().filter(|c| c.is_ascii_digit()).collect();
+        if digits.is_empty() {
+            return None;
+        }
+        self.chave_loja
+            .as_ref()
+            .map(|k| crate::hash::blind_index_documento(&digits, k))
+    }
+
+    /// Cifra um dado pessoal (PII) em repouso se houver chave configurada.
+    fn cifrar_campo(&self, texto: Option<&str>, contexto: &str) -> Option<String> {
+        match (texto, &self.chave_loja) {
+            (Some(t), Some(k)) if !t.trim().is_empty() => {
+                mikella_infra_crypto::cifrar_pii(t.trim(), k, contexto).ok()
+            }
+            (Some(t), _) => Some(t.to_string()),
+            (None, _) => None,
+        }
+    }
+
+    /// Decifra um dado pessoal lido do banco (ou preserva texto legado).
+    pub fn decifrar_campo(&self, texto: Option<String>) -> Option<String> {
+        match (texto, &self.chave_loja) {
+            (Some(t), Some(k)) => mikella_infra_crypto::decifrar_texto(&t, k).ok(),
+            (Some(t), None) => Some(t),
+            (None, _) => None,
+        }
+    }
+
+    /// Anonimiza os dados de um cliente para atender à solicitação de exclusão (Art. 16/18 LGPD).
+    /// Mantém o ID e registros históricos de vendas/contas para fins fiscais e legais.
+    pub fn anonimizar_cliente(&self, id: &str) -> InfraResult<bool> {
+        let tem_debito: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM parcelas WHERE pessoa_id = ?1 AND conta_tipo = 'RECEBIMENTO' AND status = 'ABERTA')",
+            params![id],
+            |r| r.get(0),
+        )?;
+        if tem_debito {
+            return Err(crate::error::InfraError::DadoInvalido {
+                campo: "crediario",
+                detalhe: "Cliente possui débitos de crediário em aberto e não pode ser anonimizado até quitação".into(),
+            });
+        }
+
+        let linhas = self.conn.execute(
+            "UPDATE pessoas 
+             SET nome = '[CLIENTE ANONIMIZADO]',
+                 documento = 'ENC:ANONIMIZADO',
+                 documento_blind = 'ANON_' || id,
+                 telefone = NULL,
+                 email = NULL,
+                 endereco = NULL,
+                 ativo = 0,
+                 consentimento_marketing = 0
+             WHERE id = ?1",
+            params![id],
+        )?;
+        Ok(linhas > 0)
     }
 }
 
 impl<'a> PessoaRepository for PessoaRepo<'a> {
     fn salvar(&self, p: &Pessoa) -> DomainResult<()> {
+        let blind = p.documento.as_deref().and_then(|d| self.blind_documento(d));
+        let doc_salvo = self.cifrar_campo(p.documento.as_deref(), "documento");
+        let tel_salvo = self.cifrar_campo(p.telefone.as_deref(), "telefone");
+        let email_salvo = self.cifrar_campo(p.email.as_deref(), "email");
+        let end_salvo = self.cifrar_campo(p.endereco.as_deref(), "endereco");
+
         let alteradas = sql(self.conn.execute(
-            "INSERT INTO pessoas (id, tipo, nome, telefone, email, documento, endereco, ativo, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
+            "INSERT INTO pessoas (id, tipo, nome, telefone, email, documento, documento_blind, endereco, ativo, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
                      strftime('%Y-%m-%dT%H:%M:%fZ','now'),
                      strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             params![
                 p.id,
                 p.tipo.as_db(),
                 p.nome,
-                p.telefone,
-                p.email,
-                p.documento,
-                p.endereco,
+                tel_salvo,
+                email_salvo,
+                doc_salvo,
+                blind,
+                end_salvo,
                 bool_para_inteiro(p.ativo),
             ],
         ))?;
@@ -278,19 +378,26 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
     }
 
     fn atualizar(&self, p: &Pessoa) -> DomainResult<()> {
+        let blind = p.documento.as_deref().and_then(|d| self.blind_documento(d));
+        let doc_salvo = self.cifrar_campo(p.documento.as_deref(), "documento");
+        let tel_salvo = self.cifrar_campo(p.telefone.as_deref(), "telefone");
+        let email_salvo = self.cifrar_campo(p.email.as_deref(), "email");
+        let end_salvo = self.cifrar_campo(p.endereco.as_deref(), "endereco");
+
         let alteradas = sql(self.conn.execute(
             "UPDATE pessoas SET
                  nome = ?2, telefone = ?3, email = ?4, documento = ?5,
-                 endereco = ?6, ativo = ?7,
+                 documento_blind = ?6, endereco = ?7, ativo = ?8,
                  updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
              WHERE id = ?1",
             params![
                 p.id,
                 p.nome,
-                p.telefone,
-                p.email,
-                p.documento,
-                p.endereco,
+                tel_salvo,
+                email_salvo,
+                doc_salvo,
+                blind,
+                end_salvo,
                 bool_para_inteiro(p.ativo),
             ],
         ))?;
@@ -317,14 +424,19 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                 })?;
                 let criado_em_str: String = row.get(8)?;
                 let atualizado_em_str: String = row.get(9)?;
+                let tel_raw: Option<String> = row.get(3)?;
+                let email_raw: Option<String> = row.get(4)?;
+                let doc_raw: Option<String> = row.get(5)?;
+                let end_raw: Option<String> = row.get(6)?;
+
                 Ok(Pessoa {
                     id: row.get(0)?,
                     tipo,
                     nome: row.get(2)?,
-                    telefone: row.get(3)?,
-                    email: row.get(4)?,
-                    documento: row.get(5)?,
-                    endereco: row.get(6)?,
+                    telefone: self.decifrar_campo(tel_raw),
+                    email: self.decifrar_campo(email_raw),
+                    documento: self.decifrar_campo(doc_raw),
+                    endereco: self.decifrar_campo(end_raw),
                     ativo: row.get::<_, i64>(7)? != 0,
                     criado_em: parse_data_hora(&criado_em_str, "pessoas.created_at").map_err(|e| {
                         rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(e))
@@ -340,38 +452,77 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
     }
 
     fn telefone_em_uso(&self, telefone: &str, ignorar_id: Option<&str>) -> DomainResult<bool> {
+        let tel_cifrado = self.cifrar_campo(Some(telefone), "telefone").unwrap_or_else(|| telefone.to_string());
         let existe: i64 = sql(self.conn.query_row(
             "SELECT COUNT(*) FROM pessoas
-             WHERE telefone = ?1 AND (?2 IS NULL OR id <> ?2)",
-            params![telefone, ignorar_id],
+             WHERE (telefone = ?1 OR telefone = ?2) AND (?3 IS NULL OR id <> ?3)",
+            params![tel_cifrado, telefone, ignorar_id],
             |row| row.get(0),
         ))?;
         Ok(existe > 0)
     }
 
     fn documento_em_uso(&self, documento: &str, ignorar_id: Option<&str>) -> DomainResult<bool> {
-        let existe: i64 = sql(self.conn.query_row(
-            "SELECT COUNT(*) FROM pessoas
-             WHERE documento = ?1 AND (?2 IS NULL OR id <> ?2)",
-            params![documento, ignorar_id],
-            |row| row.get(0),
-        ))?;
+        // SEC-014: se chave disponível, busca via blind index (coluna UNIQUE indexada);
+        // caso contrário, busca por texto claro como fallback seguro para dev/testes.
+        let existe: i64 = if let Some(blind) = self.blind_documento(documento) {
+            sql(self.conn.query_row(
+                "SELECT COUNT(*) FROM pessoas
+                 WHERE documento_blind = ?1 AND (?2 IS NULL OR id <> ?2)",
+                params![blind, ignorar_id],
+                |row| row.get(0),
+            ))?
+        } else {
+            sql(self.conn.query_row(
+                "SELECT COUNT(*) FROM pessoas
+                 WHERE documento = ?1 AND (?2 IS NULL OR id <> ?2)",
+                params![documento, ignorar_id],
+                |row| row.get(0),
+            ))?
+        };
         Ok(existe > 0)
     }
 
     fn buscar_clientes_com_saldo(&self, busca: Option<&str>) -> DomainResult<Vec<ClienteResumo>> {
-        let (sql_query, param) = match busca.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        use rusqlite::types::Value;
+
+        let termo = busca.map(str::trim).filter(|s| !s.is_empty());
+        let (sql_query, param) = match termo {
             Some(b) => {
-                let p = format!("%{b}%");
-                (
-                    "SELECT id, tipo, nome, telefone, email, documento, endereco, ativo,
-                            strftime('%Y-%m-%dT%H:%M:%fZ', created_at),
-                            strftime('%Y-%m-%dT%H:%M:%fZ', updated_at)
-                     FROM pessoas
-                     WHERE tipo = 'CLIENTE' AND ativo = 1 AND (nome LIKE ?1 OR documento LIKE ?1 OR telefone LIKE ?1)
-                     ORDER BY nome ASC LIMIT 50",
-                    Some(p),
-                )
+                // SEC-014: CPF/CNPJ completo é buscado pelo blind index (exato).
+                // Nome, telefone e busca parcial continuam em texto claro até a
+                // criptografia em repouso da F5.
+                let digits: String = b.chars().filter(|c| c.is_ascii_digit()).collect();
+                let blind = if digits.len() == 11 || digits.len() == 14 {
+                    self.chave_loja
+                        .as_ref()
+                        .map(|chave| blind_index_documento(&digits, chave))
+                } else {
+                    None
+                };
+
+                match blind {
+                    Some(hash) => (
+                        "SELECT id, tipo, nome, telefone, email, documento, endereco, ativo,
+                                strftime('%Y-%m-%dT%H:%M:%fZ', created_at),
+                                strftime('%Y-%m-%dT%H:%M:%fZ', updated_at)
+                         FROM pessoas
+                         WHERE tipo = 'CLIENTE' AND ativo = 1
+                           AND (nome LIKE ?1 OR telefone LIKE ?1 OR documento_blind = ?2)
+                         ORDER BY nome ASC LIMIT 50",
+                        vec![Value::Text(format!("%{b}%")), Value::Text(hash)],
+                    ),
+                    None => (
+                        "SELECT id, tipo, nome, telefone, email, documento, endereco, ativo,
+                                strftime('%Y-%m-%dT%H:%M:%fZ', created_at),
+                                strftime('%Y-%m-%dT%H:%M:%fZ', updated_at)
+                         FROM pessoas
+                         WHERE tipo = 'CLIENTE' AND ativo = 1
+                           AND (nome LIKE ?1 OR documento LIKE ?1 OR telefone LIKE ?1)
+                         ORDER BY nome ASC LIMIT 50",
+                        vec![Value::Text(format!("%{b}%"))],
+                    ),
+                }
             }
             None => (
                 "SELECT id, tipo, nome, telefone, email, documento, endereco, ativo,
@@ -380,7 +531,7 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                  FROM pessoas
                  WHERE tipo = 'CLIENTE' AND ativo = 1
                  ORDER BY nome ASC LIMIT 50",
-                None,
+                Vec::new(),
             ),
         };
 
@@ -397,14 +548,19 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
             })?;
             let criado_em_str: String = row.get(8)?;
             let atualizado_em_str: String = row.get(9)?;
+            let tel_raw: Option<String> = row.get(3)?;
+            let email_raw: Option<String> = row.get(4)?;
+            let doc_raw: Option<String> = row.get(5)?;
+            let end_raw: Option<String> = row.get(6)?;
+
             Ok(Pessoa {
                 id: row.get(0)?,
                 tipo,
                 nome: row.get(2)?,
-                telefone: row.get(3)?,
-                email: row.get(4)?,
-                documento: row.get(5)?,
-                endereco: row.get(6)?,
+                telefone: self.decifrar_campo(tel_raw),
+                email: self.decifrar_campo(email_raw),
+                documento: self.decifrar_campo(doc_raw),
+                endereco: self.decifrar_campo(end_raw),
                 ativo: row.get::<_, i64>(7)? != 0,
                 criado_em: parse_data_hora(&criado_em_str, "pessoas.created_at").map_err(|e| {
                     rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(e))
@@ -415,12 +571,9 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
             })
         };
 
-        let rows = if let Some(p) = param {
-            stmt.query_map([p], mapper)
-        } else {
-            stmt.query_map([], mapper)
-        }
-        .map_err(|e| DomainError::EstadoInvalido(format!("Erro na consulta de clientes: {e}")))?;
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(param), mapper)
+            .map_err(|e| DomainError::EstadoInvalido(format!("Erro na consulta de clientes: {e}")))?;
 
         for r in rows {
             let pessoa = r.map_err(|e| DomainError::EstadoInvalido(format!("Erro ao ler cliente: {e}")))?;
@@ -490,11 +643,14 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
             let (cid, nome, doc, tel, pid, num, valor, venc, atraso) =
                 r.map_err(|e| DomainError::EstadoInvalido(format!("Erro ao ler parcela devedora: {e}")))?;
 
+            let doc_dec = self.decifrar_campo(doc);
+            let tel_dec = self.decifrar_campo(tel);
+
             let devedor = mapa.entry(cid.clone()).or_insert_with(|| DevedorItem {
                 cliente_id: cid,
                 nome,
-                documento: doc,
-                telefone: tel,
+                documento: doc_dec,
+                telefone: tel_dec,
                 total_devido_centavos: 0,
                 parcelas: Vec::new(),
             });
@@ -549,5 +705,214 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
         ))?;
 
         Ok(valor)
+    }
+}
+
+/// Substitui o sentinela `PENDENTE_<id>` da migração `0008` pelo blind index
+/// real de cada documento, usando a chave estável da loja.
+///
+/// Roda no boot, depois de abrir o banco e antes de aceitar requisições. É
+/// idempotente: linhas já migradas (blind index real) não são tocadas.
+/// Documentos legados com pontuação são normalizados para dígitos, a mesma
+/// forma usada por `Pessoa::novo_cliente`.
+///
+/// Retorna a quantidade de linhas efetivamente atualizadas. Um duplicado
+/// legado que viole o `UNIQUE` é mantido com o sentinela e registrado no log,
+/// sem derrubar o boot nem expor o documento.
+pub fn backfill_blind_index(conn: &Connection, chave_loja: &[u8; 32]) -> InfraResult<usize> {
+    let pendentes: Vec<(String, String)> = {
+        let mut stmt = conn.prepare(
+            "SELECT id, documento FROM pessoas
+             WHERE documento IS NOT NULL
+               AND (documento_blind IS NULL OR documento_blind LIKE 'PENDENTE_%')",
+        )?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<Result<Vec<_>, _>>()?
+    };
+
+    let mut atualizados = 0usize;
+    for (id, documento) in pendentes {
+        let digits: String = documento.chars().filter(|c| c.is_ascii_digit()).collect();
+        if digits.is_empty() {
+            tracing::warn!(
+                pessoa_id = %id,
+                "documento sem dígitos; blind index permanece pendente"
+            );
+            continue;
+        }
+
+        let blind = blind_index_documento(&digits, chave_loja);
+        let doc_cifrado = if !documento.starts_with(mikella_infra_crypto::PREFIXO_CIFRADO) {
+            mikella_infra_crypto::cifrar_pii(&documento, chave_loja, "documento").ok()
+        } else {
+            None
+        };
+
+        // `OR IGNORE` protege o boot contra documentos duplicados anteriores
+        // ao UNIQUE: a linha problemática fica com o sentinela e é registrada.
+        let alteradas = if let Some(ref dc) = doc_cifrado {
+            conn.execute(
+                "UPDATE OR IGNORE pessoas SET documento_blind = ?1, documento = ?2 WHERE id = ?3",
+                params![blind, dc, id],
+            )?
+        } else {
+            conn.execute(
+                "UPDATE OR IGNORE pessoas SET documento_blind = ?1 WHERE id = ?2",
+                params![blind, id],
+            )?
+        };
+
+        if alteradas == 0 {
+            tracing::warn!(
+                pessoa_id = %id,
+                "blind index não aplicado (documento duplicado ou já migrado)"
+            );
+        }
+        atualizados += alteradas;
+    }
+
+    // Criptografia em repouso retroativa para telefones, e-mails e endereços legados (LGPD Art. 46)
+    let legados: Vec<(String, Option<String>, Option<String>, Option<String>)> = {
+        let mut stmt = conn.prepare(
+            "SELECT id, telefone, email, endereco FROM pessoas
+             WHERE (telefone IS NOT NULL AND telefone NOT LIKE 'ENC:%')
+                OR (email IS NOT NULL AND email NOT LIKE 'ENC:%')
+                OR (endereco IS NOT NULL AND endereco NOT LIKE 'ENC:%')",
+        )?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?;
+        rows.collect::<Result<Vec<_>, _>>()?
+    };
+    for (id, tel, em, end) in legados {
+        let tc = tel.as_deref().and_then(|t| mikella_infra_crypto::cifrar_pii(t, chave_loja, "telefone").ok());
+        let ec = em.as_deref().and_then(|e| mikella_infra_crypto::cifrar_pii(e, chave_loja, "email").ok());
+        let endc = end.as_deref().and_then(|e| mikella_infra_crypto::cifrar_pii(e, chave_loja, "endereco").ok());
+        let _ = conn.execute(
+            "UPDATE pessoas SET
+                telefone = COALESCE(?1, telefone),
+                email = COALESCE(?2, email),
+                endereco = COALESCE(?3, endereco)
+             WHERE id = ?4",
+            params![tc, ec, endc, id],
+        );
+    }
+
+    if atualizados > 0 {
+        tracing::info!(
+            atualizados,
+            "blind index de documentos atualizado a partir do sentinela"
+        );
+    }
+    Ok(atualizados)
+}
+
+#[cfg(test)]
+mod testes_blind_index {
+    use super::*;
+    use crate::Database;
+
+    fn chave() -> [u8; 32] {
+        [7u8; 32]
+    }
+
+    fn inserir_pendente(db: &Database, id: &str, documento: &str) {
+        db.conn()
+            .execute(
+                "INSERT INTO pessoas (id, tipo, nome, documento, documento_blind, ativo)
+                 VALUES (?1, 'CLIENTE', 'Cliente Teste', ?2, ?3, 1)",
+                params![id, documento, format!("PENDENTE_{id}")],
+            )
+            .expect("inserir pessoa de teste");
+    }
+
+    #[test]
+    fn backfill_substitui_sentinela_por_blind_index() {
+        let db = Database::em_memoria().expect("banco em memória");
+        inserir_pendente(&db, "p1", "123.456.789-01");
+
+        let migrados = backfill_blind_index(db.conn(), &chave()).expect("backfill");
+        assert_eq!(migrados, 1);
+
+        let blind: String = db
+            .conn()
+            .query_row(
+                "SELECT documento_blind FROM pessoas WHERE id = 'p1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("ler blind index");
+        assert_eq!(blind, blind_index_documento("12345678901", &chave()));
+    }
+
+    #[test]
+    fn backfill_e_idempotente() {
+        let db = Database::em_memoria().expect("banco em memória");
+        inserir_pendente(&db, "p1", "12345678901");
+
+        assert_eq!(backfill_blind_index(db.conn(), &chave()).expect("1º backfill"), 1);
+        assert_eq!(backfill_blind_index(db.conn(), &chave()).expect("2º backfill"), 0);
+    }
+
+    #[test]
+    fn busca_por_cpf_completo_usa_blind_index() {
+        let db = Database::em_memoria().expect("banco em memória");
+        inserir_pendente(&db, "p1", "12345678901");
+        backfill_blind_index(db.conn(), &chave()).expect("backfill");
+
+        let repo = PessoaRepo::com_chave(db.conn(), &chave());
+        let encontrados = repo
+            .buscar_clientes_com_saldo(Some("12345678901"))
+            .expect("busca por CPF");
+        assert_eq!(encontrados.len(), 1);
+        assert_eq!(encontrados[0].pessoa.id, "p1");
+
+        let nao_encontrados = repo
+            .buscar_clientes_com_saldo(Some("99999999999"))
+            .expect("busca por CPF inexistente");
+        assert!(nao_encontrados.is_empty());
+    }
+
+    #[test]
+    fn criptografia_em_repouso_salva_cifrado_e_le_decifrado() {
+        let db = Database::em_memoria().expect("banco em memória");
+        let repo = PessoaRepo::com_chave(db.conn(), &chave());
+
+        let p = Pessoa::novo_cliente(
+            "p_crip".into(),
+            "Cliente Criptografado".into(),
+            Some("11988887777".into()),
+            Some("teste@cliente.com".into()),
+            Some("52998224725".into()),
+            Some("Rua das Flores, 123".into()),
+            chrono::Utc::now(),
+        )
+        .expect("novo cliente");
+
+        repo.salvar(&p).expect("salvar com chave");
+
+        // 1. Verifica no SQLite cru que os dados NÃO estão em texto claro
+        let (doc_cru, tel_cru, email_cru, end_cru): (String, String, String, String) = db
+            .conn()
+            .query_row(
+                "SELECT documento, telefone, email, endereco FROM pessoas WHERE id = 'p_crip'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .expect("ler linha crua");
+
+        assert!(doc_cru.starts_with("ENC:"));
+        assert!(!doc_cru.contains("52998224725"));
+        assert!(tel_cru.starts_with("ENC:"));
+        assert!(!tel_cru.contains("11988887777"));
+        assert!(email_cru.starts_with("ENC:"));
+        assert!(!email_cru.contains("teste@cliente.com"));
+        assert!(end_cru.starts_with("ENC:"));
+        assert!(!end_cru.contains("Rua das Flores"));
+
+        // 2. Verifica que o repositório lê e decifra transparentemente
+        let lido = repo.buscar_por_id("p_crip").expect("buscar").expect("encontrado");
+        assert_eq!(lido.documento.as_deref(), Some("52998224725"));
+        assert_eq!(lido.telefone.as_deref(), Some("11988887777"));
+        assert_eq!(lido.email.as_deref(), Some("teste@cliente.com"));
+        assert_eq!(lido.endereco.as_deref(), Some("Rua das Flores, 123"));
     }
 }

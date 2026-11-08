@@ -7,7 +7,7 @@ pub mod printer;
 
 pub use error::HardwareError;
 pub use receipt::{
-    ComprovanteFechamentoCaixa, ComprovanteVenda, EscPosGerador, ItemComprovante, LarguraPapel,
-    PagamentoComprovante,
+    formatar_data_no_fuso, ComprovanteEstorno, ComprovanteFechamentoCaixa, ComprovanteVenda,
+    EscPosGerador, ItemComprovante, LarguraPapel, PagamentoComprovante,
 };
 pub use printer::{PrinterPort, MockPrinter, ArquivoPrinter, DispositivoLocalPrinter};

@@ -41,10 +41,36 @@ pub struct ParcelaForm {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ListarContasQuery {
-    #[serde(default = "default_tipo")]
-    pub tipo: TipoConta,
+    #[serde(default)]
+    pub tipo: Option<TipoConta>,
 }
 
-fn default_tipo() -> TipoConta {
-    TipoConta::Pagamento
+/// Query para resumo executivo do dashboard.
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ResumoDashboardQuery {
+    #[serde(default)]
+    pub periodo: Option<String>,
+    #[serde(default)]
+    pub data_inicio: Option<String>,
+    #[serde(default)]
+    pub data_fim: Option<String>,
+}
+
+/// Query para fluxo de caixa por período.
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct FluxoCaixaQuery {
+    #[serde(default)]
+    pub inicio: Option<String>,
+    #[serde(default)]
+    pub fim: Option<String>,
+}
+
+/// Query para DRE simplificada.
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ResultadoDREQuery {
+    #[serde(default)]
+    pub mes: Option<String>,
 }

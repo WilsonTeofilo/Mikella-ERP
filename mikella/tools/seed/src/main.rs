@@ -5,7 +5,9 @@ use rusqlite::Connection;
 use uuid::Uuid;
 
 fn main() {
-    let db = std::env::args().nth(1).unwrap();
+    let db = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "dados/loja.db".to_string());
     let argon2 = Argon2::default();
 
     // Gera salt aleatório usando OsRng (CSPRNG)
@@ -27,8 +29,8 @@ fn main() {
     let store_id = Uuid::new_v4().to_string();
     let usuario_id = Uuid::new_v4().to_string();
     let dispositivo_id = Uuid::new_v4().to_string();
-    let produto_id = Uuid::new_v4().to_string();
-    let lote_id = Uuid::new_v4().to_string();
+    let _produto_id = Uuid::new_v4().to_string();
+    let _lote_id = Uuid::new_v4().to_string();
 
     // Busca usuário existente ou cria novo
     let user_row: Option<(String,)> = conn
@@ -53,6 +55,29 @@ fn main() {
         ).unwrap();
         usuario_id
     };
+
+    // Cria/atualiza também usuário 'admin' com senha 'admin123'
+    let admin_hash = argon2.hash_password(b"admin123", &salt).unwrap().to_string();
+    let admin_row: Option<(String,)> = conn
+        .query_row(
+            "SELECT id FROM usuarios WHERE username = 'admin'",
+            [],
+            |row| Ok((row.get(0)?,)),
+        )
+        .ok();
+    if let Some((uid,)) = admin_row {
+        conn.execute(
+            "UPDATE usuarios SET senha_hash = ?1, ativo = 1 WHERE id = ?2",
+            [&admin_hash, &uid],
+        ).unwrap();
+    } else {
+        let admin_id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO usuarios (id, nome, username, senha_hash, email, papel, ativo) \
+             VALUES (?1, 'Administrador', 'admin', ?2, 'admin@test.local', 'DONO', 1)",
+            [&admin_id, &admin_hash],
+        ).unwrap();
+    }
 
     // Popula instance_identity para simular onboarding concluído
     conn.execute(

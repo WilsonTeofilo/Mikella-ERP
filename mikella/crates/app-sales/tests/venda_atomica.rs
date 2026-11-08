@@ -175,6 +175,7 @@ fn executar_venda(
             estoque: &estoque,
             hash: &hash,
             clock: &clock,
+            contas_receber: None,
         };
 
         finalizar_venda(&repos, cmd)
@@ -216,6 +217,7 @@ fn cmd_venda(
         desconto: Money::ZERO,
         pagamentos,
         politica_estoque: PoliticaEstoque::Bloquear,
+        crediario: None,
     }
 }
 
@@ -451,6 +453,7 @@ fn fechamento_com_falta_persiste_diferenca_e_bloqueia_novas_vendas() {
                 sessao_id: sessao,
                 usuario_id: usuario(U_DONO),
                 saldo_contado: Money::from_centavos(10_890),
+                observacao: None,
             },
         )
         .unwrap()

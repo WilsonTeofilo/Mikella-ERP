@@ -14,7 +14,8 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
+use chrono_tz::Tz;
 
 use mikella_app_finance::contas::{
     listar_contas as listar_contas_uc, liquidar_parcela_pagar as liquidar_pagar_uc,
@@ -23,12 +24,15 @@ use mikella_app_finance::contas::{
     LiquidarParcelaPagarCmd, LiquidarParcelaReceberCmd, RegistrarContaPagarCmd,
     RegistrarContaReceberCmd,
 };
-use mikella_infra_sqlite::{ContaPagarRepo, ContaReceberRepo, ParcelaRepo};
+use mikella_infra_sqlite::{
+    ContaPagarRepo, ContaReceberRepo, DiagnosticoRepo, FinanceiroDashboardRepo, ParcelaRepo,
+};
 use mikella_shared_kernel::ids::{ContaPagarId, ContaReceberId};
 use mikella_shared_kernel::money::Money;
 
 use crate::dto::{
-    ListarContasQuery, ParcelaForm, RegistrarContaPagarForm, RegistrarContaReceberForm,
+    FluxoCaixaQuery, ListarContasQuery, ParcelaForm, RegistrarContaPagarForm,
+    RegistrarContaReceberForm, ResultadoDREQuery, ResumoDashboardQuery,
 };
 use crate::exigir;
 use crate::middleware::Ator;
@@ -363,6 +367,132 @@ fn validar_form(
         resultado.push((Money::from_centavos(p.valor_centavos), vencimento));
     }
     Ok(resultado)
+}
+
+/// Calcula a janela do resumo no fuso IANA da loja.
+///
+/// O `date('now')` do SQLite é UTC: entre 21h e 0h em `America/Sao_Paulo` ele
+/// apontaria para o dia seguinte. Aqui a data é resolvida no fuso da loja e
+/// entregue ao repositório já como `AAAA-MM-DD` (validada, sem interpolação
+/// de entrada crua no SQL).
+fn resolver_janela_resumo(
+    fuso_iana: &str,
+    periodo: &str,
+    data_inicio: Option<&str>,
+    data_fim: Option<&str>,
+) -> Result<(String, String), (StatusCode, Json<serde_json::Value>)> {
+    fn validar(data: &str) -> Result<NaiveDate, (StatusCode, Json<serde_json::Value>)> {
+        NaiveDate::parse_from_str(data.trim(), "%Y-%m-%d")
+            .map_err(|_| bad_request("data inválida (use AAAA-MM-DD)"))
+    }
+
+    if let Some(ini) = data_inicio.map(str::trim).filter(|d| !d.is_empty()) {
+        let ini = validar(ini)?;
+        let fim = match data_fim.map(str::trim).filter(|d| !d.is_empty()) {
+            Some(fim) => validar(fim)?,
+            None => ini,
+        };
+        if fim < ini {
+            return Err(bad_request("data final anterior à inicial"));
+        }
+        return Ok((ini.to_string(), fim.to_string()));
+    }
+
+    let tz: Tz = fuso_iana.parse().unwrap_or(chrono_tz::America::Sao_Paulo);
+    let hoje = Utc::now().with_timezone(&tz).date_naive();
+    let (inicio, fim) = match periodo {
+        "semana" => (hoje - chrono::Duration::days(6), hoje),
+        "mes" => (
+            NaiveDate::from_ymd_opt(hoje.year(), hoje.month(), 1).unwrap_or(hoje),
+            hoje,
+        ),
+        _ => (hoje, hoje),
+    };
+    Ok((inicio.to_string(), fim.to_string()))
+}
+
+/// `GET /v1/finance/resumo?periodo=hoje|semana|mes`
+pub async fn obter_resumo_dashboard_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    Query(query): Query<ResumoDashboardQuery>,
+) -> impl IntoResponse {
+    exigir!(ator, "financeiro.ver");
+    let periodo = query.periodo.as_deref().unwrap_or("hoje");
+    tracing::debug!(operador = %ator.0.username, periodo, "obtendo resumo financeiro do dashboard");
+
+    let db = state.db.lock().await;
+    let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
+    let (data_inicio, data_fim) = match resolver_janela_resumo(
+        &fuso,
+        periodo,
+        query.data_inicio.as_deref(),
+        query.data_fim.as_deref(),
+    ) {
+        Ok(janela) => janela,
+        Err(resposta) => return resposta,
+    };
+
+    let repo = FinanceiroDashboardRepo::novo(db.conn());
+
+    match repo.obter_resumo(periodo, Some(&data_inicio), Some(&data_fim), &fuso) {
+        Ok(resumo) => (
+            StatusCode::OK,
+            Json(serde_json::to_value(resumo).unwrap_or_default()),
+        ),
+        Err(e) => {
+            tracing::error!(erro = %e, "erro ao obter resumo financeiro");
+            erro_interno()
+        }
+    }
+}
+
+/// `GET /v1/finance/fluxo-caixa?inicio=...&fim=...`
+pub async fn obter_fluxo_caixa_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    Query(query): Query<FluxoCaixaQuery>,
+) -> impl IntoResponse {
+    exigir!(ator, "financeiro.ver");
+    tracing::debug!(operador = %ator.0.username, "obtendo extrato de fluxo de caixa");
+
+    let db = state.db.lock().await;
+    let repo = FinanceiroDashboardRepo::novo(db.conn());
+
+    match repo.obter_fluxo_caixa(query.inicio.as_deref(), query.fim.as_deref()) {
+        Ok(fluxo) => (
+            StatusCode::OK,
+            Json(serde_json::to_value(fluxo).unwrap_or_default()),
+        ),
+        Err(e) => {
+            tracing::error!(erro = %e, "erro ao obter fluxo de caixa");
+            erro_interno()
+        }
+    }
+}
+
+/// `GET /v1/finance/resultado?mes=AAAA-MM`
+pub async fn obter_resultado_dre_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    Query(query): Query<ResultadoDREQuery>,
+) -> impl IntoResponse {
+    exigir!(ator, "financeiro.ver");
+    tracing::debug!(operador = %ator.0.username, mes = ?query.mes, "obtendo DRE simplificada");
+
+    let db = state.db.lock().await;
+    let repo = FinanceiroDashboardRepo::novo(db.conn());
+
+    match repo.obter_resultado_dre(query.mes.as_deref()) {
+        Ok(dre) => (
+            StatusCode::OK,
+            Json(serde_json::to_value(dre).unwrap_or_default()),
+        ),
+        Err(e) => {
+            tracing::error!(erro = %e, "erro ao obter DRE simplificada");
+            erro_interno()
+        }
+    }
 }
 
 fn erro_interno() -> (StatusCode, Json<serde_json::Value>) {

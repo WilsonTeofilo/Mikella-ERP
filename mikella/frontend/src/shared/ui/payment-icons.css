@@ -1,0 +1,103 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Grade de formas de pagamento — PDV
+   Cada SVG já traz fill/stroke próprios (payment-icons.js). O CSS abaixo não
+   deve sobrescrever cores: apenas dimensiona e mantém o traço legível.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.grade-pagamentos-icones {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--espaco-2, 8px);
+  margin-bottom: var(--espaco-3, 12px);
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .grade-pagamentos-icones {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card-forma-pagamento {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 96px;
+  padding: 10px 6px;
+  background: #ffffff;
+  color: #000000;
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0 #000000;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform 60ms ease,
+    box-shadow 60ms ease,
+    background 60ms ease;
+}
+
+.card-forma-pagamento:hover {
+  background: #fffff0;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #000000;
+}
+
+.card-forma-pagamento:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #000000;
+}
+
+.card-forma-pagamento:focus-visible {
+  outline: 3px solid #0040d8;
+  outline-offset: 2px;
+}
+
+.card-forma-pagamento.selecionado {
+  background: var(--amarelo, #ffd21f);
+}
+
+.card-forma-pagamento .badge-atalho {
+  align-self: flex-start;
+  padding: 2px 6px;
+  background: #000000;
+  color: #ffffff;
+  font-family: var(--fonte-display, "Archivo", sans-serif);
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.card-forma-pagamento .icone-svg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+/* Rede de segurança: formas sem fill declarado não devem virar manchas pretas. */
+.card-forma-pagamento .icone-svg svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+}
+
+.card-forma-pagamento .rotulo-forma {
+  font-family: var(--fonte-display, "Archivo", sans-serif);
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-forma-pagamento {
+    transition: none;
+  }
+}

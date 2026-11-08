@@ -27,3 +27,59 @@ pub trait UsuarioRepository {
     /// Lista todos os usuários (ativos e inativos).
     fn listar_todos(&self) -> DomainResult<Vec<Usuario>>;
 }
+
+/// DTO de cliente com resumo financeiro para consultas operacionais.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ClienteResumo {
+    pub pessoa: crate::Pessoa,
+    pub saldo_devedor_centavos: i64,
+    pub tem_vencido: bool,
+}
+
+/// DTO de parcela pendente no crediário.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ParcelaDevedor {
+    pub parcela_id: String,
+    pub numero: u32,
+    pub valor_centavos: i64,
+    pub vencimento: String,
+    pub dias_atraso: i64,
+}
+
+/// DTO de devedor listado em ordem alfabética.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DevedorItem {
+    pub cliente_id: String,
+    pub nome: String,
+    pub documento: Option<String>,
+    pub telefone: Option<String>,
+    pub total_devido_centavos: i64,
+    pub parcelas: Vec<ParcelaDevedor>,
+}
+
+/// Repositório de pessoas (clientes, fornecedores, transportadoras).
+pub trait PessoaRepository {
+    /// Salva uma nova pessoa no banco.
+    fn salvar(&self, pessoa: &crate::Pessoa) -> DomainResult<()>;
+
+    /// Atualiza dados de uma pessoa existente.
+    fn atualizar(&self, pessoa: &crate::Pessoa) -> DomainResult<()>;
+
+    /// Busca pessoa por ID.
+    fn buscar_por_id(&self, id: &str) -> DomainResult<Option<crate::Pessoa>>;
+
+    /// `true` quando já existe outro cliente com o telefone informado.
+    fn telefone_em_uso(&self, telefone: &str, ignorar_id: Option<&str>) -> DomainResult<bool>;
+
+    /// `true` quando já existe outro cliente com o CPF/CNPJ informado.
+    fn documento_em_uso(&self, documento: &str, ignorar_id: Option<&str>) -> DomainResult<bool>;
+
+    /// Busca clientes por termo (nome, telefone ou documento) com saldo devedor calculado.
+    fn buscar_clientes_com_saldo(&self, busca: Option<&str>) -> DomainResult<Vec<ClienteResumo>>;
+
+    /// Lista todos os devedores em ordem alfabética com parcelas pendentes.
+    fn listar_devedores(&self) -> DomainResult<Vec<DevedorItem>>;
+
+    /// Liquida uma parcela de crediário.
+    fn liquidar_parcela(&self, parcela_id: &str, meio_pagamento: &str) -> DomainResult<i64>;
+}

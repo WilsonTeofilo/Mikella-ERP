@@ -9,7 +9,10 @@
 //! - Usuário inativo (desativado) não pode autenticar.
 //! - PIN é opcional — usado para operações de aprovação no balcão (FRD-050).
 
+pub mod pessoa;
 pub mod ports;
+
+pub use pessoa::{Pessoa, TipoPessoa};
 
 use chrono::{DateTime, Utc};
 use mikella_shared_kernel::{
@@ -132,11 +135,14 @@ impl Papel {
                 "venda.ver",
                 "venda.criar",
                 "venda.cancelar",
+                "venda.sangria",
                 "produto.ver",
                 "produto.atualizar",
                 "caixa.ver",
                 "caixa.abrir",
                 "caixa.fechar",
+                "financeiro.ver",
+                "financeiro.gerenciar",
             ],
             Papel::Estoquista => &[
                 "estoque.entrada",
@@ -208,8 +214,17 @@ impl Papel {
 ///
 /// O PIN é opcional — é usado para aprovação de operações sensíveis no balcão
 /// (FRD-050: cancelamento, estorno, sangria, ajuste de estoque, fechamento).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// Não implementa `Serialize`/`Deserialize` de propósito: credencial não vira
+/// JSON nem por acidente. `Debug` mascara o conteúdo (SEG-007).
+#[derive(Clone)]
 pub struct PinHash(pub String);
+
+impl std::fmt::Debug for PinHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("PinHash(<redacted>)")
+    }
+}
 
 /// Entidade Usuario do domínio.
 ///
@@ -219,7 +234,10 @@ pub struct PinHash(pub String);
 /// - Email é opcional (usado para 2FA e notificações — REC-002).
 /// - Papel determina capacidades iniciais.
 /// - Capacidades extras podem ser adicionadas individualmente.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// `senha_hash` e `pin_hash` **não** são serializáveis nem aparecem em `Debug`
+/// (SEG-007). A resposta HTTP é montada campo a campo em `usuario_para_response`.
+#[derive(Clone)]
 pub struct Usuario {
     pub id: UsuarioId,
     pub nome: String,
@@ -232,6 +250,24 @@ pub struct Usuario {
     pub ativo: bool,
     pub criado_em: DateTime<Utc>,
     pub atualizado_em: DateTime<Utc>,
+}
+
+impl std::fmt::Debug for Usuario {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Usuario")
+            .field("id", &self.id)
+            .field("nome", &self.nome)
+            .field("username", &self.username)
+            .field("email", &self.email)
+            .field("senha_hash", &"<redacted>")
+            .field("papel", &self.papel)
+            .field("pin_hash", &self.pin_hash.as_ref().map(|_| "<redacted>"))
+            .field("capacidades_extras", &self.capacidades_extras)
+            .field("ativo", &self.ativo)
+            .field("criado_em", &self.criado_em)
+            .field("atualizado_em", &self.atualizado_em)
+            .finish()
+    }
 }
 
 impl Usuario {

@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "mikella-main",
+  "description": "Permissões mínimas da janela principal (SEG-060): controles de janela e tela cheia.",
+  "windows": ["main"],
+  "permissions": [
+    "core:window:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-set-fullscreen"
+  ]
+}

@@ -30,6 +30,11 @@ pub trait ContaPagarRepository {
 
     /// Lista planos de contas distintos.
     fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>>;
+
+    /// Cancela parcelas ainda abertas de contas originadas por um documento
+    /// (por exemplo, o cancelamento de uma venda a crediário).
+    /// Para contas a pagar, geralmente não usado mas mantido para consistência.
+    fn cancelar_abertas_por_referencia(&self, referencia_id: &str) -> DomainResult<u32>;
 }
 
 /// Repositório de contas a receber (RF-030).
@@ -39,6 +44,10 @@ pub trait ContaReceberRepository {
     fn buscar_por_id(&self, id: ContaReceberId) -> DomainResult<Option<ContaReceber>>;
     fn buscar_abertas(&self) -> DomainResult<Vec<ContaReceber>>;
     fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>>;
+
+    /// Cancela parcelas ainda abertas de contas originadas por um documento
+    /// (por exemplo, o cancelamento de uma venda a crediário).
+    fn cancelar_abertas_por_referencia(&self, referencia_id: &str) -> DomainResult<u32>;
 }
 
 /// Repositório de parcelas individuais (para buscas rápidas por situação).

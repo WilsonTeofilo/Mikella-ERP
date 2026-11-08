@@ -12,8 +12,9 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CriarProdutoForm {
-    /// UUID v4 gerado pelo cliente ANTES do envio (idempotência parcial).
-    pub produto_id: String,
+    /// UUID v4 gerado pelo cliente ANTES do envio (idempotência parcial) ou omitido para geração no servidor.
+    #[serde(default)]
+    pub produto_id: Option<String>,
     pub nome: String,
     /// Preço de venda em centavos.
     pub preco_centavos: i64,
@@ -32,6 +33,9 @@ pub struct CriarProdutoForm {
     /// Custo médio em centavos (default: 0).
     #[serde(default)]
     pub custo_centavos: i64,
+    /// Quantidade que está entrando inicialmente no estoque (default: 0).
+    #[serde(default)]
+    pub quantidade_inicial: Option<i32>,
     /// Estoque mínimo em unidades (default: 0).
     #[serde(default)]
     pub estoque_minimo: i32,

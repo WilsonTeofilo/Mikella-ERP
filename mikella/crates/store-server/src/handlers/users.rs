@@ -86,10 +86,22 @@ pub async fn criar_usuario_handler(
     };
 
     match criar_usuario(&repos, cmd, &ator.0) {
-        Ok(usuario) => (
-            StatusCode::CREATED,
-            Json(usuario_para_response(&usuario)),
-        ),
+        Ok(usuario) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(db.conn());
+            let _ = audit.registrar(
+                "usuario",
+                &usuario.id.to_string(),
+                "CRIACAO_USUARIO",
+                Some(&ator.id().to_string()),
+                None,
+                None,
+                Some(&format!("username: {}, papel: {:?}", usuario.username, usuario.papel)),
+            );
+            (
+                StatusCode::CREATED,
+                Json(usuario_para_response(&usuario)),
+            )
+        }
         Err(e) => {
             tracing::warn!(erro = %e, "criação de usuário rejeitada pelo domínio");
             error_para_http(e)
@@ -215,6 +227,19 @@ pub async fn atualizar_usuario_handler(
 
     match resultado {
         Ok(usuario) => {
+            {
+                let db = state.db.lock().await;
+                let audit = mikella_infra_sqlite::AuditoriaRepo::novo(db.conn());
+                let _ = audit.registrar(
+                    "usuario",
+                    &usuario.id.to_string(),
+                    "ATUALIZACAO_USUARIO",
+                    Some(&ator.id().to_string()),
+                    None,
+                    None,
+                    Some(&format!("username: {}, papel: {:?}", usuario.username, usuario.papel)),
+                );
+            }
             if revogar {
                 revogar_sessoes(&state, &usuario.username).await;
             }
@@ -255,6 +280,19 @@ pub async fn desativar_usuario_handler(
 
     match resultado {
         Ok(()) => {
+            {
+                let db = state.db.lock().await;
+                let audit = mikella_infra_sqlite::AuditoriaRepo::novo(db.conn());
+                let _ = audit.registrar(
+                    "usuario",
+                    &id_str,
+                    "DESATIVACAO_USUARIO",
+                    Some(&ator.id().to_string()),
+                    None,
+                    None,
+                    None,
+                );
+            }
             if let Some(username) = username_por_id(&state, usuario_id).await {
                 revogar_sessoes(&state, &username).await;
             }
@@ -373,13 +411,13 @@ fn usuario_para_response(usuario: &Usuario) -> serde_json::Value {
 
 async fn username_por_id(state: &AppState, id: UsuarioId) -> Option<String> {
     let db = state.db.lock().await;
-    db.conn()
-        .query_row(
-            "SELECT username FROM usuarios WHERE id = ?1",
-            [id.to_string()],
-            |row| row.get::<_, String>(0),
-        )
-        .ok()
+    match UsuarioRepo::novo(db.conn()).username_por_id(id) {
+        Ok(username) => username,
+        Err(e) => {
+            tracing::warn!(erro = %e, usuario_id = %id, "falha ao resolver username do usuário");
+            None
+        }
+    }
 }
 
 async fn revogar_sessoes(state: &AppState, username: &str) {

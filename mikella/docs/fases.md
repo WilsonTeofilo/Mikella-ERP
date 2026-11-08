@@ -30,8 +30,8 @@ Cada fase só termina quando seu gate for **comprovado** (teste ou medição), n
 | MVP | Objetivo | Status | Gate |
 |---|---|---|---|
 | **0** | Domínio, SQLite, livro do caixa, estoque, venda atômica, **modo de 1 computador**, caixa operável, impressão de comprovante | ✅ | Testes de queda de energia em HDD |
-| **MVP-1** | MVP-0 + **API local (store-server)**, onboarding, login (Argon2id), 2FA, caixa (abrir/fechar/status), vendas, livro-caixa, donation prompt, **gerenciamento de usuários** (POST/GET/PUT /v1/usuarios, **POST /v1/usuarios/:id/capacidades**, **PUT /v1/usuarios/:id/senha**), **desktop-shell Tauri 2** (`mikella.exe` compilado e linkado nativamente), **impressão ESC/POS**, **backup local** e **diagnóstico** | ✅ | 172 testes passando, clippy 0 warnings, binários gerados |
-| **Piloto** | Homologação em 3 lojas reais por 30 dias (hardware real, sem dependência de nuvem) | 🔄 Em Preparação | 30 dias sem divergência de caixa e tolerância comprovada a desligamento |
+| **MVP-1** | MVP-0 + **API local (store-server)**, onboarding, login (Argon2id), 2FA, caixa (abrir/fechar/status/sangria), vendas (pagamento multi-método, cancelamento), livro-caixa, **clientes e crediário** (cadastro, busca, liquidação), **menu intermediário do PDV (F1-F8)**, **gerenciamento de usuários** (hierarquia e catálogo fechado), **desktop-shell Tauri 2** (`mikella.exe` nativo), **impressão ESC/POS**, **backup local** e **diagnóstico** | ✅ | 172+ testes passando, clippy 0 warnings, Clean Architecture validada |
+| **Piloto** | Homologação em 3 lojas reais por 30 dias (hardware real, sem dependência de nuvem, periféricos USB) | 🔄 Em Preparação (Próxima Etapa) | 30 dias sem divergência de caixa e tolerância comprovada a desligamento |
 | **2** | Servidor da loja: TLS local, pareamento de PCs, concorrência de caixas (3-8) | 🔒 Bloqueada por Piloto | 3-8 caixas simultâneos sem corrupção |
 | **3** | Conta na nuvem, portal, 2FA provider real, landing | 🔒 Adiada | Restauração em máquina limpa |
 | **4** | Licença, entitlements, cotas em cadeia, janela de histórico, sessão única, limite de dispositivos | 🔒 Bloqueada por P6/P10/P2/P4/N1/N3/N4 | Testes de bypass |

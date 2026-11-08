@@ -4,7 +4,7 @@
 //! (`app_cash::abrir_caixa` / `app_cash::fechar_caixa`).
 //! `operador_id` é sempre derivado do usuário autenticado — nunca do cliente.
 
-use axum::extract::{Form, State};
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -16,7 +16,7 @@ use mikella_shared_kernel::clock::SystemClock;
 use mikella_shared_kernel::ids::{DispositivoId, SessaoId};
 use mikella_shared_kernel::money::Money;
 
-use crate::dto::{AbrirCaixaForm, FecharCaixaForm};
+use crate::dto::{AbrirCaixaForm, FecharCaixaForm, SangriaForm};
 use crate::exigir;
 use crate::middleware::Ator;
 use crate::state::AppState;
@@ -45,19 +45,32 @@ pub async fn caixa_status(State(state): State<AppState>, ator: Ator) -> impl Int
     };
 
     match abertas.first() {
-        Some(sessao) => (
-            StatusCode::OK,
-            Json(serde_json::json!({
-                "aberta": true,
-                "sessao_id": sessao.id.to_string(),
-                "numero_caixa": sessao.numero_caixa,
-                "saldo_esperado_centavos": sessao.saldo_esperado_centavos.centavos(),
-                "saldo_esperado": sessao.saldo_esperado_centavos.to_string(),
-                "estado": sessao.estado.as_str(),
-                "aberta_em": sessao.aberta_em.to_rfc3339(),
-                "operador_id": sessao.operador_id.to_string(),
-            })),
-        ),
+        Some(sessao) => {
+            let saldo_oculto = sessao.fechamento_cego && ator.papel().nivel() < 2;
+            let (saldo_centavos, saldo_display) = if saldo_oculto {
+                (0, "Oculto (Fechamento Cego)".to_string())
+            } else {
+                (
+                    sessao.saldo_esperado_centavos.centavos(),
+                    sessao.saldo_esperado_centavos.to_string(),
+                )
+            };
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "aberta": true,
+                    "sessao_id": sessao.id.to_string(),
+                    "numero_caixa": sessao.numero_caixa,
+                    "saldo_esperado_centavos": saldo_centavos,
+                    "saldo_esperado": saldo_display,
+                    "fechamento_cego": sessao.fechamento_cego,
+                    "saldo_oculto": saldo_oculto,
+                    "estado": sessao.estado.as_str(),
+                    "aberta_em": sessao.aberta_em.to_rfc3339(),
+                    "operador_id": sessao.operador_id.to_string(),
+                })),
+            )
+        }
         None => (
             StatusCode::OK,
             Json(serde_json::json!({
@@ -78,13 +91,27 @@ pub async fn caixa_status(State(state): State<AppState>, ator: Ator) -> impl Int
 ///
 /// Usa `app_cash::abrir_caixa` com repositórios SQLite dentro de uma transação.
 /// Idempotente: reenviar o mesmo `sessao_id` devolve a sessão existente.
+/// Se já houver uma sessão aberta para o caixa, devolve a sessão existente com sucesso.
 #[allow(clippy::too_many_lines)]
 pub async fn abrir_caixa_handler(
     State(state): State<AppState>,
     ator: Ator,
-    Form(form): Form<AbrirCaixaForm>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
     exigir!(ator, "caixa.abrir");
+
+    let bytes = match axum::body::to_bytes(req.into_body(), 64 * 1024).await {
+        Ok(b) => b,
+        Err(_) => return bad_request("corpo de requisição inválido"),
+    };
+
+    let form: AbrirCaixaForm = if let Ok(f) = serde_json::from_slice(&bytes) {
+        f
+    } else if let Ok(f) = serde_urlencoded::from_bytes(&bytes) {
+        f
+    } else {
+        return bad_request("formato inválido (esperado JSON ou URL-encoded)");
+    };
 
     let sessao_id: SessaoId = match form.sessao_id.parse() {
         Ok(id) => id,
@@ -125,6 +152,23 @@ pub async fn abrir_caixa_handler(
     };
 
     let sessoes = SessaoRepo::novo(&tx);
+
+    // Se já existir uma sessão aberta para este número de caixa, retorna a sessão existente de forma idempotente
+    if let Ok(abertas) = sessoes.buscar_sessoes_abertas() {
+        if let Some(conflito) = abertas.iter().find(|s| s.numero_caixa == form.numero_caixa) {
+            let _ = tx.rollback();
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "sessao_id": conflito.id.to_string(),
+                    "numero_caixa": conflito.numero_caixa,
+                    "estado": conflito.estado.as_str(),
+                    "saldo_inicial": conflito.saldo_inicial_centavos.to_string(),
+                })),
+            );
+        }
+    }
+
     let livro = LivroRepo::novo(&tx);
     let hash = Blake3HashChain;
     let clock = SystemClock;
@@ -146,6 +190,20 @@ pub async fn abrir_caixa_handler(
 
     match abrir_caixa(&repos, cmd) {
         Ok(sessao) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "sessao_caixa",
+                &sessao.id.to_string(),
+                "ABERTURA_CAIXA",
+                Some(&ator.id().to_string()),
+                Some(&dispositivo_id.to_string()),
+                None,
+                Some(&format!(
+                    "caixa: {}, saldo_inicial: {}",
+                    sessao.numero_caixa, sessao.saldo_inicial_centavos
+                )),
+            );
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -183,15 +241,44 @@ pub async fn abrir_caixa_handler(
 pub async fn fechar_caixa_handler(
     State(state): State<AppState>,
     ator: Ator,
-    Form(form): Form<FecharCaixaForm>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
     exigir!(ator, "caixa.fechar");
+
+    let bytes = match axum::body::to_bytes(req.into_body(), 64 * 1024).await {
+        Ok(b) => b,
+        Err(_) => return bad_request("corpo de requisição inválido"),
+    };
+
+    let form: FecharCaixaForm = if let Ok(f) = serde_json::from_slice(&bytes) {
+        f
+    } else if let Ok(f) = serde_urlencoded::from_bytes(&bytes) {
+        f
+    } else {
+        return bad_request("formato inválido (esperado JSON ou URL-encoded)");
+    };
 
     let sessao_id: SessaoId = match form.sessao_id.parse() {
         Ok(id) => id,
         Err(_) => return bad_request("sessao_id inválido (UUID esperado)"),
     };
     let saldo_contado = Money::from_centavos(form.saldo_contado_centavos);
+    if saldo_contado.is_negative() {
+        return bad_request("saldo contado não pode ser negativo");
+    }
+
+    let observacao = form
+        .observacao
+        .as_deref()
+        .map(str::trim)
+        .filter(|o| !o.is_empty())
+        .map(|o| {
+            if o.chars().count() > 512 {
+                o.chars().take(512).collect::<String>()
+            } else {
+                o.to_string()
+            }
+        });
 
     let operador_id = ator.id();
 
@@ -248,10 +335,25 @@ pub async fn fechar_caixa_handler(
         sessao_id,
         usuario_id: operador_id,
         saldo_contado,
+        observacao,
     };
 
     match fechar_caixa(&repos, cmd) {
         Ok(diferenca) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "sessao_caixa",
+                &sessao_id.to_string(),
+                "FECHAMENTO_CAIXA",
+                Some(&ator.id().to_string()),
+                None,
+                Some(&format!("esperado: {}", diferenca.esperado)),
+                Some(&format!(
+                    "contado: {}, diferenca: {}",
+                    diferenca.contado, diferenca.diferenca
+                )),
+            );
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -270,6 +372,147 @@ pub async fn fechar_caixa_handler(
                     "contado": diferenca.contado.to_string(),
                     "diferenca": diferenca.diferenca.to_string(),
                     "tem_diferenca": diferenca.tem_diferenca(),
+                })),
+            )
+        }
+        Err(e) => {
+            let _ = tx.rollback();
+            error_para_http(e)
+        }
+    }
+}
+
+/// `POST /v1/caixa/sangria` — realiza retirada de dinheiro da gaveta com lançamento criptográfico.
+pub async fn realizar_sangria_handler(
+    State(state): State<AppState>,
+    ator: Ator,
+    req: axum::extract::Request,
+) -> impl IntoResponse {
+    exigir!(ator, "venda.sangria");
+
+    let bytes = match axum::body::to_bytes(req.into_body(), 64 * 1024).await {
+        Ok(b) => b,
+        Err(_) => return bad_request("corpo de requisição inválido"),
+    };
+
+    let form: SangriaForm = if let Ok(f) = serde_json::from_slice(&bytes) {
+        f
+    } else if let Ok(f) = serde_urlencoded::from_bytes(&bytes) {
+        f
+    } else {
+        return bad_request("formato inválido (esperado JSON ou URL-encoded)");
+    };
+
+    let sessao_id: SessaoId = match form.sessao_id.parse() {
+        Ok(id) => id,
+        Err(_) => return bad_request("sessao_id inválido (UUID esperado)"),
+    };
+
+    if form.valor_centavos <= 0 {
+        return bad_request("Valor da sangria deve ser maior que zero");
+    }
+
+    let operador_id = ator.id();
+    let motivo = form
+        .motivo
+        .clone()
+        .unwrap_or_else(|| "Sangria de caixa".to_string());
+    let motivo_truncado: String = motivo.trim().chars().take(256).collect();
+
+    // SEC-006: sangria exige aprovador real e diferente do operador.
+    let aprovacao =
+        match crate::util::exigir_aprovador(&state, &ator, form.credenciais_aprovador(), "sangria")
+            .await
+        {
+            Ok(a) => a,
+            Err(resposta) => return resposta,
+        };
+
+    let mut db = state.db.lock().await;
+    let tx = match db.transacao() {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!(erro = %e, "falha ao abrir transação de sangria");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "erro": "falha de banco" })),
+            );
+        }
+    };
+
+    use mikella_app_cash::caixa::registrar_sangria;
+
+    let sessoes = SessaoRepo::novo(&tx);
+    let livro = LivroRepo::novo(&tx);
+
+    // SEC-006: operador só movimenta o caixa em que é o operador da sessão.
+    if ator.papel().nivel() < 2 {
+        use mikella_domain_cash::ports::SessaoRepository as _;
+        match sessoes.buscar_por_id(sessao_id) {
+            Ok(Some(sessao)) if sessao.operador_id == operador_id => {}
+            Ok(_) => {
+                let _ = tx.rollback();
+                return crate::middleware::proibido(
+                    "operador só pode fazer sangria no próprio caixa",
+                );
+            }
+            Err(e) => {
+                let _ = tx.rollback();
+                tracing::error!(erro = %e, "falha ao validar sessão da sangria");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha de banco" })),
+                );
+            }
+        }
+    }
+
+    let hash = Blake3HashChain;
+    let clock = SystemClock;
+    let repos = CaixaRepos {
+        sessoes: &sessoes,
+        livro: &livro,
+        hash: &hash,
+        clock: &clock,
+    };
+
+    match registrar_sangria(
+        &repos,
+        sessao_id,
+        Money::from_centavos(form.valor_centavos),
+        operador_id,
+        aprovacao.id,
+        motivo_truncado.clone(),
+    ) {
+        Ok(()) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "sangria",
+                &sessao_id.to_string(),
+                "SANGRIA",
+                Some(&operador_id.to_string()),
+                None,
+                None,
+                Some(&format!(
+                    "valor_centavos: {}, motivo: {}, aprovador: {}",
+                    form.valor_centavos, motivo_truncado, aprovacao.id
+                )),
+            );
+
+            if tx.commit().is_err() {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "Erro ao confirmar sangria" })),
+                );
+            }
+
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "sucesso": true,
+                    "mensagem": "Sangria realizada com sucesso!",
+                    "valor": Money::from_centavos(form.valor_centavos).to_string(),
+                    "motivo": motivo_truncado,
                 })),
             )
         }

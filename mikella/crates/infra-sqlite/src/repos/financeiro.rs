@@ -150,14 +150,15 @@ impl ContaPagarRepository for ContaPagarRepo<'_> {
             )
             .map_err(err)?;
 
-        for p in &conta.parcelas {
+        for (indice, p) in conta.parcelas.iter().enumerate() {
             self.conn
                 .execute(
-                    "INSERT INTO parcelas (id, conta_id, conta_tipo, valor_centavos, vencimento, pago_em, status)
-                     VALUES (?1, ?2, 'PAGAMENTO', ?3, ?4, ?5, ?6)",
+                    "INSERT INTO parcelas (id, conta_id, conta_tipo, numero, valor_centavos, vencimento, pago_em, status)
+                     VALUES (?1, ?2, 'PAGAMENTO', ?3, ?4, ?5, ?6, ?7)",
                     params![
                         p.id.to_string(),
                         conta.id.to_string(),
+                        (indice + 1) as i64,
                         p.valor.centavos(),
                         p.vencimento.to_rfc3339(),
                         p.pago_em.as_ref().map(|d| d.to_rfc3339()),
@@ -259,6 +260,11 @@ impl ContaPagarRepository for ContaPagarRepo<'_> {
         }
         Ok(v)
     }
+
+    fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> {
+        // Para contas a pagar, não temos referência a venda, então retornamos 0
+        Ok(0)
+    }
 }
 
 // --- ContaReceberRepo ---
@@ -291,6 +297,9 @@ impl<'a> ContaReceberRepo<'a> {
         let plano_nome: String = row.get(3).map_err(err)?;
         let uid_s: String = row.get(4).map_err(err)?;
         let created_s: String = row.get(5).map_err(err)?;
+        let pessoa_id: Option<String> = row.get(6).map_err(err)?;
+        let referencia_id: Option<String> = row.get(7).map_err(err)?;
+        let referencia_tipo: Option<String> = row.get(8).map_err(err)?;
 
         Ok(ContaReceber {
             id: parse_id::<ContaReceberId>(&id_s, "conta_receber.id")?,
@@ -302,6 +311,9 @@ impl<'a> ContaReceberRepo<'a> {
             parcelas: self.carregar_parcelas(&id_s)?,
             criada_em: parse_data(&created_s)?,
             criada_por: parse_id::<UsuarioId>(&uid_s, "conta_receber.usuario_id")?,
+            pessoa_id,
+            referencia_id,
+            referencia_tipo,
         })
     }
 }
@@ -312,25 +324,31 @@ impl ContaReceberRepository for ContaReceberRepo<'_> {
 
         self.conn
             .execute(
-                "INSERT INTO contas_receber (id, descricao, plano_codigo, plano_tipo, usuario_id)
-                 VALUES (?1, ?2, ?3, 'RECEBIMENTO', ?4)",
+                "INSERT INTO contas_receber
+                     (id, descricao, plano_codigo, plano_tipo, usuario_id,
+                      pessoa_id, referencia_id, referencia_tipo)
+                 VALUES (?1, ?2, ?3, 'RECEBIMENTO', ?4, ?5, ?6, ?7)",
                 params![
                     conta.id.to_string(),
                     &conta.descricao,
                     &conta.plano_conta.codigo,
                     conta.criada_por.to_string(),
+                    &conta.pessoa_id,
+                    &conta.referencia_id,
+                    &conta.referencia_tipo,
                 ],
             )
             .map_err(err)?;
 
-        for p in &conta.parcelas {
+        for (indice, p) in conta.parcelas.iter().enumerate() {
             self.conn
                 .execute(
-                    "INSERT INTO parcelas (id, conta_id, conta_tipo, valor_centavos, vencimento, pago_em, status)
-                     VALUES (?1, ?2, 'RECEBIMENTO', ?3, ?4, ?5, ?6)",
+                    "INSERT INTO parcelas (id, conta_id, conta_tipo, numero, valor_centavos, vencimento, pago_em, status)
+                     VALUES (?1, ?2, 'RECEBIMENTO', ?3, ?4, ?5, ?6, ?7)",
                     params![
                         p.id.to_string(),
                         conta.id.to_string(),
+                        (indice + 1) as i64,
                         p.valor.centavos(),
                         p.vencimento.to_rfc3339(),
                         p.pago_em.as_ref().map(|d| d.to_rfc3339()),
@@ -389,7 +407,8 @@ impl ContaReceberRepository for ContaReceberRepo<'_> {
     }
 
     fn buscar_por_id(&self, id: ContaReceberId) -> DomainResult<Option<ContaReceber>> {
-        let q = "SELECT c.id, c.descricao, c.plano_codigo, p.nome, c.usuario_id, c.created_at
+        let q = "SELECT c.id, c.descricao, c.plano_codigo, p.nome, c.usuario_id, c.created_at,
+                        c.pessoa_id, c.referencia_id, c.referencia_tipo
                  FROM contas_receber c
                  JOIN planos_conta p ON p.codigo = c.plano_codigo AND p.tipo = 'RECEBIMENTO'
                  WHERE c.id = ?1";
@@ -402,7 +421,8 @@ impl ContaReceberRepository for ContaReceberRepo<'_> {
     }
 
     fn buscar_abertas(&self) -> DomainResult<Vec<ContaReceber>> {
-        let q = "SELECT c.id, c.descricao, c.plano_codigo, p.nome, c.usuario_id, c.created_at
+        let q = "SELECT c.id, c.descricao, c.plano_codigo, p.nome, c.usuario_id, c.created_at,
+                        c.pessoa_id, c.referencia_id, c.referencia_tipo
                  FROM contas_receber c
                  JOIN planos_conta p ON p.codigo = c.plano_codigo AND p.tipo = 'RECEBIMENTO'
                  WHERE EXISTS (
@@ -431,6 +451,25 @@ impl ContaReceberRepository for ContaReceberRepo<'_> {
             });
         }
         Ok(v)
+    }
+
+    fn cancelar_abertas_por_referencia(&self, referencia_id: &str) -> DomainResult<u32> {
+        let alteradas = self
+            .conn
+            .execute(
+                "UPDATE parcelas
+                 SET status = 'CANCELADA',
+                     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+                 WHERE status = 'ABERTA'
+                   AND conta_tipo = 'RECEBIMENTO'
+                   AND conta_id IN (
+                       SELECT id FROM contas_receber
+                       WHERE referencia_id = ?1 AND referencia_tipo = 'VENDA'
+                   )",
+                params![referencia_id],
+            )
+            .map_err(err)?;
+        Ok(u32::try_from(alteradas).unwrap_or(0))
     }
 }
 

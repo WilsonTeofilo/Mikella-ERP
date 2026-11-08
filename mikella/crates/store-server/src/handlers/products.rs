@@ -16,14 +16,13 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use rusqlite::Row;
 
 use mikella_app_inventory::produto::{
     arquivar_produto, atualizar_produto, criar_produto, AtualizarProdutoCmd, CriarProdutoCmd,
     ProdutoRepos,
 };
 use mikella_domain_inventory::produto::Unidade;
-use mikella_infra_sqlite::ProdutoRepo;
+use mikella_infra_sqlite::{ProdutoRepo, ProdutoView};
 use mikella_shared_kernel::ids::{CategoriaId, ProdutoId};
 use mikella_shared_kernel::money::Money;
 
@@ -33,37 +32,16 @@ use crate::middleware::Ator;
 use crate::state::AppState;
 use crate::util::{bad_request, error_para_http};
 
-/// SQL de seleção de produto (reusado por handlers).
-pub(crate) const SQL_PRODUTO_POR_ID: &str = "\
-SELECT p.id, p.codigo_barras, p.sku, p.nome, p.categoria_id, p.unidade,
-       p.preco_centavos, p.custo_centavos, p.estoque_minimo,
-       p.perecivel, p.alerta_validade_dias, p.arquivado, p.arquivado_em,
-       COALESCE(s.saldo_atual, 0), p.created_at, p.updated_at
-FROM produtos p
-LEFT JOIN vw_estoque_atual s ON s.produto_id = p.id";
+/// Converte a linha crua do read model em DTO de apresentação.
+pub(crate) fn view_para_response(view: ProdutoView) -> Result<ProdutoResponse, String> {
+    let estoque_minimo = i32::try_from(view.estoque_minimo)
+        .map_err(|_| "estoque_minimo fora do intervalo suportado".to_string())?;
+    let alerta_validade_dias = u32::try_from(view.alerta_validade_dias)
+        .map_err(|_| "alerta_validade_dias fora do intervalo suportado".to_string())?;
+    let estoque_atual = i32::try_from(view.saldo_atual)
+        .map_err(|_| "saldo de estoque fora do intervalo suportado".to_string())?;
 
-/// Handler auxiliar: converte uma row SQL em ProdutoResponse.
-///
-/// Os índices de coluna são baseados em `SQL_PRODUTO_POR_ID`.
-pub(crate) fn row_para_produto_response(row: &Row) -> rusqlite::Result<ProdutoResponse> {
-    let id: String = row.get(0)?;
-    let codigo_barras: Option<String> = row.get(1)?;
-    let sku: Option<String> = row.get(2)?;
-    let nome: String = row.get(3)?;
-    let categoria_id: Option<String> = row.get(4)?;
-    let unidade_str: String = row.get(5)?;
-    let preco_centavos: i64 = row.get(6)?;
-    let custo_centavos: i64 = row.get(7)?;
-    let estoque_minimo: i64 = row.get(8)?;
-    let perecivel: i32 = row.get(9)?;
-    let alerta_validade_dias: i64 = row.get(10)?;
-    let arquivado: i32 = row.get(11)?;
-    let arquivado_em: Option<String> = row.get(12)?;
-    let saldo_atual: i64 = row.get(13)?;
-    let created_at: String = row.get(14)?;
-    let updated_at: String = row.get(15)?;
-
-    let unidade = match unidade_str.as_str() {
+    let unidade = match view.unidade.as_str() {
         "UN" => Unidade::Un,
         "KG" => Unidade::Kg,
         "L" => Unidade::L,
@@ -73,56 +51,29 @@ pub(crate) fn row_para_produto_response(row: &Row) -> rusqlite::Result<ProdutoRe
     };
 
     Ok(ProdutoResponse {
-        id,
-        codigo_barras,
-        sku,
-        nome,
-        categoria_id,
+        id: view.id,
+        codigo_barras: view.codigo_barras,
+        sku: view.sku,
+        nome: view.nome,
+        categoria_id: view.categoria_id,
         unidade: unidade.as_str().to_string(),
-        preco_centavos,
-        preco_display: Money::from_centavos(preco_centavos).to_string(),
-        custo_centavos,
-        estoque_minimo: i32::try_from(estoque_minimo)
-            .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(8, estoque_minimo))?,
-        perecivel: perecivel != 0,
-        alerta_validade_dias: u32::try_from(alerta_validade_dias)
-            .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(10, alerta_validade_dias))?,
-        arquivado: arquivado != 0,
-        arquivado_em,
-        estoque_atual: i32::try_from(saldo_atual)
-            .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(13, saldo_atual))?,
-        created_at,
-        updated_at,
+        preco_centavos: view.preco_centavos,
+        preco_display: Money::from_centavos(view.preco_centavos).to_string(),
+        custo_centavos: view.custo_centavos,
+        estoque_minimo,
+        perecivel: view.perecivel,
+        alerta_validade_dias,
+        arquivado: view.arquivado,
+        arquivado_em: view.arquivado_em,
+        estoque_atual,
+        created_at: view.created_at,
+        updated_at: view.updated_at,
     })
 }
 
 /// Converte ProdutoResponse em JSON `Value` para arms de match mistos.
 pub(crate) fn produto_para_json(produto: &ProdutoResponse) -> serde_json::Value {
     serde_json::to_value(produto).unwrap_or_else(|_| serde_json::json!({}))
-}
-
-/// Busca um produto pelo ID, retornando a response completa.
-fn buscar_produto_response(
-    conn: &rusqlite::Connection,
-    id: &str,
-) -> rusqlite::Result<ProdutoResponse> {
-    conn.query_row(
-        &format!("{} WHERE p.id = ?1", SQL_PRODUTO_POR_ID),
-        [id],
-        row_para_produto_response,
-    )
-}
-
-/// Busca produto pelo ID em transação (para usar dentro de tx).
-fn buscar_produto_response_tx(
-    tx: &rusqlite::Transaction,
-    id: &str,
-) -> rusqlite::Result<ProdutoResponse> {
-    tx.query_row(
-        &format!("{} WHERE p.id = ?1", SQL_PRODUTO_POR_ID),
-        [id],
-        row_para_produto_response,
-    )
 }
 
 // ─── DTO → Cmd mapping helpers ────────────────────────────────────────────
@@ -171,17 +122,23 @@ pub async fn criar_produto_handler(
     Json(form): Json<CriarProdutoForm>,
 ) -> impl IntoResponse {
     exigir!(ator, "produto.criar");
-    tracing::debug!(usuario = %ator.0.username, produto_id = %form.produto_id, "criando produto");
+    tracing::debug!(usuario = %ator.0.username, produto_id = ?form.produto_id, "criando produto");
 
-    let produto_id: ProdutoId = match form.produto_id.parse() {
-        Ok(id) => id,
-        Err(_) => return bad_request("produto_id inválido (UUID esperado)"),
+    let produto_id: ProdutoId = match form.produto_id.as_deref().filter(|s| !s.trim().is_empty()) {
+        Some(s) => match s.parse() {
+            Ok(id) => id,
+            Err(_) => return bad_request("produto_id inválido (UUID esperado)"),
+        },
+        None => ProdutoId::new(),
     };
 
     let categoria_id = match parse_categoria_id(&form.categoria_id) {
         Ok(opt) => opt,
         Err(e) => return categoria_id_err_para_http(e),
     };
+
+    let custo_centavos = form.custo_centavos;
+    let qtd_inicial = form.quantidade_inicial.unwrap_or(0);
 
     let cmd = CriarProdutoCmd {
         produto_id,
@@ -217,7 +174,37 @@ pub async fn criar_produto_handler(
 
     match criar_produto(&repos, cmd) {
         Ok(produto) => {
-            let produto_response = match buscar_produto_response_tx(&tx, &produto.id.to_string()) {
+            if qtd_inicial > 0 {
+                let mov_id = uuid::Uuid::new_v4().to_string();
+                if let Err(e) = tx.execute(
+                    "INSERT INTO movimentacoes_estoque
+                     (id, produto_id, lote_id, tipo, quantidade, custo_unitario_centavos, referencia_id, referencia_tipo, usuario_id, motivo)
+                     VALUES (?1, ?2, NULL, 'ENTRADA_COMPRA', ?3, ?4, NULL, 'CADASTRO_INICIAL', ?5, 'Estoque inicial no cadastro')",
+                    rusqlite::params![
+                        mov_id,
+                        produto.id.to_string(),
+                        qtd_inicial,
+                        custo_centavos,
+                        ator.id().to_string(),
+                    ],
+                ) {
+                    tracing::error!(erro = %e, "falha ao lançar movimentação de estoque inicial");
+                    let _ = tx.rollback();
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({"erro": "falha ao registrar estoque inicial"})),
+                    );
+                }
+            }
+
+            let produto_response = match produtos_repo
+                .buscar_view(&produto.id.to_string())
+                .map_err(|e| e.to_string())
+                .and_then(|view| {
+                    view.ok_or_else(|| "produto recém-gravado não encontrado".to_string())
+                })
+                .and_then(view_para_response)
+            {
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!(erro = %e, produto_id = %produto.id, "falha ao reler produto");
@@ -228,6 +215,17 @@ pub async fn criar_produto_handler(
                     );
                 }
             };
+
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "produto",
+                &produto.id.to_string(),
+                "CRIACAO_PRODUTO",
+                Some(&ator.id().to_string()),
+                None,
+                None,
+                Some(&format!("nome: {}, preco_centavos: {}", produto.nome, produto.preco_centavos.centavos())),
+            );
 
             if tx.commit().is_err() {
                 return (
@@ -264,11 +262,20 @@ pub async fn buscar_produto_handler(
 
     let db = state.db.lock().await;
 
-    let result = buscar_produto_response(db.conn(), &id_str);
+    let result = ProdutoRepo::novo(db.conn()).buscar_view(&id_str);
 
     match result {
-        Ok(produto) => (StatusCode::OK, Json(produto_para_json(&produto))),
-        Err(rusqlite::Error::QueryReturnedNoRows) => (
+        Ok(Some(view)) => match view_para_response(view) {
+            Ok(produto) => (StatusCode::OK, Json(produto_para_json(&produto))),
+            Err(e) => {
+                tracing::error!(erro = %e, "produto com valores fora do intervalo");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"erro": "falha de banco"})),
+                )
+            }
+        },
+        Ok(None) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"erro": "produto não encontrado"})),
         ),
@@ -340,7 +347,14 @@ pub async fn atualizar_produto_handler(
 
     match atualizar_produto(&repos, cmd) {
         Ok(produto) => {
-            let produto_response = match buscar_produto_response_tx(&tx, &produto.id.to_string()) {
+            let produto_response = match produtos_repo
+                .buscar_view(&produto.id.to_string())
+                .map_err(|e| e.to_string())
+                .and_then(|view| {
+                    view.ok_or_else(|| "produto recém-gravado não encontrado".to_string())
+                })
+                .and_then(view_para_response)
+            {
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!(erro = %e, produto_id = %produto.id, "falha ao reler produto");
@@ -351,6 +365,17 @@ pub async fn atualizar_produto_handler(
                     );
                 }
             };
+
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "produto",
+                &produto.id.to_string(),
+                "ALTERACAO_PRODUTO",
+                Some(&ator.id().to_string()),
+                None,
+                None,
+                Some(&format!("nome: {}, preco_centavos: {}", produto.nome, produto.preco_centavos.centavos())),
+            );
 
             if tx.commit().is_err() {
                 return (
@@ -406,6 +431,17 @@ pub async fn arquivar_produto_handler(
 
     match arquivar_produto(&repos, produto_id) {
         Ok(_) => {
+            let audit = mikella_infra_sqlite::AuditoriaRepo::novo(&tx);
+            let _ = audit.registrar(
+                "produto",
+                &produto_id.to_string(),
+                "ARQUIVAMENTO_PRODUTO",
+                Some(&ator.id().to_string()),
+                None,
+                None,
+                None,
+            );
+
             if tx.commit().is_err() {
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -423,5 +459,49 @@ pub async fn arquivar_produto_handler(
             let _ = tx.rollback();
             error_para_http(e)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mikella_infra_sqlite::Database;
+    use uuid::Uuid;
+
+    #[test]
+    fn produto_com_estoque_inicial_gera_saldo_na_view() {
+        let db = Database::em_memoria().unwrap();
+        let prod_id = Uuid::new_v4().to_string();
+        let user_id = Uuid::new_v4().to_string();
+
+        db.conn()
+            .execute(
+                "INSERT INTO usuarios (id, username, nome, senha_hash, papel, ativo)
+                 VALUES (?1, 'operador_teste', 'Operador Teste', 'hash', 'OPERADOR_CAIXA', 1)",
+                rusqlite::params![user_id],
+            )
+            .unwrap();
+
+        db.conn()
+            .execute(
+                "INSERT INTO produtos (id, nome, preco_centavos, unidade, arquivado)
+                 VALUES (?1, 'Feijão Carioca 1kg', 850, 'PCT', 0)",
+                rusqlite::params![prod_id],
+            )
+            .unwrap();
+
+        let mov_id = Uuid::new_v4().to_string();
+        db.conn()
+            .execute(
+                "INSERT INTO movimentacoes_estoque
+                 (id, produto_id, lote_id, tipo, quantidade, custo_unitario_centavos, referencia_id, referencia_tipo, usuario_id, motivo)
+                 VALUES (?1, ?2, NULL, 'ENTRADA_COMPRA', 25, 450, NULL, 'CADASTRO_INICIAL', ?3, 'Estoque inicial')",
+                rusqlite::params![mov_id, prod_id, user_id],
+            )
+            .unwrap();
+
+        let repo = ProdutoRepo::novo(db.conn());
+        let view = repo.buscar_view(&prod_id).unwrap().unwrap();
+        assert_eq!(view.saldo_atual, 25);
     }
 }

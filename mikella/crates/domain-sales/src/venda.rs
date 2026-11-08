@@ -16,33 +16,58 @@ pub enum FormaPagamento {
     Debito,
     Credito,
     Pix,
+    Voucher,
+    Crediario,
     Misto,
     Outro,
 }
 
 impl FormaPagamento {
+    /// Valor gravado na coluna `forma` do banco.
+    ///
+    /// O schema histórico aceita apenas DINHEIRO/DEBITO/CREDITO/PIX/OUTRO.
+    /// Voucher e crediário são operacionalmente distintos, mas são gravados
+    /// como OUTRO e identificados em `forma_detalhe` (migração 0006).
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Dinheiro => "DINHEIRO",
             Self::Debito => "DEBITO",
             Self::Credito => "CREDITO",
             Self::Pix => "PIX",
+            Self::Voucher | Self::Crediario | Self::Outro => "OUTRO",
             Self::Misto => "MISTO",
-            Self::Outro => "OUTRO",
+        }
+    }
+
+    /// Detalhe opcional que desfaz a ambiguidade de OUTRO.
+    pub fn as_detalhe(&self) -> Option<&'static str> {
+        match self {
+            Self::Voucher => Some("VOUCHER"),
+            Self::Crediario => Some("CREDIARIO"),
+            _ => None,
         }
     }
 
     pub fn from_db(valor: &str) -> DomainResult<Self> {
-        match valor {
-            "DINHEIRO" => Ok(Self::Dinheiro),
-            "DEBITO" => Ok(Self::Debito),
-            "CREDITO" => Ok(Self::Credito),
-            "PIX" => Ok(Self::Pix),
-            "MISTO" => Ok(Self::Misto),
-            "OUTRO" => Ok(Self::Outro),
-            outro => Err(DomainError::Invalido(format!(
-                "Forma de pagamento desconhecida no banco: {outro}"
-            ))),
+        Self::from_db_com_detalhe(valor, None)
+    }
+
+    /// Reconstrói a forma a partir do valor canônico + detalhe da migração 0006.
+    pub fn from_db_com_detalhe(valor: &str, detalhe: Option<&str>) -> DomainResult<Self> {
+        match (valor, detalhe.map(str::to_ascii_uppercase).as_deref()) {
+            ("OUTRO", Some("VOUCHER")) => Ok(Self::Voucher),
+            ("OUTRO", Some("CREDIARIO")) => Ok(Self::Crediario),
+            _ => match valor {
+                "DINHEIRO" => Ok(Self::Dinheiro),
+                "DEBITO" => Ok(Self::Debito),
+                "CREDITO" => Ok(Self::Credito),
+                "PIX" => Ok(Self::Pix),
+                "MISTO" => Ok(Self::Misto),
+                "OUTRO" => Ok(Self::Outro),
+                outro => Err(DomainError::Invalido(format!(
+                    "Forma de pagamento desconhecida no banco: {outro}"
+                ))),
+            },
         }
     }
 
@@ -54,6 +79,11 @@ impl FormaPagamento {
 
     pub fn movimenta_dinheiro_fisico(&self) -> bool {
         matches!(self, Self::Dinheiro)
+    }
+
+    /// Crediário não entra no caixa: gera uma conta a receber em aberto.
+    pub fn e_crediario(&self) -> bool {
+        matches!(self, Self::Crediario)
     }
 }
 
@@ -96,6 +126,18 @@ pub struct Pagamento {
     pub forma: FormaPagamento,
     pub valor: Money,
     pub recebido: Option<Money>,
+    #[serde(default = "default_uma_parcela")]
+    pub parcelas: u32,
+    #[serde(default)]
+    pub maquininha: Option<String>,
+    #[serde(default)]
+    pub modalidade: Option<String>,
+    #[serde(default)]
+    pub taxa: Money,
+}
+
+fn default_uma_parcela() -> u32 {
+    1
 }
 
 impl Pagamento {
@@ -119,6 +161,10 @@ impl Pagamento {
             forma: FormaPagamento::Dinheiro,
             valor,
             recebido: Some(recebido),
+            parcelas: 1,
+            maquininha: None,
+            modalidade: None,
+            taxa: Money::ZERO,
         })
     }
 
@@ -144,7 +190,30 @@ impl Pagamento {
             forma,
             valor,
             recebido: None,
+            parcelas: 1,
+            maquininha: None,
+            modalidade: None,
+            taxa: Money::ZERO,
         })
+    }
+
+    pub fn com_parcelas(mut self, parcelas: u32) -> Self {
+        self.parcelas = parcelas.max(1);
+        self
+    }
+
+    pub fn com_detalhes_cartao(
+        mut self,
+        parcelas: u32,
+        maquininha: Option<String>,
+        modalidade: Option<String>,
+        taxa: Money,
+    ) -> Self {
+        self.parcelas = parcelas.max(1);
+        self.maquininha = maquininha;
+        self.modalidade = modalidade;
+        self.taxa = taxa;
+        self
     }
 
     /// Troco deste pagamento (só dinheiro pode gerar troco).
@@ -168,6 +237,14 @@ impl Pagamento {
         if self.valor.is_negative() {
             return Err(DomainError::Invalido(
                 "Pagamento não pode ser negativo".into(),
+            ));
+        }
+        if self.parcelas == 0 {
+            return Err(DomainError::Invalido("Número de parcelas deve ser pelo menos 1".into()));
+        }
+        if self.parcelas > 1 && self.forma != FormaPagamento::Credito {
+            return Err(DomainError::Invalido(
+                "Apenas pagamento em cartão de crédito permite mais de uma parcela".into(),
             ));
         }
         if self.forma.movimenta_dinheiro_fisico() {

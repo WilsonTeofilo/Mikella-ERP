@@ -14,27 +14,26 @@ use axum::Json;
 
 use crate::middleware::Ator;
 use crate::state::AppState;
+use mikella_infra_sqlite::DoacaoRepo;
 
 /// `GET /v1/donation/prompt` — indica se o prompt de doação deve aparecer.
 pub async fn donation_prompt(State(state): State<AppState>, ator: Ator) -> impl IntoResponse {
     tracing::debug!(usuario = %ator.0.username, "consultando donation prompt");
 
     let db = state.db.lock().await;
+    let repo = DoacaoRepo::novo(db.conn());
+    let mes_atual = chrono::Utc::now().format("%Y-%m").to_string();
 
     // 1. Verifica se doação foi feita este mês
-    let doado_mes: i64 = match db.conn().query_row(
-        "SELECT COUNT(*) FROM app_preferences WHERE chave = 'donation_mes' AND valor = strftime('%Y-%m', 'now')",
-        [],
-        |r| r.get(0),
-    ) {
-        Ok(n) => n,
+    let doado_mes = match repo.doado_no_mes(&mes_atual) {
+        Ok(doado) => doado,
         Err(e) => {
             tracing::error!(erro = %e, "falha ao consultar doação do mês");
             return erro_interno();
         }
     };
 
-    if doado_mes > 0 {
+    if doado_mes {
         return (
             StatusCode::OK,
             Json(serde_json::json!({ "show": false, "message": null })),
@@ -42,12 +41,8 @@ pub async fn donation_prompt(State(state): State<AppState>, ator: Ator) -> impl 
     }
 
     // 2. Calcula dias desde a primeira ativação
-    let dias_desde_ativacao: i64 = match db.conn().query_row(
-        "SELECT CAST(julianday('now') - julianday(created_at) AS INTEGER) FROM instance_identity WHERE id = 1",
-        [],
-        |r| r.get::<_, i64>(0),
-    ) {
-        Ok(d) => d.max(0),
+    let dias_desde_ativacao = match repo.dias_desde_ativacao() {
+        Ok(dias) => dias,
         Err(e) => {
             tracing::error!(erro = %e, "falha ao calcular dias desde a ativação");
             return erro_interno();
@@ -79,10 +74,7 @@ pub async fn donation_ack(State(state): State<AppState>, ator: Ator) -> impl Int
     let db = state.db.lock().await;
     let mes_atual = chrono::Utc::now().format("%Y-%m").to_string();
 
-    if let Err(e) = db.conn().execute(
-        "INSERT OR REPLACE INTO app_preferences (chave, valor) VALUES ('donation_mes', ?1)",
-        [&mes_atual],
-    ) {
+    if let Err(e) = DoacaoRepo::novo(db.conn()).registrar_doacao(&mes_atual) {
         tracing::error!(erro = %e, "falha ao registrar doação");
         return erro_interno();
     }

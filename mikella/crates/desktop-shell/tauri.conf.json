@@ -1,14 +1,16 @@
 {
-  "$schema": "https://tauri.studio/schema/tauri.json",
-  "product-name": "mikella",
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mikella",
   "version": "0.1.0",
   "identifier": "com.mikella.pos",
   "build": {
     "frontendDist": "../../frontend/src"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "Mikella POS",
         "width": 1280,
         "height": 800,
@@ -20,17 +22,11 @@
       }
     ],
     "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:47823 https://viacep.com.br; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'",
       "assetProtocol": {
         "enable": true
       },
-      "capabilities": [
-        {
-          "identifier": "mikella.main",
-          "name": "mikella-capabilities",
-          "description": "Minimal allowlist per SEG-060",
-          "permissions": ["core:window:default"]
-        }
-      ]
+      "capabilities": ["mikella-main"]
     }
   }
 }

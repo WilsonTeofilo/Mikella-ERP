@@ -30,14 +30,27 @@ mod tempo;
 
 pub use db::Database;
 pub use error::{InfraError, InfraResult};
-pub use hash::Blake3HashChain;
-pub use repos::caixa::{LivroRepo, SessaoRepo};
+pub use hash::{blind_index_documento, Blake3HashChain};
+pub use repos::auditoria::AuditoriaRepo;
+pub use repos::caixa::{LivroEntradaView, LivroRepo, SessaoRepo};
+pub use repos::doacao::DoacaoRepo;
+pub use repos::instance::InstanceRepo;
 pub use repos::lotes::LoteRepo;
 pub use repos::movimentacoes::MovimentacaoRepo;
-pub use repos::pessoas::UsuarioRepo;
-pub use repos::produtos::ProdutoRepo;
-pub use repos::vendas::VendaRepo;
+pub use repos::pessoas::{backfill_blind_index, PessoaRepo, UsuarioRepo};
+pub use repos::produtos::{ProdutoRepo, ProdutoView};
+pub use repos::recibos::{
+    carregar_estorno, carregar_fechamento, carregar_venda, EstornoReciboView,
+    FechamentoReciboView, ItemReciboView, MovimentoReciboView, PagamentoReciboView,
+    ReciboEstorno, VendaReciboView,
+};
+pub use repos::sistema::{ContagensDiagnostico, DiagnosticoRepo};
+pub use repos::vendas::{FiltroVendas, VendaRepo, VendaResumo};
 pub use repos::financeiro::{ContaPagarRepo, ContaReceberRepo, ParcelaRepo};
+pub use repos::financeiro_dashboard::{
+    DiaFluxoCaixaView, EntradaDetalhadaView, FinanceiroDashboardRepo, FluxoCaixaView, ItemAtencaoView, MovimentoFitaView,
+    ResultadoDREView, ResumoDashboardView,
+};
 
 /// Reexporta os traços de domínio para o chamador não precisar de dois `use`.
 pub mod ports {
@@ -47,7 +60,7 @@ pub mod ports {
     pub use mikella_domain_inventory::ports::{
         LoteRepository, MovimentacaoEstoqueRepository, ProdutoRepository,
     };
-    pub use mikella_domain_people::ports::UsuarioRepository;
+    pub use mikella_domain_people::ports::{PessoaRepository, UsuarioRepository};
     pub use mikella_domain_sales::ports::VendaRepository;
     pub use mikella_domain_finance::ports::{
         ContaPagarRepository, ContaReceberRepository, ParcelaRepository,

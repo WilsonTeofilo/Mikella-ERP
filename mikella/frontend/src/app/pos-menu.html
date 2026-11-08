@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mikella ERP — Menu Operacional do PDV</title>
+  <link rel="stylesheet" href="../shared/design/tokens.css" />
+  <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <link rel="stylesheet" href="../shared/ui/window-controls.css" />
+  <link rel="stylesheet" href="../features/pos/pos-menu.css" />
+</head>
+<body data-tema="balcao">
+
+  <!-- Top HUD Operacional -->
+  <header class="top-hud">
+    <div class="hud-esquerda">
+      <div class="hud-marca">
+        <span>MIKELLA</span>
+        <span class="hud-marca-badge">PDV</span>
+      </div>
+      <div class="hud-status-caixa">
+        <span id="hud-caixa-num" class="tag-caixa">CAIXA 01</span>
+        <span id="hud-caixa-estado" class="tag-sessao fechado">
+          <span class="tag-sessao-bullet"></span>
+          <span id="hud-caixa-estado-texto">FECHADO</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="hud-direita">
+      <div class="hud-operador">
+        <span id="user-display">OPERADOR: Carregando...</span>
+        <span id="user-papel-tag" class="hud-operador-papel">DONO / ADM</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="btn-teste-impressora" class="btn-voltar-topo" type="button" title="Testar Impressora Local" style="background: #111; border-color: #333;">
+          <span>[TESTE]</span>
+          <span>IMPRESSORA</span>
+        </button>
+        <button id="btn-esc-voltar" class="btn-voltar-topo" title="Voltar ao Menu Principal [ESC]">
+          <span>[ESC]</span>
+          <span>VOLTAR</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Área Central do PDV -->
+  <main class="pdv-area">
+    <section class="painel-comando">
+      
+      <!-- Cabeçalho Limpo -->
+      <div class="cabecalho-bloco">
+        <div>
+          <h1 class="titulo-principal">PAINEL OPERACIONAL DO CAIXA</h1>
+          <p class="subtitulo-texto">Selecione no teclado [F1 a F8] ou clique diretamente na operação desejada.</p>
+        </div>
+        <div class="indicador-atalhos">TECLADO [F1 - F8]</div>
+      </div>
+
+      <!-- Grid 4x2 Ortogonal de Teclas do PDV -->
+      <div class="grid-teclado-pdv">
+
+        <!-- F1: Venda Balcão -->
+        <div class="tecla-card primario" id="card-f1" tabindex="1">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F1</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">VENDA BALCÃO</div>
+            <div class="tecla-desc">Venda direta rápida sem comanda. Bipagem de itens avulsos.</div>
+          </div>
+        </div>
+
+        <!-- F2: Venda com Comanda -->
+        <div class="tecla-card primario" id="card-f2" tabindex="2">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F2</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">VENDA C/ COMANDA</div>
+            <div class="tecla-desc">Bipar ou digitar número de comanda ou mesa para iniciar.</div>
+          </div>
+        </div>
+
+        <!-- F3: Histórico de Vendas -->
+        <div class="tecla-card" id="card-f3" tabindex="3">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F3</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">HISTÓRICO / ESTORNO</div>
+            <div class="tecla-desc">Compras do dia por COO: cupom, reimpressão e estorno com motivo.</div>
+          </div>
+        </div>
+
+        <!-- F4: Clientes & Crediário -->
+        <div class="tecla-card" id="card-f4" tabindex="4">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F4</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">CLIENTES & DÉBITOS</div>
+            <div class="tecla-desc">Cadastro rápido, busca por CPF e consulta de crediário.</div>
+          </div>
+        </div>
+
+        <!-- F5: Sangria -->
+        <div class="tecla-card" id="card-f5" tabindex="5">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F5</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">SANGRIA DE CAIXA</div>
+            <div class="tecla-desc">Retirada de dinheiro da gaveta com justificativa até 256 chars.</div>
+          </div>
+        </div>
+
+        <!-- F6: Pagar Dívidas -->
+        <div class="tecla-card" id="card-f6" tabindex="6">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F6</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">PAGAR DÍVIDAS</div>
+            <div class="tecla-desc">Catálogo alfabético de devedores e liquidação imediata.</div>
+          </div>
+        </div>
+
+        <!-- F7: Sync / Atualizar -->
+        <div class="tecla-card" id="card-f7" tabindex="7">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F7</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">ATUALIZAR / SYNC</div>
+            <div class="tecla-desc">Sincroniza status do caixa, livro-caixa e dados locais.</div>
+          </div>
+        </div>
+
+        <!-- F8: Fechar Caixa -->
+        <div class="tecla-card alerta" id="card-f8" tabindex="8">
+          <div class="tecla-topo">
+            <span class="badge-tecla">F8</span>
+          </div>
+          <div class="tecla-corpo">
+            <div class="tecla-titulo">FECHAR CAIXA</div>
+            <div class="tecla-desc">Conferência de troco, operador, obs (512 chars) e bobina.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Rodapé do Painel -->
+      <div class="painel-rodape">
+        <span>MIKELLA POS · TERMINAL LOCAL 01 · 127.0.0.1:47823</span>
+        <span>TECLADO [ENTER] Seleciona · [ESC] Retornar</span>
+      </div>
+
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <!-- MODAL F2: Digitar Comanda -->
+  <div id="modal-comanda" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 440px;">
+      <h2>Iniciar Venda com Comanda</h2>
+      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Digite ou bipe o número da comanda do cliente:</p>
+      <form id="form-comanda">
+        <div class="form-linha">
+          <label for="input-num-comanda">Número da Comanda (ex: 101)</label>
+          <input id="input-num-comanda" class="form-input" type="text" autocomplete="off" autofocus required />
+        </div>
+        <div class="botoes-linha">
+          <button type="submit" class="btn-acao">Iniciar Venda (Enter)</button>
+          <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Cancelar (Esc)</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL F3: Histórico de Vendas -->
+  <div id="modal-historico" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 800px;">
+      <h2>Histórico de Vendas</h2>
+      <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-3); flex-wrap: wrap;">
+        <input id="hist-filtro-cod" class="form-input" style="flex: 2; height: 42px;" type="text" placeholder="Buscar por Código da Venda (COO)..." />
+        <input id="hist-data-ini" class="form-input" style="flex: 1; height: 42px;" type="date" />
+        <input id="hist-data-fim" class="form-input" style="flex: 1; height: 42px;" type="date" />
+        <button id="btn-hist-filtrar" class="btn-acao" style="height: 42px; flex: 0.8;">Buscar</button>
+      </div>
+
+      <div style="max-height: 280px; overflow-y: auto;">
+        <table class="tabela-modal">
+          <thead>
+            <tr>
+              <th>Código / COO</th>
+              <th>Data/Hora</th>
+              <th>Status</th>
+              <th style="text-align: right;">Total</th>
+              <th style="text-align: center;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="hist-tabela-corpo">
+            <tr><td colspan="5" style="text-align: center; padding: 16px;">Carregando histórico...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pré-visualização do Cupom Térmico -->
+      <div id="hist-preview-bloco" style="display: none; margin-top: var(--espaco-3);">
+        <h3 style="font-size: 1.1rem; text-transform: uppercase;">Comprovante de Venda (Bobina):</h3>
+        <div id="hist-preview-cupom" class="bobina-termica"></div>
+        <div style="display: flex; gap: var(--espaco-2);">
+          <button id="btn-reimprimir-cupom" class="btn-acao" style="height: 44px;">Reimprimir Cupom (ESC/POS)</button>
+          <button type="button" class="btn-acao secundario" style="height: 44px;" data-acao="fechar-cupom">Fechar Cupom</button>
+        </div>
+      </div>
+
+      <div class="botoes-linha">
+        <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Fechar (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL F3: Estorno de Venda (3 passos) -->
+  <div id="modal-estorno" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 580px;">
+      <h2>Estorno de Venda</h2>
+
+      <!-- Passo 1: conferir -->
+      <section id="estorno-passo-1">
+        <div class="estorno-resumo">
+          <div><span>COO</span><strong id="est-coo">—</strong></div>
+          <div><span>Data/Hora</span><strong id="est-data">—</strong></div>
+          <div><span>Operador</span><strong id="est-operador">—</strong></div>
+          <div><span>Total da venda</span><strong id="est-total">—</strong></div>
+        </div>
+        <p class="estorno-aviso">
+          O estorno devolve o estoque, cancela o crediário em aberto e retira o valor
+          do caixa. A venda fica marcada como <strong>ESTORNADA</strong> e não pode ser
+          estornada novamente.
+        </p>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao secundario" id="btn-estorno-cancelar">Cancelar (Esc)</button>
+          <button type="button" class="btn-acao" id="btn-estorno-continuar">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Passo 2: motivo + observação -->
+      <section id="estorno-passo-2" style="display: none;">
+        <div class="form-linha">
+          <label for="est-motivo">Motivo do estorno *</label>
+          <select id="est-motivo" class="form-input">
+            <option value="">Selecione…</option>
+            <option value="Cliente desistiu da compra">Cliente desistiu da compra</option>
+            <option value="Produto com defeito">Produto com defeito</option>
+            <option value="Erro de preço">Erro de preço</option>
+            <option value="Erro na forma de pagamento">Erro na forma de pagamento</option>
+            <option value="Outro">Outro (descreva abaixo)</option>
+          </select>
+        </div>
+        <div class="form-linha">
+          <label for="est-motivo-outro">Descreva o motivo *</label>
+          <input id="est-motivo-outro" class="form-input" type="text" maxlength="120"
+                 placeholder="Obrigatório quando o motivo é Outro" />
+        </div>
+        <div class="form-linha">
+          <label for="est-observacao">Observação (máx. 240, sai no comprovante)</label>
+          <textarea id="est-observacao" class="form-input" rows="3" maxlength="240"
+                    placeholder="Ex.: cliente trouxe o item e o cupom"></textarea>
+        </div>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao secundario" id="btn-estorno-voltar-1">Voltar</button>
+          <button type="button" class="btn-acao" id="btn-estorno-continuar-2">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Passo 3: autorização -->
+      <section id="estorno-passo-3" style="display: none;">
+        <div id="estorno-aprovacao-campos">
+          <p class="estorno-aviso">
+            Operador precisa da autorização de um gerente ou dono. A senha não é
+            armazenada; o nome do aprovador sai no comprovante.
+          </p>
+          <div class="form-linha">
+            <label for="est-aprovador-usuario">Usuário do gerente/dono *</label>
+            <input id="est-aprovador-usuario" class="form-input" type="text" autocomplete="off" />
+          </div>
+          <div class="form-linha">
+            <label for="est-aprovador-senha">Senha do gerente/dono *</label>
+            <input id="est-aprovador-senha" class="form-input" type="password" autocomplete="off" />
+          </div>
+        </div>
+        <p id="estorno-autoaprovado" class="estorno-aviso" style="display: none;">
+          Você é gerente/dono e autoriza esta operação.
+        </p>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao secundario" id="btn-estorno-voltar-2">Voltar</button>
+          <button type="button" class="btn-acao btn-perigo" id="btn-estorno-confirmar">CONFIRMAR ESTORNO</button>
+        </div>
+      </section>
+
+      <!-- Resultado -->
+      <section id="estorno-resultado" style="display: none;">
+        <p id="estorno-resultado-texto" style="font-weight: 800;"></p>
+        <pre id="estorno-cupom" class="bobina-termica" style="max-height: 260px;"></pre>
+        <div class="botoes-linha">
+          <button type="button" class="btn-acao" id="btn-estorno-reimprimir">Reimprimir Comprovante</button>
+          <button type="button" class="btn-acao secundario" id="btn-estorno-concluir">Concluir</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- MODAL F4: Cadastro e Consulta de Clientes (SUMIR BUSCA AO CADASTRAR) -->
+  <div id="modal-clientes" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 760px;">
+      <h2 id="modal-cli-titulo">Clientes da Loja</h2>
+      
+      <!-- Caixa de Busca (SUMIR QUANDO CLICAR EM NOVO CLIENTE) -->
+      <div id="box-busca-cliente" style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-3);">
+        <input id="cli-filtro-termo" class="form-input" style="flex: 1; height: 44px;" type="text" placeholder="Buscar cliente por CPF, Nome ou Celular..." />
+        <button id="btn-novo-cliente-form" class="btn-acao" style="flex: 0.6; height: 44px;">+ Novo Cliente</button>
+      </div>
+
+      <!-- Formulário de Cadastro (Exclusivo — Oculta a busca e a tabela) -->
+      <div id="box-form-cliente" style="display: none; background: #F8F9FC; border: 1px solid #CCC; padding: var(--espaco-3); margin-bottom: var(--espaco-3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--espaco-3);">
+          <span style="font-size: 0.9rem; font-weight: 700; color: #555;">Campos marcados com * são obrigatórios</span>
+          
+        </div>
+        
+        <form id="form-cliente-salvar" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <input type="hidden" id="cli-id" />
+          <input type="hidden" id="cli-end" />
+          <div style="display: flex; gap: var(--espaco-3); margin-bottom: var(--espaco-2);">
+            <div class="form-linha" style="flex: 1.5;">
+              <label for="cli-nome">Nome completo *</label>
+              <input id="cli-nome" class="form-input" type="text" required style="height: 42px;" placeholder="Ex: Maria da Silva" autocomplete="off" />
+            </div>
+            <div class="form-linha" style="flex: 1;">
+              <label for="cli-cpf">CPF (chave única) *</label>
+              <input id="cli-cpf" class="form-input" type="text" required placeholder="000.000.000-00" maxlength="14" style="height: 42px;" autocomplete="off" />
+            </div>
+          </div>
+          <div style="display: flex; gap: var(--espaco-3); margin-bottom: var(--espaco-3);">
+            <div class="form-linha" style="flex: 1;">
+              <label for="cli-tel">Celular / WhatsApp</label>
+              <input id="cli-tel" class="form-input" type="text" placeholder="(00) 00000-0000" maxlength="15" style="height: 42px;" autocomplete="off" />
+            </div>
+            <div class="form-linha" style="flex: 1;">
+              <label for="cli-email">E-mail</label>
+              <input id="cli-email" class="form-input" type="email" placeholder="cliente@email.com" style="height: 42px;" autocomplete="off" />
+            </div>
+          </div>
+
+          <!-- Endereço Estruturado -->
+          <div style="background: #FFFFFF; border: 2px solid #000; padding: var(--espaco-3); margin-bottom: var(--espaco-3);">
+            <div style="font-weight: 800; font-size: 0.9rem; margin-bottom: var(--espaco-2); color: #000;">
+              Endereço para entrega / cobrança (opcional)
+            </div>
+            <div style="display: flex; gap: var(--espaco-2); align-items: flex-end; margin-bottom: var(--espaco-2);">
+              <div class="form-linha" style="flex: 1;">
+                <label for="cli-cep">CEP</label>
+                <input id="cli-cep" class="form-input" type="text" placeholder="00000-000" maxlength="9" style="height: 40px;" autocomplete="off" />
+              </div>
+              <button type="button" id="btn-buscar-cep" class="btn-acao secundario" style="height: 40px; margin-bottom: 2px;">Buscar CEP</button>
+            </div>
+            <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-2);">
+              <div class="form-linha" style="flex: 2.5;">
+                <label for="cli-logradouro">Logradouro / rua</label>
+                <input id="cli-logradouro" class="form-input" type="text" placeholder="Rua, Avenida, etc." style="height: 40px;" autocomplete="off" />
+              </div>
+              <div class="form-linha" style="flex: 1;">
+                <label for="cli-numero">Número</label>
+                <div style="display: flex; gap: 4px;">
+                  <input id="cli-numero" class="form-input" type="text" placeholder="Nº" style="height: 40px; flex: 1;" autocomplete="off" />
+                  <button type="button" id="btn-sn-num" class="btn-acao secundario" style="padding: 0 8px; font-size: 0.75rem; height: 40px;" title="Sem Número">S/N</button>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-2);">
+              <div class="form-linha" style="flex: 1.2;">
+                <label for="cli-complemento">Complemento</label>
+                <input id="cli-complemento" class="form-input" type="text" placeholder="Apto, Bloco, Fundos..." style="height: 40px;" autocomplete="off" />
+              </div>
+              <div class="form-linha" style="flex: 1;">
+                <label for="cli-bairro">Bairro</label>
+                <input id="cli-bairro" class="form-input" type="text" placeholder="Bairro" style="height: 40px;" autocomplete="off" />
+              </div>
+            </div>
+            <div style="display: flex; gap: var(--espaco-2);">
+              <div class="form-linha" style="flex: 2;">
+                <label for="cli-cidade">Cidade</label>
+                <input id="cli-cidade" class="form-input" type="text" placeholder="Cidade" style="height: 40px;" autocomplete="off" />
+              </div>
+              <div class="form-linha" style="flex: 0.8;">
+                <label for="cli-uf">UF</label>
+                <select id="cli-uf" class="form-input" style="height: 40px; font-weight: bold;">
+                  <option value="">UF</option>
+                  <option value="AC">AC</option>
+                  <option value="AL">AL</option>
+                  <option value="AP">AP</option>
+                  <option value="AM">AM</option>
+                  <option value="BA">BA</option>
+                  <option value="CE">CE</option>
+                  <option value="DF">DF</option>
+                  <option value="ES">ES</option>
+                  <option value="GO">GO</option>
+                  <option value="MA">MA</option>
+                  <option value="MT">MT</option>
+                  <option value="MS">MS</option>
+                  <option value="MG">MG</option>
+                  <option value="PA">PA</option>
+                  <option value="PB">PB</option>
+                  <option value="PR">PR</option>
+                  <option value="PE">PE</option>
+                  <option value="PI">PI</option>
+                  <option value="RJ">RJ</option>
+                  <option value="RN">RN</option>
+                  <option value="RS">RS</option>
+                  <option value="RO">RO</option>
+                  <option value="RR">RR</option>
+                  <option value="SC">SC</option>
+                  <option value="SP">SP</option>
+                  <option value="SE">SE</option>
+                  <option value="TO">TO</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Base Legal e Consentimento LGPD (CLI-010, CLI-011) -->
+          <div style="background: #FFFFFF; border: 2px solid #000; padding: 12px; margin-bottom: var(--espaco-3); font-size: 0.82rem; line-height: 1.4;">
+            <p style="margin: 0 0 8px 0; color: #444;">
+              <strong>Base legal LGPD (Art. 7º, V da Lei 13.709/2018):</strong> Os dados de identificação e contato são coletados para identificação do cliente na venda, controle de crediário e combinar entregas de mercadorias.
+            </p>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #000;">
+              <input type="checkbox" id="cli-lgpd-marketing" />
+              <span>Aceito receber novidades e promoções por WhatsApp / SMS (opcional)</span>
+            </label>
+          </div>
+
+          <div style="display: flex; gap: var(--espaco-3);">
+            <button type="submit" id="btn-salvar-cli-form" class="btn-acao" style="height: 46px; flex: 1;">Salvar cliente (Enter)</button>
+            <button type="button" id="btn-cancelar-cliente" class="btn-acao secundario" style="height: 46px; flex: 1;">Cancelar e voltar</button>
+            <button type="button" id="btn-anonimizar-cliente" class="btn-acao danger" style="height: 46px; display: none;">Anonimizar Titular (LGPD)</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabela de Clientes (Ocultada durante o cadastro) -->
+      <div id="box-tabela-clientes" style="max-height: 280px; overflow-y: auto;">
+        <table class="tabela-modal">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>CPF</th>
+              <th>Telefone</th>
+              <th style="text-align: right;">Crediário</th>
+              <th style="text-align: center;">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="cli-tabela-corpo">
+            <tr><td colspan="5" style="text-align: center; padding: 16px;">Carregando clientes...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="botoes-linha" id="box-botoes-clientes-rodape">
+        <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Voltar (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL F5: Sangria de Caixa -->
+  <div id="modal-sangria" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 480px;">
+      <h2>Realizar Sangria de Caixa</h2>
+      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Retirada de valores da gaveta para cofre ou depósito:</p>
+      <form id="form-sangria">
+        <div class="form-linha">
+          <label for="sangria-valor">Valor da Sangria (R$) *</label>
+          <input id="sangria-valor" class="form-input" type="text" placeholder="0,00" style="text-align: right; font-size: 1.5rem; font-weight: 900;" autocomplete="off" required />
+        </div>
+        <div class="form-linha">
+          <label for="sangria-motivo">Observação da Sangria (Até 256 caracteres)</label>
+          <textarea id="sangria-motivo" class="form-input" style="height: 80px; padding: var(--espaco-2); font-size: 0.95rem; resize: none;" maxlength="256" placeholder="Ex: Retirada de sangria para cofre central"></textarea>
+        </div>
+        <div id="sangria-aprovacao-campos" style="display: none;">
+          <p class="estorno-aviso">
+            Operador precisa da autorização de um gerente ou dono. A senha
+            não é armazenada.
+          </p>
+          <div class="form-linha">
+            <label for="sangria-aprovador-usuario">Usuário do gerente/dono *</label>
+            <input id="sangria-aprovador-usuario" class="form-input" type="text" autocomplete="off" />
+          </div>
+          <div class="form-linha">
+            <label for="sangria-aprovador-senha">Senha do gerente/dono *</label>
+            <input id="sangria-aprovador-senha" class="form-input" type="password" autocomplete="off" />
+          </div>
+        </div>
+        <div class="botoes-linha">
+          <button type="submit" class="btn-acao danger">Confirmar Sangria (Enter)</button>
+          <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Cancelar (Esc)</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL F6: Pagar Dívidas (Crediário) -->
+  <div id="modal-devedores" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 760px;">
+      <h2>Pagar Dívidas — Crediário</h2>
+      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Catálogo de clientes com débito pendente na loja:</p>
+      
+      <div class="form-linha" style="margin-bottom: var(--espaco-3);">
+        <label for="dev-filtro" style="font-weight: 700; margin-bottom: 4px; display: block;">Buscar por Nome, CPF ou Telefone:</label>
+        <input id="dev-filtro" class="form-input" style="width: 100%; height: 42px;" type="text" placeholder="Digite ao menos 2 letras do nome ou dígitos do CPF/telefone..." autocomplete="off" autofocus />
+      </div>
+
+      <div style="max-height: 280px; overflow-y: auto;">
+        <table class="tabela-modal">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Descrição / Compra</th>
+              <th>Vencimento</th>
+              <th style="text-align: right;">Valor</th>
+              <th style="text-align: center;">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="dev-tabela-corpo">
+            <tr><td colspan="5" style="text-align: center; padding: 16px;">Carregando devedores...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Submodal de Recebimento de Dívida -->
+      <div id="dev-submodal-pagar" style="display: none; background: #F8F9FC; border: 3px solid #000; padding: var(--espaco-3); margin-top: var(--espaco-3);">
+        <h3 id="dev-liq-titulo" style="font-size: 1.1rem; text-transform: uppercase; margin-bottom: var(--espaco-2);">Receber Dívida</h3>
+        <form id="form-dev-liquidar">
+          <input type="hidden" id="dev-liq-conta-id" />
+          <input type="hidden" id="dev-liq-parc-num" />
+          <div style="display: flex; gap: var(--espaco-2);">
+            <div class="form-linha" style="flex: 1;">
+              <label>Valor da Dívida</label>
+              <input id="dev-liq-valor" class="form-input" type="text" readonly style="background: #E5E7EB; font-weight: 900;" />
+            </div>
+            <div class="form-linha" style="flex: 1.5;">
+              <label for="dev-liq-forma">Forma de Pagamento *</label>
+              <select id="dev-liq-forma" class="form-input" style="height: 44px; font-weight: 800;">
+                <option value="DINHEIRO">1 - DINHEIRO (Entra no Caixa)</option>
+                <option value="PIX">2 - PIX</option>
+                <option value="DEBITO">3 - CARTÃO DE DÉBITO</option>
+                <option value="CREDITO">4 - CARTÃO DE CRÉDITO</option>
+              </select>
+            </div>
+          </div>
+          <div style="display: flex; gap: var(--espaco-2); margin-top: var(--espaco-2);">
+            <button type="submit" class="btn-acao">Confirmar Recebimento</button>
+            <button type="button" class="btn-acao secundario" data-acao="fechar-submodal-devedor">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="botoes-linha">
+        <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Fechar (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL F8: Fechamento de Caixa -->
+  <div id="modal-fechar-fluxo" class="modal-overlay" style="display: none;">
+    <div class="modal-corpo" style="max-width: 580px;">
+      <h2>Fechamento de Sessão do Caixa</h2>
+      
+      <!-- Etapa 1: Pergunta sobre Sangria Prévia -->
+      <div id="fech-etapa-1">
+        <p style="font-size: 1.1rem; font-weight: 700; margin-bottom: var(--espaco-3);">
+          Atenção: Antes de fechar, já realizou a <strong>SANGRIA FINAL</strong> deixando apenas o valor padrão de troco para o próximo operador?
+        </p>
+        <div class="botoes-linha">
+          <button id="btn-fech-sim-sangria" class="btn-acao">Sim, já fiz sangria (Continuar)</button>
+          <button id="btn-fech-nao-sangria" class="btn-acao danger">Não, quero fazer sangria agora</button>
+        </div>
+      </div>
+
+      <!-- Etapa 2: Conferência Física, Operador e Observação -->
+      <div id="fech-etapa-2" style="display: none;">
+        <form id="form-fechamento-exec">
+          <div class="form-linha">
+            <label for="fech-user-id">Operador Responsável</label>
+            <input id="fech-user-id" class="form-input" type="text" readonly style="background: #E5E7EB; font-weight: 900;" />
+          </div>
+          <div class="form-linha">
+            <label for="fech-contado">Valor Físico Contado na Gaveta (R$) *</label>
+            <input id="fech-contado" class="form-input" type="text" placeholder="0,00" style="font-size: 1.4rem; font-weight: 900; text-align: right;" required />
+          </div>
+          <div class="form-linha">
+            <label for="fech-obs">Observação do Fechamento (Até 512 caracteres)</label>
+            <textarea id="fech-obs" class="form-input" style="height: 70px; padding: var(--espaco-2); font-size: 0.95rem; resize: none;" maxlength="512" placeholder="Observações de quebra, troca de turno, divergências ou justificativas..."></textarea>
+          </div>
+          <div class="botoes-linha">
+            <button type="submit" class="btn-acao danger">Fechar Caixa e Emitir Bobina</button>
+            <button type="button" class="btn-acao secundario" data-acao="fechar-modais">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Etapa 3: Comprovante Final com Linha de Assinatura -->
+      <div id="fech-etapa-3" style="display: none;">
+        <h3 style="color: green; font-size: 1.25rem; text-transform: uppercase;">Caixa Fechado com Sucesso!</h3>
+        <p style="font-weight: 700;">Comprovante de conferência emitido:</p>
+        <div id="fech-cupom-texto" class="bobina-termica"></div>
+        <div class="botoes-linha">
+          <button id="btn-imprimir-fechamento" class="btn-acao">Imprimir Bobina (ESC/POS)</button>
+          <button id="btn-sair-apos-fechamento" class="btn-acao secundario" data-acao="ir-menu-principal">Sair para Menu Principal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script type="module" src="../features/pos/pos-menu.js"></script>
+</body>
+</html>

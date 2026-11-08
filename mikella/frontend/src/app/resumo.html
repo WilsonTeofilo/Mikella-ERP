@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mikella ERP — Resumo do Dono</title>
+  <link rel="stylesheet" href="../shared/design/tokens.css" />
+  <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <link rel="stylesheet" href="../shared/ui/forms.css" />
+  <link rel="stylesheet" href="../shared/ui/window-controls.css" />
+  <link rel="stylesheet" href="../features/finance/resumo.css" />
+</head>
+<body data-tema="caixa">
+  <div class="corte-m"></div>
+  <div class="wordmark" aria-label="Mikella">
+    <span class="letra" aria-hidden="true">M</span>
+    <span class="letra" aria-hidden="true">i</span>
+    <span class="letra" aria-hidden="true">k</span>
+    <span class="letra" aria-hidden="true">e</span>
+    <span class="letra" aria-hidden="true">l</span>
+    <span class="letra" aria-hidden="true">l</span>
+    <span class="letra" aria-hidden="true">a</span>
+  </div>
+
+  <main class="app-container">
+    <div class="linha-topo">
+      <div>
+        <h1 class="titulo-pagina">Resumo Executivo do Dono</h1>
+        <p class="rotulo-kpi">Visão instantânea de resultados, contas e riscos operacionais</p>
+      </div>
+      <div class="seletor-periodo">
+        <button type="button" id="btn-periodo-hoje" class="btn-periodo ativo">Hoje</button>
+        <button type="button" id="btn-periodo-semana" class="btn-periodo">Semana</button>
+        <button type="button" id="btn-periodo-mes" class="btn-periodo">Mês</button>
+      </div>
+    </div>
+
+    <!-- Layout Grid: Coluna Principal + Coluna de Atenção -->
+    <div class="resumo-grid-principal">
+      <!-- Coluna Principal (Perguntas 1 e 2) -->
+      <div>
+        <!-- Bloco Dominante (Pergunta 1: Quanto entrou, quanto sobra?) -->
+        <div class="bloco-dominante">
+          <div class="faturamento-destaque-linha">
+            <div>
+              <span class="rotulo-kpi">Faturamento Líquido</span>
+              <div id="kpi-faturamento" class="faturamento-valor-grande">R$ 0,00</div>
+            </div>
+            <div>
+              <span id="kpi-comparativo" class="comparativo-tag" style="display:none;"></span>
+            </div>
+          </div>
+
+          <div class="submetricas-trio">
+            <div class="submetrica-item">
+              <span class="rotulo-kpi">Margem Bruta</span>
+              <div id="kpi-margem-bruta" class="submetrica-valor">0.0%</div>
+            </div>
+            <div class="submetrica-item">
+              <span class="rotulo-kpi">Vendas</span>
+              <div id="kpi-num-vendas" class="submetrica-valor">0</div>
+            </div>
+            <div class="submetrica-item">
+              <span class="rotulo-kpi">Ticket Médio</span>
+              <div id="kpi-ticket-medio" class="submetrica-valor">R$ 0,00</div>
+            </div>
+          </div>
+
+          <div class="ponto-equilibrio-box">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="rotulo-kpi">Ponto de Equilíbrio do Mês</span>
+              <span id="ponto-equilibrio-texto" style="font-size:0.8rem; font-weight:bold; color:var(--preto);">Carregando meta...</span>
+            </div>
+            <div class="barra-progresso-container">
+              <div id="barra-progresso-equilibrio" class="barra-progresso-preenchimento"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Faixa de Dinheiro & Contas (Pergunta 2: O que pagar e receber?) -->
+        <div class="faixa-dinheiro-contas">
+          <div class="card-conta-faixa">
+            <span class="rotulo-kpi">A Pagar (7 Dias)</span>
+            <div id="kpi-a-pagar-7d" class="valor" style="color:var(--vermelho);">R$ 0,00</div>
+            <div id="kpi-a-pagar-vencidas" style="font-size:0.75rem; margin-top:2px; font-weight:bold;">0 vencidas</div>
+          </div>
+
+          <div class="card-conta-faixa">
+            <span class="rotulo-kpi">A Receber (7 Dias)</span>
+            <div id="kpi-a-receber-7d" class="valor" style="color:#047857;">R$ 0,00</div>
+            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">Previsto a entrar</div>
+          </div>
+
+          <div class="card-conta-faixa">
+            <span class="rotulo-kpi">Crediário Vencido</span>
+            <div id="kpi-crediario-vencido" class="valor" style="color:#D97706;">R$ 0,00</div>
+            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">Cobranças pendentes</div>
+          </div>
+
+          <div class="card-conta-faixa">
+            <span class="rotulo-kpi">Saldo Caixa (Físico)</span>
+            <div id="kpi-saldo-caixa" class="valor" style="color:var(--preto);">R$ 0,00</div>
+            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">Dinheiro em gaveta</div>
+          </div>
+
+          <div class="card-conta-faixa">
+            <span class="rotulo-kpi">Saldo Projetado 7d</span>
+            <div id="kpi-saldo-projetado" class="valor" style="color:var(--azul-600);">R$ 0,00</div>
+            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">(Caixa + Rec − Pag)</div>
+          </div>
+        </div>
+
+        <!-- Gráfico em SVG Puro (VIZ-010 a VIZ-024) -->
+        <div class="area-grafico-svg">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--espaco-2);">
+            <h3>Faturamento Diário (Últimos Dias)</h3>
+            <span style="font-size:0.75rem; color:var(--cinza-500); font-weight:bold;">Série em Azul Cobalto</span>
+          </div>
+          <div id="grafico-svg-container">
+            <div style="padding:var(--espaco-3); color:var(--cinza-500); text-align:center;">Carregando gráfico...</div>
+          </div>
+        </div>
+
+        <!-- Fita do Dia (Mais recente no topo) -->
+        <div class="fita-do-dia-container">
+          <div class="fita-do-dia-titulo">Fita do Dia (Últimas Movimentações)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Operação</th>
+                <th>Detalhe</th>
+                <th class="direita">Valor</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-fita-corpo">
+              <tr><td colspan="4" style="text-align:center;">Carregando movimentações...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Coluna Lateral de Atenção (Pergunta 3 - Máximo 3 selos) -->
+      <div>
+        <div class="rotulo-kpi" style="margin-bottom:var(--espaco-2); display:block;">Atenção Imediata (Até 3)</div>
+        <div id="coluna-atencao-container" class="coluna-atencao">
+          <div class="card-atencao">
+            <div class="card-atencao-titulo">Verificando alertas...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Navegação Rápida -->
+    <div class="barra-botoes" style="margin-top:var(--espaco-4);">
+      <button type="button" id="btn-ir-financeiro" class="botao primario"><span class="tecla">F1</span> Abrir Financeiro Completo</button>
+      <button type="button" id="btn-ir-caixa" class="botao"><span class="tecla">F2</span> Ir para o Caixa</button>
+      <button type="button" id="btn-voltar" class="botao"><span class="tecla">Esc</span> Voltar ao Menu</button>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="../features/finance/resumo.js"></script>
+</body>
+</html>

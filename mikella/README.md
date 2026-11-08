@@ -94,6 +94,12 @@ Escuta apenas em `127.0.0.1` (loopback). Env vars:
 |---------------|---------|------------|
 | `MIKELLA_PORT` | `47823` | Porta TCP |
 | `MIKELLA_DB_PATH` | (obrigatório) | Caminho para o arquivo SQLite |
+| `MIKELLA_STORE_KEY` | (gerado) | Chave hex de 64 chars para o blind index de CPF/CNPJ. Se ausente, uma chave é gerada e persistida em `loja.key` ao lado do banco. **Nunca rotacione sem migrar os blind indexes.** |
+| `MIKELLA_KEY_PATH` | `dados/loja.key` | Caminho alternativo do arquivo de chave da loja |
+
+> O arquivo `loja.key` (ou o valor de `MIKELLA_STORE_KEY`) é necessário para
+> buscar e comparar CPF/CNPJ pelo blind index. Guarde-o separado do backup do
+> banco: quem tiver os dois consegue correlacionar os documentos.
 
 ### Rotas públicas (loopback)
 

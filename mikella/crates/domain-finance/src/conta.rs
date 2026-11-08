@@ -279,6 +279,11 @@ pub struct ContaReceber {
     pub parcelas: Vec<Parcela>,
     pub criada_em: DateTime<Utc>,
     pub criada_por: UsuarioId,
+    /// Cliente devedor (crediário). `None` para recebimentos sem pessoa.
+    pub pessoa_id: Option<String>,
+    /// Documento de origem (por exemplo, a venda que gerou o crediário).
+    pub referencia_id: Option<String>,
+    pub referencia_tipo: Option<String>,
 }
 
 impl ContaReceber {
@@ -301,7 +306,28 @@ impl ContaReceber {
             parcelas: Vec::new(),
             criada_em: agora,
             criada_por: usuario_id,
+            pessoa_id: None,
+            referencia_id: None,
+            referencia_tipo: None,
         })
+    }
+
+    /// Vincula a conta ao cliente e ao documento que a originou.
+    pub fn vincular_origem(
+        &mut self,
+        pessoa_id: String,
+        referencia_id: String,
+        referencia_tipo: String,
+    ) -> DomainResult<()> {
+        if pessoa_id.trim().is_empty() {
+            return Err(DomainError::Invalido(
+                "conta a receber de crediário exige um cliente".into(),
+            ));
+        }
+        self.pessoa_id = Some(pessoa_id);
+        self.referencia_id = Some(referencia_id);
+        self.referencia_tipo = Some(referencia_tipo);
+        Ok(())
     }
 
     pub fn adicionar_parcela(&mut self, valor: Money, vencimento: DateTime<Utc>) -> DomainResult<()> {

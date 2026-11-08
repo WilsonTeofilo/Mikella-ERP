@@ -1,0 +1,317 @@
+/* Extraído de app/main-menu.html — estilos específicos desta tela. */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(
+    --azul-600,
+    #0040d8
+  ); /* Chapado, zero gradientes conforme VIS-007 e §4.1 */
+  color: #ffffff;
+  font-family: var(--fonte-display), sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  user-select: none;
+}
+
+/* Gráficos angulares dinâmicos estilo Persona / Corte-M sem gradientes ou sombras suaves */
+.p3-faixa-branca {
+  position: absolute;
+  top: -20%;
+  left: -15%;
+  width: 48%;
+  height: 140%;
+  background: #ffffff;
+  transform: rotate(18deg);
+  border-right: 4px solid #000000;
+  box-shadow: 12px 0px 0px #000000; /* Placa dura/sólida sem desfoque (VIS-072) */
+  z-index: 2;
+  pointer-events: none;
+}
+
+.p3-faixa-sombra {
+  position: absolute;
+  top: -20%;
+  left: -18%;
+  width: 52%;
+  height: 140%;
+  background: #000000;
+  transform: rotate(18deg);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.p3-silhueta-letreiro {
+  position: absolute;
+  top: 15%;
+  left: 2%;
+  font-size: 5rem;
+  font-weight: 900;
+  color: #000000;
+  transform: rotate(18deg) skewX(-10deg);
+  line-height: 0.85;
+  letter-spacing: -0.05em;
+  opacity: 0.12;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* HUD Superior Esquerdo: Carteira / Caixa (como no Persona 3 Reload) */
+.hud-carteira {
+  position: absolute;
+  top: var(--espaco-6);
+  left: var(--espaco-6);
+  background: #ffffff;
+  border: 3px solid #000000;
+  padding: var(--espaco-2) var(--espaco-4);
+  box-shadow: 4px 4px 0px #000000;
+  z-index: 20;
+  min-width: 180px;
+}
+.hud-carteira-label {
+  font-family: var(--fonte-texto);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #555555;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.hud-carteira-valor {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #000000;
+  letter-spacing: -0.02em;
+}
+
+/* HUD Superior Direito: Perfil do Usuário */
+.hud-perfil {
+  position: absolute;
+  top: var(--espaco-6);
+  right: var(--espaco-6);
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  background: #000000;
+  border: 3px solid #ffffff;
+  padding: var(--espaco-2) var(--espaco-4);
+  box-shadow: 4px 4px 0px #000000;
+  z-index: 20;
+  transform: skewX(-10deg);
+}
+.hud-perfil-info {
+  text-align: right;
+}
+.hud-perfil-nome {
+  font-size: 1.125rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.hud-perfil-papel {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  background: var(--amarelo, #ffd21f);
+  color: #000000;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+/* Conteúdo Principal do Menu: Lista Diagonal */
+.p3-menu-container {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 28%;
+  transform: skewX(-14deg) rotate(-2deg);
+}
+
+.p3-menu-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+}
+
+/* Item do Menu */
+.p3-menu-item {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  padding: var(--espaco-1) var(--espaco-4);
+  transition:
+    transform 0.12s ease,
+    opacity 0.12s ease;
+  position: relative;
+  width: fit-content;
+}
+
+.p3-menu-texto {
+  font-size: 2.75rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 3px 3px 0px #000000;
+  transition:
+    color 0.12s ease,
+    font-size 0.12s ease;
+}
+
+.p3-menu-item:hover .p3-menu-texto {
+  color: var(--amarelo, #ffd21f);
+}
+
+/* Item ATIVO / SELECIONADO */
+.p3-menu-item.ativo {
+  transform: translateX(24px) scale(1.06);
+}
+
+.p3-menu-item.ativo::before {
+  content: "";
+  position: absolute;
+  inset: -4px -18px;
+  background: #ffffff;
+  clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+  box-shadow:
+    4px 4px 0px var(--vermelho, #c81e16),
+    8px 8px 0px #000000;
+  z-index: -1;
+}
+
+.p3-menu-item.ativo .p3-menu-texto {
+  color: var(--vermelho, #c81e16);
+  font-size: 3.25rem;
+  text-shadow: none;
+  letter-spacing: 0.08em;
+}
+
+.p3-menu-atalho {
+  display: inline-block;
+  font-family: var(--fonte-texto);
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #000000;
+  background: var(--amarelo, #ffd21f);
+  padding: 2px 8px;
+  margin-left: var(--espaco-3);
+  vertical-align: middle;
+  border: 2px solid #000000;
+  transform: skewX(10deg);
+  display: none;
+}
+
+.p3-menu-item.ativo .p3-menu-atalho {
+  display: inline-block;
+}
+
+/* HUD Inferior Direito: Comandos de Jogo */
+.hud-comandos {
+  position: absolute;
+  bottom: var(--espaco-6);
+  right: var(--espaco-6);
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-4);
+  background: #000000;
+  border: 3px solid #ffffff;
+  padding: var(--espaco-2) var(--espaco-5);
+  z-index: 20;
+  transform: skewX(-10deg);
+  box-shadow: 4px 4px 0px #000000;
+}
+.hud-cmd-item {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  font-size: 1rem;
+  font-weight: 900;
+  color: #ffffff;
+}
+.hud-btn-tag {
+  background: var(--amarelo, #ffd21f);
+  color: #000000;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  border: 1px solid #000000;
+}
+
+/* Modal de Diálogo Técnico / Ação */
+.modal-dialogo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-box {
+  background: #ffffff;
+  color: #000000;
+  border: 4px solid #000000;
+  padding: var(--espaco-6);
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 8px 8px 0px #000000;
+  transform: skewX(-4deg);
+}
+.modal-box h2 {
+  font-size: 1.75rem;
+  font-weight: 900;
+  margin-bottom: var(--espaco-3);
+  text-transform: uppercase;
+}
+.modal-box p {
+  font-family: var(--fonte-texto);
+  font-size: 1.05rem;
+  line-height: 1.4;
+  margin-bottom: var(--espaco-4);
+}
+.modal-botoes {
+  display: flex;
+  gap: var(--espaco-3);
+  justify-content: flex-end;
+}
+.modal-btn {
+  padding: var(--espaco-2) var(--espaco-4);
+  font-family: var(--fonte-display);
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+  border: 3px solid #000000;
+  text-transform: uppercase;
+}
+.modal-btn-confirm {
+  background: var(--vermelho, #c81e16);
+  color: #ffffff;
+}
+.modal-btn-cancel {
+  background: #eeeeee;
+  color: #000000;
+}
+
+#toast {
+  position: fixed;
+  bottom: var(--espaco-6);
+  left: var(--espaco-6);
+  background: #000000;
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  padding: var(--espaco-3) var(--espaco-5);
+  font-family: var(--fonte-texto);
+  font-weight: 700;
+  font-size: 1.1rem;
+  display: none;
+  z-index: 200;
+  box-shadow: 4px 4px 0px #000000;
+}

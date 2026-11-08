@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mikella ERP — Primeiro Acesso</title>
+  <link rel="stylesheet" href="../shared/design/tokens.css" />
+  <link rel="stylesheet" href="../shared/design/fontes.css" />
+  <link rel="stylesheet" href="../shared/ui/window-controls.css" />
+  <link rel="stylesheet" href="../features/auth/login.css" />
+  <link rel="stylesheet" href="../features/auth/onboarding.css" />
+</head>
+<body data-tema="rua">
+  <div class="fundo-angular" aria-hidden="true"></div>
+  <div class="fundo-faixa" aria-hidden="true"></div>
+
+  <main class="login-container onboarding-container">
+    <div class="marca-letreiro-grid" aria-label="MIKELLA ERP">
+      <div class="letreiro-linha">
+        <span class="letra-bloco preta">M</span>
+        <span class="letra-bloco branca">I</span>
+        <span class="letra-bloco preta">K</span>
+        <span class="letra-bloco branca">E</span>
+        <span class="letra-bloco preta">L</span>
+        <span class="letra-bloco branca">L</span>
+        <span class="letra-bloco preta">A</span>
+      </div>
+    </div>
+    <h1 class="sr-only">Configuração inicial da loja</h1>
+
+    <p class="onboarding-intro">
+      Primeiro acesso. Crie o usuário <strong>dono da loja</strong>. Depois de
+      confirmar, o sistema envia um código de segurança para o e-mail
+      informado.
+    </p>
+
+    <form id="form-onboarding" class="form-bloco" autocomplete="off" novalidate>
+      <div class="campo-grupo">
+        <label for="onb-nome" class="campo-label">NOME DO RESPONSÁVEL</label>
+        <input
+          id="onb-nome"
+          name="mikella_onb_nome"
+          class="campo-input"
+          type="text"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="words"
+          spellcheck="false"
+          data-lpignore="true"
+          data-form-type="other"
+          maxlength="80"
+          autofocus
+          required
+        />
+      </div>
+
+      <div class="campo-grupo">
+        <label for="onb-usuario" class="campo-label">USUÁRIO DE ACESSO</label>
+        <input
+          id="onb-usuario"
+          name="mikella_onb_user"
+          class="campo-input"
+          type="text"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck="false"
+          data-lpignore="true"
+          data-form-type="other"
+          maxlength="64"
+          required
+        />
+        <span class="campo-dica">De 3 a 64 caracteres: letras, números e underscore.</span>
+      </div>
+
+      <div class="campo-grupo">
+        <label for="onb-email" class="campo-label">E-MAIL PARA O CÓDIGO 2FA</label>
+        <input
+          id="onb-email"
+          name="mikella_onb_mail"
+          class="campo-input"
+          type="email"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck="false"
+          data-lpignore="true"
+          data-form-type="other"
+          maxlength="120"
+          required
+        />
+      </div>
+
+      <div class="campo-duplo">
+        <div class="campo-grupo">
+          <label for="onb-senha" class="campo-label">SENHA</label>
+          <input
+            id="onb-senha"
+            name="mikella_onb_pwd"
+            class="campo-input campo-senha-mascarado"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck="false"
+            data-lpignore="true"
+            data-form-type="other"
+            maxlength="256"
+            required
+          />
+        </div>
+        <div class="campo-grupo">
+          <label for="onb-confirmar" class="campo-label">CONFIRMAR SENHA</label>
+          <input
+            id="onb-confirmar"
+            name="mikella_onb_pwd2"
+            class="campo-input campo-senha-mascarado"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck="false"
+            data-lpignore="true"
+            data-form-type="other"
+            maxlength="256"
+            required
+          />
+        </div>
+      </div>
+      <span class="campo-dica">Mínimo de 8 caracteres. Evite senhas comuns.</span>
+
+      <div id="msg-erro" class="feedback-msg feedback-erro" role="alert"></div>
+      <div id="msg-ok" class="feedback-msg feedback-ok" role="status"></div>
+
+      <button id="btn-criar" class="btn-entrar" type="submit">
+        <span id="btn-label">CRIAR LOJA E USUÁRIO</span>
+      </button>
+    </form>
+
+    <a class="onboarding-voltar" href="landing.html">Já configurei — ir para o login</a>
+  </main>
+
+  <p class="rodape-info">127.0.0.1:47823 · CONFIGURAÇÃO INICIAL</p>
+
+  <script type="module" src="../features/auth/onboarding.js"></script>
+</body>
+</html>

@@ -24,4 +24,41 @@ pub struct AbrirCaixaForm {
 pub struct FecharCaixaForm {
     pub sessao_id: String,
     pub saldo_contado_centavos: i64,
+    #[serde(default)]
+    pub observacao: Option<String>,
+}
+
+/// Formulário para sangria (retirada de dinheiro do caixa).
+///
+/// O aprovador é obrigatório quando quem opera não é gerente/dono (SEC-006).
+/// `None` é aceito para gerente/dono, que aprovam a própria operação.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SangriaForm {
+    pub sessao_id: String,
+    pub valor_centavos: i64,
+    #[serde(default)]
+    pub motivo: Option<String>,
+    #[serde(default)]
+    pub aprovador_username: Option<String>,
+    #[serde(default)]
+    pub aprovador_senha: Option<String>,
+}
+
+impl SangriaForm {
+    /// Credenciais de aprovação, quando informadas.
+    pub fn credenciais_aprovador(&self) -> Option<crate::util::CredenciaisAprovador> {
+        match (
+            self.aprovador_username.as_deref(),
+            self.aprovador_senha.as_deref(),
+        ) {
+            (Some(username), Some(senha)) if !username.trim().is_empty() && !senha.is_empty() => {
+                Some(crate::util::CredenciaisAprovador {
+                    username: username.to_string(),
+                    senha: senha.to_string(),
+                })
+            }
+            _ => None,
+        }
+    }
 }

@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use mikella_domain_finance::{
-    conta::{ContaPagar, ContaReceber, PlanoConta, TipoConta},
+    conta::{ContaPagar, ContaReceber, PlanoConta, StatusParcela, TipoConta},
     ports::{ContaPagarRepository, ContaReceberRepository, ParcelaRepository},
 };
 use mikella_shared_kernel::{
@@ -57,7 +57,7 @@ pub struct LiquidarParcelaReceberCmd {
 /// Query para listagem de contas por tipo.
 #[derive(Debug, Deserialize)]
 pub struct ListaContasQuery {
-    pub tipo: TipoConta,
+    pub tipo: Option<TipoConta>,
 }
 
 /// Registra uma nova conta a pagar.
@@ -168,6 +168,16 @@ pub fn liquidar_parcela_receber(
     Ok(())
 }
 
+/// Detalhe de uma parcela para visualização financeira.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ParcelaAbertaDto {
+    pub indice: usize,
+    pub numero: usize,
+    pub valor_centavos: i64,
+    pub vencimento: String,
+    pub status: &'static str,
+}
+
 /// Resultado de listagem — normaliza para JSON sem expor o tipo interno.
 #[derive(Debug, serde::Serialize)]
 pub struct ContaFinanceira {
@@ -179,6 +189,8 @@ pub struct ContaFinanceira {
     pub valor_pago: i64,
     pub valor_em_aberto: i64,
     pub status: &'static str,
+    pub primeiro_vencimento: Option<String>,
+    pub parcelas: Vec<ParcelaAbertaDto>,
 }
 
 impl ContaFinanceira {
@@ -187,6 +199,25 @@ impl ContaFinanceira {
         let valor_pago = c.valor_pago()?.centavos();
         let valor_em_aberto = c.valor_em_aberto()?.centavos();
         let status = c.status();
+        let parcelas: Vec<ParcelaAbertaDto> = c
+            .parcelas
+            .iter()
+            .enumerate()
+            .map(|(idx, p)| ParcelaAbertaDto {
+                indice: idx,
+                numero: idx + 1,
+                valor_centavos: p.valor.centavos(),
+                vencimento: p.vencimento.format("%Y-%m-%d").to_string(),
+                status: p.status.as_str(),
+            })
+            .collect();
+        let primeiro_vencimento = c
+            .parcelas
+            .iter()
+            .find(|p| p.status == StatusParcela::Aberta)
+            .or_else(|| c.parcelas.first())
+            .map(|p| p.vencimento.format("%Y-%m-%d").to_string());
+
         Ok(Self {
             id: c.id.to_string(),
             tipo: "PAGAMENTO",
@@ -196,6 +227,8 @@ impl ContaFinanceira {
             valor_pago,
             valor_em_aberto,
             status,
+            primeiro_vencimento,
+            parcelas,
         })
     }
 
@@ -204,6 +237,25 @@ impl ContaFinanceira {
         let valor_pago = c.valor_pago()?.centavos();
         let valor_em_aberto = c.valor_em_aberto()?.centavos();
         let status = c.status();
+        let parcelas: Vec<ParcelaAbertaDto> = c
+            .parcelas
+            .iter()
+            .enumerate()
+            .map(|(idx, p)| ParcelaAbertaDto {
+                indice: idx,
+                numero: idx + 1,
+                valor_centavos: p.valor.centavos(),
+                vencimento: p.vencimento.format("%Y-%m-%d").to_string(),
+                status: p.status.as_str(),
+            })
+            .collect();
+        let primeiro_vencimento = c
+            .parcelas
+            .iter()
+            .find(|p| p.status == StatusParcela::Aberta)
+            .or_else(|| c.parcelas.first())
+            .map(|p| p.vencimento.format("%Y-%m-%d").to_string());
+
         Ok(Self {
             id: c.id.to_string(),
             tipo: "RECEBIMENTO",
@@ -213,6 +265,8 @@ impl ContaFinanceira {
             valor_pago,
             valor_em_aberto,
             status,
+            primeiro_vencimento,
+            parcelas,
         })
     }
 }
@@ -223,18 +277,34 @@ pub fn listar_contas(
     query: ListaContasQuery,
 ) -> DomainResult<Vec<ContaFinanceira>> {
     match query.tipo {
-        TipoConta::Pagamento => repos
+        Some(TipoConta::Pagamento) => repos
             .contas_a_pagar
             .buscar_abertas()?
             .into_iter()
             .map(ContaFinanceira::from_pagar)
             .collect(),
-        TipoConta::Recebimento => repos
+        Some(TipoConta::Recebimento) => repos
             .contas_a_receber
             .buscar_abertas()?
             .into_iter()
             .map(ContaFinanceira::from_receber)
             .collect(),
+        None => {
+            let mut pagar: Vec<ContaFinanceira> = repos
+                .contas_a_pagar
+                .buscar_abertas()?
+                .into_iter()
+                .map(ContaFinanceira::from_pagar)
+                .collect::<DomainResult<_>>()?;
+            let mut receber: Vec<ContaFinanceira> = repos
+                .contas_a_receber
+                .buscar_abertas()?
+                .into_iter()
+                .map(ContaFinanceira::from_receber)
+                .collect::<DomainResult<_>>()?;
+            pagar.append(&mut receber);
+            Ok(pagar)
+        }
     }
 }
 
@@ -264,6 +334,7 @@ mod tests {
         }
         fn buscar_abertas(&self) -> DomainResult<Vec<ContaPagar>> { Ok(vec![]) }
         fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> { Ok(vec![]) }
+        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> { Ok(0) }
     }
 
     impl ContaReceberRepository for MockRepos {
@@ -274,6 +345,7 @@ mod tests {
         }
         fn buscar_abertas(&self) -> DomainResult<Vec<ContaReceber>> { Ok(vec![]) }
         fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> { Ok(vec![]) }
+        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> { Ok(0) }
     }
 
     impl ParcelaRepository for MockRepos {
@@ -325,7 +397,7 @@ mod tests {
     fn listar_contas_vazia() {
         let (_, repos) = setup();
         let query = ListaContasQuery {
-            tipo: TipoConta::Pagamento,
+            tipo: Some(TipoConta::Pagamento),
         };
         let result = listar_contas(&repos, query).unwrap();
         assert!(result.is_empty());

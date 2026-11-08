@@ -11,15 +11,46 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use chrono::{NaiveTime, TimeZone, Utc};
+use chrono_tz::Tz;
 
 use crate::dto::VendaSummary;
-use crate::dto::{LivroCaixaQuery, VendasQuery};
+use crate::dto::{LivroCaixaQuery, PlanoParcelaDto, SimularParcelasQuery, SimularParcelasResponse, VendasQuery};
 use crate::exigir;
-use crate::handlers::products::{produto_para_json, row_para_produto_response, SQL_PRODUTO_POR_ID};
+use crate::handlers::products::{produto_para_json, view_para_response};
 use crate::middleware::Ator;
 use crate::state::AppState;
+use mikella_infra_sqlite::{DiagnosticoRepo, FiltroVendas, LivroRepo, ProdutoRepo, VendaRepo};
 use mikella_shared_kernel::ids::SessaoId;
 use mikella_shared_kernel::money::Money;
+
+/// Calcula o início e o fim do "hoje" no fuso IANA da loja como timestamps UTC RFC-3339.
+///
+/// Exemplo: se a loja está em `America/Sao_Paulo` (UTC-3) e agora são 23h30 UTC
+/// (20h30 local), retorna a janela 03:00:00Z–26:59:59Z (ou seja, 00:00:00 BRT–23:59:59 BRT).
+/// Isso resolve o bug em que `date('now')` em UTC retornava o dia seguinte entre 21h e 0h BRT.
+fn hoje_utc_intervalo(fuso_iana: &str) -> (String, String) {
+    let tz: Tz = fuso_iana.parse().unwrap_or(chrono_tz::America::Sao_Paulo);
+    let agora_local = Utc::now().with_timezone(&tz);
+    let data_local = agora_local.date_naive();
+
+    let inicio_local = tz
+        .from_local_datetime(&data_local.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
+        .single()
+        .map(|dt| dt.with_timezone(&Utc))
+        .unwrap_or_else(Utc::now);
+
+    let fim_local = tz
+        .from_local_datetime(&data_local.and_time(NaiveTime::from_hms_opt(23, 59, 59).unwrap()))
+        .single()
+        .map(|dt| dt.with_timezone(&Utc))
+        .unwrap_or_else(Utc::now);
+
+    (
+        inicio_local.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string(),
+        fim_local.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string(),
+    )
+}
 
 /// `GET /v1/produtos` — lista produtos ativos (não arquivados).
 pub async fn listar_produtos(State(state): State<AppState>, ator: Ator) -> impl IntoResponse {
@@ -28,20 +59,23 @@ pub async fn listar_produtos(State(state): State<AppState>, ator: Ator) -> impl 
 
     let db = state.db.lock().await;
 
-    let sql_listar = format!(
-        "{} WHERE p.arquivado = 0 ORDER BY p.nome",
-        SQL_PRODUTO_POR_ID
-    );
-
-    let produtos = (|| -> rusqlite::Result<Vec<_>> {
-        let mut stmt = db.conn().prepare(&sql_listar)?;
-        let rows = stmt.query_map([], row_para_produto_response)?;
-        rows.collect()
-    })();
+    let produtos = ProdutoRepo::novo(db.conn()).listar_ativos_view();
 
     match produtos {
-        Ok(produtos) => {
-            let lista: Vec<_> = produtos.iter().map(produto_para_json).collect();
+        Ok(views) => {
+            let mut lista = Vec::with_capacity(views.len());
+            for view in views {
+                match view_para_response(view) {
+                    Ok(produto) => lista.push(produto_para_json(&produto)),
+                    Err(e) => {
+                        tracing::error!(erro = %e, "produto com valores fora do intervalo");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(serde_json::json!({ "erro": "falha de banco" })),
+                        );
+                    }
+                }
+            }
             (
                 StatusCode::OK,
                 Json(serde_json::json!({ "produtos": lista })),
@@ -66,39 +100,47 @@ pub async fn vendas_listar(
     Query(params): Query<VendasQuery>,
 ) -> impl IntoResponse {
     exigir!(ator, "venda.ver");
-    tracing::debug!(usuario = %ator.0.username, limite = params.limite, "listando vendas do dia");
 
     let db = state.db.lock().await;
     let limite = params.limite.clamp(1, 200);
 
-    let vendas = (|| -> rusqlite::Result<Vec<VendaSummary>> {
-        let mut stmt = db.conn().prepare(
-            "SELECT id, sessao_id, operador_id, estado,
-                    total_centavos, recebido_centavos, created_at
-             FROM vendas
-             WHERE date(created_at) = date('now')
-             ORDER BY created_at DESC
-             LIMIT ?1",
-        )?;
-        let rows = stmt.query_map([&limite], |row| {
-            let total_centavos: i64 = row.get(4)?;
-            let recebido_centavos: i64 = row.get(5)?;
-            Ok(VendaSummary {
-                id: row.get(0)?,
-                sessao_id: row.get(1)?,
-                operador_id: row.get(2)?,
-                estado: row.get(3)?,
-                total: Money::from_centavos(total_centavos).to_string(),
-                total_centavos,
-                recebido: Money::from_centavos(recebido_centavos).to_string(),
-                created_at: row.get(6)?,
-            })
-        })?;
-        rows.collect()
-    })();
+    // Calcula o "hoje" correto no fuso da loja — resolve o bug 21h-0h BRT / UTC.
+    let (data_inicio, data_fim) = if params.data_inicio.is_none() && params.data_fim.is_none() && params.codigo.is_none() {
+        let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
+        let (ini, fim) = hoje_utc_intervalo(&fuso);
+        tracing::debug!(fuso = %fuso, inicio = %ini, fim = %fim, "calculando janela 'hoje'");
+        (Some(ini), Some(fim))
+    } else {
+        (params.data_inicio, params.data_fim)
+    };
 
-    match vendas {
-        Ok(vendas) => (StatusCode::OK, Json(serde_json::json!(vendas))),
+    let filtro = FiltroVendas {
+        codigo: params.codigo,
+        data_inicio,
+        data_fim,
+        sem_filtro_data: false,
+        limite: i64::from(limite),
+    };
+
+    match VendaRepo::novo(db.conn()).listar_resumo(&filtro) {
+        Ok(vendas) => {
+            let lista: Vec<VendaSummary> = vendas
+                .into_iter()
+                .map(|v| VendaSummary {
+                    id: v.id,
+                    coo: v.coo,
+                    sessao_id: v.sessao_id,
+                    operador_id: v.operador_id,
+                    operador: v.operador,
+                    estado: v.estado,
+                    total: Money::from_centavos(v.total_centavos).to_string(),
+                    total_centavos: v.total_centavos,
+                    recebido: Money::from_centavos(v.recebido_centavos).to_string(),
+                    created_at: v.created_at,
+                })
+                .collect();
+            (StatusCode::OK, Json(serde_json::json!(lista)))
+        }
         Err(e) => {
             tracing::error!(erro = %e, "erro ao listar vendas");
             (
@@ -132,40 +174,27 @@ pub async fn livro_caixa(
     };
 
     let db = state.db.lock().await;
+    let livro = LivroRepo::novo(db.conn());
 
-    let entradas = (|| -> rusqlite::Result<Vec<crate::dto::response::LivroEntradaResponse>> {
-        let mut stmt = db.conn().prepare(
-            "SELECT sequencia, tipo, valor_centavos, troco_centavos,
-                    usuario_id, aprovador_id, motivo,
-                    referencia_id, referencia_tipo,
-                    prev_hash, hash, created_at
-             FROM livro_caixa
-             WHERE sessao_id = ?1
-             ORDER BY sequencia ASC",
-        )?;
-        let rows = stmt.query_map([&sessao_id], |row| {
-            let valor_centavos: i64 = row.get(2)?;
-            let troco_centavos: i64 = row.get(3)?;
-            Ok(crate::dto::response::LivroEntradaResponse {
-                sequencia: row.get(0)?,
-                tipo: row.get(1)?,
-                valor: Money::from_centavos(valor_centavos).to_string(),
-                troco: Money::from_centavos(troco_centavos).to_string(),
-                usuario_id: row.get(4)?,
-                aprovador_id: row.get(5)?,
-                motivo: row.get(6)?,
-                referencia_id: row.get(7)?,
-                referencia_tipo: row.get(8)?,
-                prev_hash: row.get(9)?,
-                hash: row.get(10)?,
-                created_at: row.get(11)?,
+    let entradas: Vec<crate::dto::response::LivroEntradaResponse> =
+        match livro.listar_entradas(&sessao_id) {
+            Ok(entradas) => entradas
+                .into_iter()
+                .map(|e| crate::dto::response::LivroEntradaResponse {
+                sequencia: e.sequencia,
+                tipo: e.tipo,
+                valor: Money::from_centavos(e.valor_centavos).to_string(),
+                troco: Money::from_centavos(e.troco_centavos).to_string(),
+                usuario_id: e.usuario_id,
+                aprovador_id: e.aprovador_id,
+                motivo: e.motivo,
+                referencia_id: e.referencia_id,
+                referencia_tipo: e.referencia_tipo,
+                prev_hash: e.prev_hash,
+                hash: e.hash,
+                created_at: e.created_at,
             })
-        })?;
-        rows.collect()
-    })();
-
-    let entradas = match entradas {
-        Ok(e) => e,
+            .collect(),
         Err(e) => {
             tracing::error!(erro = %e, sessao_id = %sessao_id, "erro ao ler livro-caixa");
             return (
@@ -175,11 +204,7 @@ pub async fn livro_caixa(
         }
     };
 
-    let saldo_total: i64 = match db.conn().query_row(
-        "SELECT COALESCE(SUM(valor_centavos - troco_centavos), 0) FROM livro_caixa WHERE sessao_id = ?1",
-        [&sessao_id],
-        |r| r.get(0),
-    ) {
+    let saldo_total = match livro.saldo_total(&sessao_id) {
         Ok(s) => s,
         Err(e) => {
             tracing::error!(erro = %e, sessao_id = %sessao_id, "erro ao somar livro-caixa");
@@ -199,4 +224,73 @@ pub async fn livro_caixa(
             "saldo_esperado_centavos": saldo_total,
         })),
     )
+}
+
+/// `GET /v1/vendas/simular-parcelas` — calcula planos de parcelamento de 1 a N vezes no servidor.
+/// Regra: o servidor decide e a tela só renderiza o que veio (resto na última parcela).
+pub async fn simular_parcelas(
+    Query(q): Query<SimularParcelasQuery>,
+) -> impl IntoResponse {
+    let max = q.max_parcelas.clamp(1, 12);
+    let total = Money::from_centavos(q.total_centavos);
+
+    let mut planos = Vec::with_capacity(max as usize);
+    for n in 1..=max {
+        match total.dividir_em_parcelas(n) {
+            Ok(parcelas) => {
+                let base = parcelas.first().map(|p| p.centavos()).unwrap_or(0);
+                let ultima = parcelas.last().map(|p| p.centavos()).unwrap_or(0);
+                let texto = if n == 1 {
+                    format!("1x de {} (à vista)", Money::from_centavos(base))
+                } else if base == ultima {
+                    format!("{}x de {} sem juros", n, Money::from_centavos(base))
+                } else {
+                    format!(
+                        "{}x ({}x de {} + 1x de {}) • Total: {}",
+                        n,
+                        n - 1,
+                        Money::from_centavos(base),
+                        Money::from_centavos(ultima),
+                        total
+                    )
+                };
+                planos.push(PlanoParcelaDto {
+                    parcelas: n,
+                    valor_parcela_centavos: base,
+                    ultima_parcela_centavos: ultima,
+                    total_centavos: q.total_centavos,
+                    texto,
+                });
+            }
+            Err(_) => break,
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(SimularParcelasResponse {
+            total_centavos: q.total_centavos,
+            planos,
+        }),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_model_do_historico_prepara_no_schema_real() {
+        // Impede regressão do read model que alimenta F3/estorno: o COO vem do
+        // rowid e o nome do operador do JOIN com usuarios.
+        let db = mikella_infra_sqlite::Database::em_memoria().unwrap();
+        let filtro = FiltroVendas {
+            limite: 100,
+            ..FiltroVendas::default()
+        };
+        let vendas = VendaRepo::novo(db.conn())
+            .listar_resumo(&filtro)
+            .expect("SQL do histórico de vendas inválido");
+        assert!(vendas.is_empty());
+    }
 }

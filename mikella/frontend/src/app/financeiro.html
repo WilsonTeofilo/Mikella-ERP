@@ -3,93 +3,369 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mikella ERP — Financeiro</title>
+  <title>Mikella ERP — Módulo Financeiro</title>
   <link rel="stylesheet" href="../shared/design/tokens.css" />
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/forms.css" />
-  <style>
-    [data-tema="caixa"] body { background: var(--branco); color: var(--preto); font-family: var(--fonte-texto); margin: 0; }
-    .corte-m { position: fixed; top: 0; right: 0; width: 0; height: 0; border-top: 64px solid var(--cobalto-600); border-left: 64px solid transparent; }
-    .wordmark { position: fixed; top: var(--espaco-6); left: var(--espaco-6); display: flex; gap: var(--espaco-1); font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; line-height: 1; z-index: 10; }
-    .wordmark .letra { display: inline-flex; align-items: center; justify-content: center; width: 2em; height: 2em; font-size: 1.1rem; color: var(--preto); background: var(--cobalto-600); border: 2px solid var(--preto); }
-    .wordmark .letra:nth-child(odd) { color: var(--branco); background: var(--preto); }
-
-    .app-container { min-height: 100vh; padding: var(--espaco-8) var(--espaco-6) var(--espaco-6) var(--espaco-6); box-sizing: border-box; }
-    .linha-topo { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--espaco-4); gap: var(--espaco-4); flex-wrap: wrap; }
-    .titulo-pagina { font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; margin: 0; }
-
-    table { width: 100%; border-collapse: collapse; margin-top: var(--espaco-3); }
-    th, td { border-bottom: 1px solid var(--preto); padding: var(--espaco-3) var(--espaco-2); text-align: left; font-family: var(--fonte-texto); font-size: 0.95rem; }
-    th { font-weight: var(--peso-subtitulo); background: #f4f4f4; border-top: 2px solid var(--preto); }
-    td.direita, th.direita { text-align: right; }
-
-    .tag { display: inline-block; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--preto); }
-    .tag.pagar { background: #fee2e2; color: #991b1b; }
-    .tag.receber { background: #dcfce7; color: #166534; }
-
-    .barra-botoes { display: flex; gap: var(--espaco-2); margin-top: var(--espaco-5); flex-wrap: wrap; }
-    .botao { display: inline-flex; align-items: center; justify-content: center; font-family: var(--fonte-texto); font-weight: var(--peso-subtitulo); padding: var(--espaco-3) var(--espaco-4); min-height: 48px; min-width: 96px; background: var(--branco); color: var(--preto); border: 2px solid var(--preto); cursor: pointer; text-decoration: none; }
-    .botao:hover { background: var(--cobalto-600); color: var(--branco); }
-    .botao.primario { background: var(--preto); color: var(--branco); }
-    .botao.primario:hover { background: var(--cobalto-600); }
-    .tecla { font-weight: var(--peso-titulo); margin-right: var(--espaco-2); }
-
-    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
-    .modal-conteudo { background: var(--branco); color: var(--preto); border: 2px solid var(--preto); padding: var(--espaco-6); max-width: 480px; width: calc(100% - var(--espaco-4)); position: relative; }
-    .modal-titulo { font-family: var(--fonte-display); font-weight: var(--peso-display); font-size: 1.5rem; margin: 0 0 var(--espaco-4); }
-    .modal-conteudo::after { content: ""; position: absolute; top: 0; right: 0; width: 48px; height: 48px; background: var(--cobalto-600); clip-path: polygon(0 0, 0 100%, 100% 0); }
-
-    .campo { margin-bottom: var(--espaco-3); }
-    .campo label { display: block; font-weight: var(--peso-subtitulo); margin-bottom: var(--espaco-1); }
-    .campo input, .campo select { width: 100%; padding: var(--espaco-2); border: 2px solid var(--preto); font-family: var(--fonte-texto); font-size: 1rem; box-sizing: border-box; }
-
-    .toast { position: fixed; bottom: var(--espaco-6); right: var(--espaco-6); background: var(--preto); color: var(--branco); padding: var(--espaco-3) var(--espaco-5); font-family: var(--fonte-texto); font-weight: var(--peso-subtitulo); border: 2px solid var(--preto); display: none; z-index: 300; }
-    .toast.visivel { display: block; }
-  </style>
+  <link rel="stylesheet" href="../shared/ui/window-controls.css" />
+  <link rel="stylesheet" href="../features/finance/finance.css" />
 </head>
 <body data-tema="caixa">
-  <div class="corte-m"></div>
-  <div class="wordmark" aria-label="Mikella">
-    <span class="letra" aria-hidden="true">M</span>
-    <span class="letra" aria-hidden="true">i</span>
-    <span class="letra" aria-hidden="true">k</span>
-    <span class="letra" aria-hidden="true">e</span>
-    <span class="letra" aria-hidden="true">l</span>
-    <span class="letra" aria-hidden="true">l</span>
-    <span class="letra" aria-hidden="true">a</span>
-  </div>
+    <!-- Barra de Topo Unificada -->
+  <header style="background: #000; color: #FFF; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0040D8;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-family: var(--fonte-display); font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; color: #FFF;">MIKELLA <span style="background: #0040D8; padding: 2px 6px; font-size: 0.8rem;">FINANCEIRO</span></span>
+    </div>
+    <div>
+      <button id="btn-topo-voltar" type="button" class="botao" style="background: #FFF; color: #000; font-weight: 800; font-size: 0.85rem; padding: 4px 12px; height: 32px;" >
+        [ESC] Voltar ao Menu
+      </button>
+    </div>
+  </header>
 
   <main class="app-container">
     <div class="linha-topo">
       <div>
-        <h1 class="titulo-pagina">Financeiro — Contas em Aberto</h1>
-        <p style="margin:var(--espaco-1) 0 0 0; color:#555;">Contas a pagar, a receber e liquidação de parcelas</p>
+        <h1 class="titulo-pagina">Financeiro Integrado</h1>
+        <p class="subtitulo-pagina">Fluxo de Caixa, Contas a Pagar, A Receber e DRE Simplificada</p>
       </div>
-      <div id="saldo-resumo" style="font-weight:bold; font-size:1.1rem; padding:var(--espaco-2); border:2px solid var(--preto);">
-        Total Aberto: R$ 0,00
+      <div id="saldo-resumo" class="card-kpi" style="padding: var(--espaco-2) var(--espaco-3); font-weight: bold;">
+        Carregando...
       </div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Tipo</th>
-          <th>Descrição</th>
-          <th>Vencimento</th>
-          <th>Parcela</th>
-          <th class="direita">Valor</th>
-          <th class="direita">Ação</th>
-        </tr>
-      </thead>
-      <tbody id="tabela-contas-corpo">
-        <tr><td colspan="6" style="text-align:center;">Carregando contas...</td></tr>
-      </tbody>
-    </table>
+    <!-- Navegação por Abas -->
+    <nav class="barra-abas" role="tablist" aria-label="Abas Financeiras">
+      <button type="button" id="tab-vendas" class="aba ativa" role="tab" aria-selected="true" aria-controls="painel-vendas">
+        <span class="tecla">1</span> Visão Geral & Vendas
+      </button>
+      <button type="button" id="tab-fluxo" class="aba" role="tab" aria-selected="false" aria-controls="painel-fluxo">
+        <span class="tecla">2</span> Fluxo de Caixa
+      </button>
+      <button type="button" id="tab-pagar" class="aba" role="tab" aria-selected="false" aria-controls="painel-pagar">
+        <span class="tecla">3</span> A Pagar
+      </button>
+      <button type="button" id="tab-receber" class="aba" role="tab" aria-selected="false" aria-controls="painel-receber">
+        <span class="tecla">4</span> A Receber
+      </button>
+      <button type="button" id="tab-resultado" class="aba" role="tab" aria-selected="false" aria-controls="painel-resultado">
+        <span class="tecla">5</span> Resultado (DRE)
+      </button>
+    </nav>
 
+    <!-- ABA 1: VISÃO GERAL & VENDAS (INSPIRADO CHOKKO-MELT) -->
+    <section id="painel-vendas" class="painel-aba" role="tabpanel" aria-labelledby="tab-vendas">
+      <!-- Filtros de Período Inspirados no Chokko-Melt -->
+      <div class="barra-filtros" style="justify-content: space-between; align-items: center; background: #F8F9FC; border: 2px solid #000; padding: 10px 14px; margin-bottom: var(--espaco-4);">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-weight: 800; font-size: 0.85rem; text-transform: uppercase;">Período:</span>
+          <button type="button" id="btn-periodo-hoje" class="btn-filtro-rapido ativo">Hoje</button>
+          <button type="button" id="btn-periodo-semana" class="btn-filtro-rapido">Esta Semana</button>
+          <button type="button" id="btn-periodo-mes" class="btn-filtro-rapido">Este Mês</button>
+        </div>
+        <div class="filtro-datas">
+          <label for="chokko-data-inicio" style="font-weight: bold; font-size: 0.85rem;">De:</label>
+          <input type="date" id="chokko-data-inicio" />
+          <label for="chokko-data-fim" style="font-weight: bold; font-size: 0.85rem;">Até:</label>
+          <input type="date" id="chokko-data-fim" />
+          <button type="button" id="btn-filtrar-chokko" class="botao" style="min-height: 36px; padding: 4px 12px; font-size: 0.85rem;">Filtrar</button>
+        </div>
+      </div>
+
+      <!-- 6 Cards de Indicadores Financeiros do Chokko-Melt -->
+      <div class="cards-kpi-grade" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <div class="card-kpi" style="border-left: 6px solid #000;">
+          <span class="card-kpi-rotulo">Faturamento Bruto</span>
+          <div id="card-fat-bruto" class="card-kpi-valor" style="color: #000;">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Vendas finalizadas</div>
+        </div>
+        <div class="card-kpi" style="border-left: 6px solid #047857;">
+          <span class="card-kpi-rotulo">Lucro Bruto (Margem)</span>
+          <div id="card-lucro-liquido" class="card-kpi-valor" style="color: #047857;">R$ 0,00</div>
+          <div id="card-margem-detalhe" class="card-kpi-detalhe">Margem: 0%</div>
+        </div>
+        <div class="card-kpi" style="border-left: 6px solid #047857;">
+          <span class="card-kpi-rotulo">Total Pix</span>
+          <div id="card-total-pix" class="card-kpi-valor" style="color: #047857;">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Recebido via Pix</div>
+        </div>
+        <div class="card-kpi" style="border-left: 6px solid #0040D8;">
+          <span class="card-kpi-rotulo">Total Cartão</span>
+          <div id="card-total-cartao" class="card-kpi-valor" style="color: #0040D8;">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Débito e Crédito</div>
+        </div>
+        <div class="card-kpi" style="border-left: 6px solid #334155;">
+          <span class="card-kpi-rotulo">Total Dinheiro</span>
+          <div id="card-total-dinheiro" class="card-kpi-valor" style="color: #334155;">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Em espécie no caixa</div>
+        </div>
+        <div class="card-kpi" style="border-left: 6px solid #6B21A8;">
+          <span class="card-kpi-rotulo">Total de Vendas</span>
+          <div id="card-qtd-vendas" class="card-kpi-valor" style="color: #6B21A8;">0</div>
+          <div id="card-ticket-medio" class="card-kpi-detalhe">Ticket Médio: R$ 0,00</div>
+        </div>
+      </div>
+
+      <!-- Tabela de Detalhamento de Entradas (Vendas) -->
+      <div style="background: #FFF; border: 2px solid #000; padding: var(--espaco-4); margin-top: var(--espaco-4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--espaco-3); border-bottom: 2px solid #000; padding-bottom: 8px;">
+          <h2 class="titulo-secao" style="margin: 0;">Detalhamento de Entradas por Venda</h2>
+          <span style="font-size: 0.82rem; font-weight: bold; color: #555;">Hora oficial: Brasília (UTC-3)</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 100px;">Venda / COO</th>
+                <th>Data / Hora</th>
+                <th>Cliente</th>
+                <th>Forma de Pagamento</th>
+                <th style="text-align: right;">Valor Bruto</th>
+                <th style="text-align: right;">Lucro Bruto</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-entradas-chokko">
+              <tr>
+                <td colspan="6" style="text-align: center; color: #666; padding: 24px;">Carregando vendas do período...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 2: FLUXO DE CAIXA -->
+    <section id="painel-fluxo" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-fluxo">
+      <div class="cards-kpi-grade">
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Saldo Inicial</span>
+          <div id="fc-saldo-inicial" class="card-kpi-valor">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Início do período</div>
+        </div>
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Total Entradas</span>
+          <div id="fc-total-entradas" class="card-kpi-valor valor-positivo">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Recebimentos no período</div>
+        </div>
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Total Saídas</span>
+          <div id="fc-total-saidas" class="card-kpi-valor valor-negativo">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Pagamentos e despesas</div>
+        </div>
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Saldo Final Consolidado</span>
+          <div id="fc-saldo-final" class="card-kpi-valor">R$ 0,00</div>
+          <div id="fc-saldo-status" class="card-kpi-detalhe">Projetado</div>
+        </div>
+      </div>
+
+      <div class="barra-filtros">
+        <div class="filtro-datas">
+          <label for="fc-data-inicio">De:</label>
+          <input type="date" id="fc-data-inicio" />
+          <label for="fc-data-fim">Até:</label>
+          <input type="date" id="fc-data-fim" />
+          <button type="button" id="btn-filtrar-fc" class="botao">Filtrar Fluxo</button>
+        </div>
+      </div>
+
+      <!-- Curva de Saldo Acumulado em SVG -->
+      <div class="area-grafico-fluxo">
+        <h2 class="titulo-secao">Evolução do Saldo Acumulado</h2>
+        <div id="container-svg-fluxo" style="min-height: 120px; width: 100%;"></div>
+      </div>
+
+      <h2 class="titulo-secao">Extrato Diário de Caixa</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th class="direita">Entradas (+)</th>
+            <th class="direita">Saídas (-)</th>
+            <th class="direita">Saldo do Dia</th>
+            <th class="direita">Saldo Acumulado</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-fc-corpo">
+          <tr><td colspan="5" style="text-align:center;">Carregando fluxo de caixa...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ABA 2: A PAGAR -->
+    <section id="painel-pagar" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-pagar">
+      <div class="cards-kpi-grade">
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Total a Pagar</span>
+          <div id="pagar-kpi-total" class="card-kpi-valor valor-negativo">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Todas as contas em aberto</div>
+        </div>
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Próximos 7 Dias</span>
+          <div id="pagar-kpi-7dias" class="card-kpi-valor" style="color: #D97706;">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Atenção ao fluxo</div>
+        </div>
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Vencidas</span>
+          <div id="pagar-kpi-vencidas" class="card-kpi-valor valor-negativo">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Urgente regularizar</div>
+        </div>
+      </div>
+
+      <div class="barra-filtros">
+        <button type="button" id="filtro-pagar-todas" class="botao primario">Todas as Contas</button>
+        <button type="button" id="filtro-pagar-7dias" class="botao">Próximos 7 Dias</button>
+        <button type="button" id="filtro-pagar-vencidas" class="botao">Vencidas</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição / Fornecedor</th>
+            <th>Vencimento</th>
+            <th>Parcela</th>
+            <th class="direita">Valor</th>
+            <th class="direita">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-pagar-corpo">
+          <tr><td colspan="5" style="text-align:center;">Carregando contas a pagar...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ABA 3: A RECEBER -->
+    <section id="painel-receber" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-receber">
+      <div class="cards-kpi-grade">
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Total a Receber</span>
+          <div id="receber-kpi-total" class="card-kpi-valor valor-positivo">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Vendas e crediário</div>
+        </div>
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Vence Hoje</span>
+          <div id="receber-kpi-hoje" class="card-kpi-valor" style="color: #0040D8;">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Previsão para hoje</div>
+        </div>
+        <div class="card-kpi">
+          <span class="card-kpi-rotulo">Em Atraso / Vencido</span>
+          <div id="receber-kpi-vencido" class="card-kpi-valor valor-negativo">R$ 0,00</div>
+          <div class="card-kpi-detalhe">Cobrança pendente</div>
+        </div>
+      </div>
+
+      <div class="grade-aging">
+        <div class="card-aging">
+          <div class="card-aging-titulo">Em Dia</div>
+          <div id="aging-em-dia" class="card-aging-valor valor-positivo">R$ 0,00</div>
+        </div>
+        <div class="card-aging">
+          <div class="card-aging-titulo">1 a 30 dias</div>
+          <div id="aging-1-30" class="card-aging-valor" style="color: #D97706;">R$ 0,00</div>
+        </div>
+        <div class="card-aging">
+          <div class="card-aging-titulo">31 a 60 dias</div>
+          <div id="aging-31-60" class="card-aging-valor" style="color: #E11D48;">R$ 0,00</div>
+        </div>
+        <div class="card-aging">
+          <div class="card-aging-titulo">&gt; 60 dias</div>
+          <div id="aging-mais-60" class="card-aging-valor valor-negativo">R$ 0,00</div>
+        </div>
+      </div>
+
+      <div class="barra-filtros">
+        <button type="button" id="filtro-receber-todas" class="botao primario">Todas as Contas</button>
+        <button type="button" id="filtro-receber-hoje" class="botao">Vencendo Hoje</button>
+        <button type="button" id="filtro-receber-vencidas" class="botao">Apenas Vencidas</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição / Cliente</th>
+            <th>Vencimento</th>
+            <th>Parcela</th>
+            <th class="direita">Valor</th>
+            <th class="direita">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-receber-corpo">
+          <tr><td colspan="5" style="text-align:center;">Carregando contas a receber...</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ABA 4: RESULTADO (DRE SIMPLIFICADA) -->
+    <section id="painel-resultado" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-resultado">
+      <div class="barra-filtros">
+        <div class="filtro-datas">
+          <label for="dre-mes-input">Competência (Mês/Ano):</label>
+          <input type="month" id="dre-mes-input" />
+          <button type="button" id="btn-atualizar-dre" class="botao">Calcular DRE</button>
+        </div>
+      </div>
+
+      <div class="caixa-dre">
+        <h2 class="titulo-secao">Demonstração do Resultado do Exercício (Regime de Competência)</h2>
+        <table class="tabela-dre">
+          <tbody>
+            <tr>
+              <td><strong>1. (+) Receita Bruta de Vendas</strong></td>
+              <td id="dre-receita-bruta" class="direita valor-positivo">R$ 0,00</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Deduções e Devoluções de Vendas</td>
+              <td id="dre-deducoes" class="direita valor-negativo">R$ 0,00</td>
+            </tr>
+            <tr class="linha-subtotal">
+              <td><strong>3. (=) Receita Líquida</strong></td>
+              <td id="dre-receita-liquida" class="direita">R$ 0,00</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Custo das Mercadorias Vendidas (CMV)</td>
+              <td id="dre-cmv" class="direita valor-negativo">R$ 0,00</td>
+            </tr>
+            <tr class="linha-subtotal">
+              <td><strong>5. (=) Lucro Bruto / Margem de Contribuição</strong></td>
+              <td id="dre-lucro-bruto" class="direita">R$ 0,00</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Despesas Operacionais e Administrativas</td>
+              <td id="dre-despesas" class="direita valor-negativo">R$ 0,00</td>
+            </tr>
+            <tr class="linha-resultado">
+              <td><strong>7. (=) Resultado Líquido do Exercício</strong></td>
+              <td id="dre-resultado-liquido" class="direita">R$ 0,00</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="cards-kpi-grade" style="margin-top: var(--espaco-4); margin-bottom: 0;">
+          <div class="card-kpi">
+            <span class="card-kpi-rotulo">Margem Bruta</span>
+            <div id="dre-margem-bruta" class="card-kpi-valor">0,0%</div>
+            <div class="card-kpi-detalhe">Lucro Bruto / Receita Líq.</div>
+          </div>
+          <div class="card-kpi">
+            <span class="card-kpi-rotulo">Margem Líquida</span>
+            <div id="dre-margem-liquida" class="card-kpi-valor">0,0%</div>
+            <div class="card-kpi-detalhe">Resultado / Receita Líq.</div>
+          </div>
+          <div class="card-kpi">
+            <span class="card-kpi-rotulo">Diagnóstico Operacional</span>
+            <div id="dre-diagnostico" class="card-kpi-valor" style="font-size: 1.1rem;">-</div>
+            <div class="card-kpi-detalhe">Eficiência da loja</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Barra de Atalhos Global -->
     <div class="barra-botoes">
-      <button id="btn-nova-conta" class="botao primario"><span class="tecla">F1</span> Nova Conta</button>
-      <button id="btn-backup" class="botao"><span class="tecla">F2</span> Gerar Backup Local</button>
-      <button id="btn-voltar" class="botao"><span class="tecla">Esc</span> Voltar ao Menu</button>
+      <button type="button" id="btn-nova-conta" class="botao primario"><span class="tecla">F1</span> Nova Conta</button>
+      <button type="button" id="btn-backup" class="botao"><span class="tecla">F2</span> Gerar Backup Local</button>
+      <button type="button" id="btn-atualizar" class="botao"><span class="tecla">F5</span> Atualizar</button>
+      <button type="button" id="btn-voltar" class="botao"><span class="tecla">Esc</span> Voltar ao Menu</button>
     </div>
   </main>
 
@@ -100,28 +376,28 @@
     <div class="modal-conteudo">
       <h2 class="modal-titulo">Lançar Nova Conta</h2>
       <form id="form-conta">
-        <div class="campo">
+        <div class="campo-grupo">
           <label for="conta-tipo">Tipo de Conta *</label>
           <select id="conta-tipo">
-            <option value="PAGAR">Conta a Pagar (Saída)</option>
-            <option value="RECEBER">Conta a Receber (Entrada)</option>
+            <option value="PAGAR">Conta a Pagar (Saída / Fornecedor)</option>
+            <option value="RECEBER">Conta a Receber (Entrada / Cliente)</option>
           </select>
         </div>
-        <div class="campo">
+        <div class="campo-grupo">
           <label for="conta-desc">Descrição / Fornecedor / Cliente *</label>
           <input id="conta-desc" type="text" required placeholder="Ex: Fornecedor Café Torrado" autocomplete="off" />
         </div>
         <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo" style="flex:1;">
+          <div class="campo-grupo" style="flex:1;">
             <label for="conta-valor">Valor Total (R$) *</label>
             <input id="conta-valor" type="text" required placeholder="0,00" style="text-align:right;" />
           </div>
-          <div class="campo" style="flex:1;">
+          <div class="campo-grupo" style="flex:1;">
             <label for="conta-parcelas">Nº Parcelas</label>
             <input id="conta-parcelas" type="number" value="1" min="1" max="60" />
           </div>
         </div>
-        <div class="campo">
+        <div class="campo-grupo">
           <label for="conta-vencimento">Primeiro Vencimento *</label>
           <input id="conta-vencimento" type="date" required />
         </div>
@@ -142,7 +418,7 @@
         <input type="hidden" id="liq-id" />
         <input type="hidden" id="liq-tipo" />
         <input type="hidden" id="liq-idx" />
-        <div class="campo">
+        <div class="campo-grupo">
           <label for="liq-forma">Forma de Pagamento *</label>
           <select id="liq-forma">
             <option value="DINHEIRO">Dinheiro</option>
@@ -152,7 +428,7 @@
             <option value="OUTRO">Outro / Boleto</option>
           </select>
         </div>
-        <div class="campo">
+        <div class="campo-grupo">
           <label for="liq-valor">Valor a Liquidar (R$) *</label>
           <input id="liq-valor" type="text" required style="text-align:right;" />
         </div>
@@ -164,251 +440,6 @@
     </div>
   </div>
 
-  <script type="module">
-    const API_URL = (window.MIKELLA_API_URL || "http://127.0.0.1:47823").replace(/\/+$/, "");
-    const token = localStorage.getItem("mikella_token");
-    if (!token) { window.location.href = "landing.html"; }
-    const authHeaders = { "Authorization": `Bearer ${token}` };
-
-    const Money = {
-      fmt(c) {
-        const v = (c < 0 ? "-" : "") + "R$ " + (Math.abs(c)/100).toFixed(2).replace(".", ",");
-        return v;
-      },
-      parse(str) {
-        const digitos = (str || "").replace(/\D/g, "");
-        return parseInt(digitos, 10) || 0;
-      }
-    };
-
-    function toast(msg) {
-      const t = document.getElementById("toast");
-      t.textContent = msg;
-      t.classList.add("visivel");
-      setTimeout(() => t.classList.remove("visivel"), 2500);
-    }
-
-    async function fetchJSON(path, opts = {}) {
-      const res = await fetch(`${API_URL}${path}`, {
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        ...opts,
-      });
-      const data = await res.json().catch(() => ({}));
-      return { ok: res.ok, status: res.status, data };
-    }
-
-    async function carregarContas() {
-      const { ok, data } = await fetchJSON("/v1/finance/contas-abertas");
-      if (!ok) {
-        toast(data.erro || "Falha ao carregar contas abertas.");
-        return;
-      }
-
-      const contas = data.contas || [];
-      renderTabela(contas);
-    }
-
-    function renderTabela(contas) {
-      const tbody = document.getElementById("tabela-contas-corpo");
-      tbody.innerHTML = "";
-
-      let totalAbertoCentavos = 0;
-
-      if (contas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:var(--espaco-6);">Nenhuma conta em aberto no momento.</td></tr>';
-        document.getElementById("saldo-resumo").textContent = "Total Aberto: R$ 0,00";
-        return;
-      }
-
-      contas.forEach(c => {
-        const tr = document.createElement("tr");
-        const tipoClass = c.tipo === "PAGAR" ? "pagar" : "receber";
-        const valorCents = c.valor_centavos || 0;
-        totalAbertoCentavos += valorCents;
-
-        tr.innerHTML = `
-          <td><span class="tag ${tipoClass}">${c.tipo}</span></td>
-          <td><strong>${c.descricao}</strong></td>
-          <td>${c.vencimento}</td>
-          <td>${c.parcela_numero || 1}</td>
-          <td class="direita">${Money.fmt(valorCents)}</td>
-          <td class="direita">
-            <button class="botao" style="min-height:36px; min-width:72px; padding:var(--espaco-1) var(--espaco-2);" 
-              data-liquidar-id="${c.id}" data-liquidar-tipo="${c.tipo}" data-liquidar-idx="${c.parcela_numero || 1}" data-liquidar-valor="${valorCents}" data-liquidar-desc="${c.descricao}">
-              Liquidar
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById("saldo-resumo").textContent = `Total Aberto: ${Money.fmt(totalAbertoCentavos)}`;
-
-      tbody.querySelectorAll("[data-liquidar-id]").forEach(btn => {
-        btn.onclick = () => abrirModalLiquidar(
-          btn.dataset.liquidarId,
-          btn.dataset.liquidarTipo,
-          btn.dataset.liquidarIdx,
-          parseInt(btn.dataset.liquidarValor, 10),
-          btn.dataset.liquidarDesc
-        );
-      });
-    }
-
-    // Modal Nova Conta
-    const modalConta = document.getElementById("modal-conta");
-    const btnNovaConta = document.getElementById("btn-nova-conta");
-    const btnCancelaConta = document.getElementById("btn-cancelar-conta");
-    const formConta = document.getElementById("form-conta");
-
-    btnNovaConta.onclick = () => {
-      formConta.reset();
-      document.getElementById("conta-vencimento").value = new Date().toISOString().slice(0, 10);
-      modalConta.style.display = "flex";
-      document.getElementById("conta-desc").focus();
-    };
-
-    btnCancelaConta.onclick = () => {
-      modalConta.style.display = "none";
-    };
-
-    document.getElementById("conta-valor").addEventListener("input", (e) => {
-      const v = e.target.value.replace(/\D/g, "");
-      if (v.length > 0) {
-        e.target.value = (parseInt(v, 10) / 100).toFixed(2).replace(".", ",");
-      }
-    });
-
-    formConta.onsubmit = async (e) => {
-      e.preventDefault();
-      const tipo = document.getElementById("conta-tipo").value;
-      const endpoint = tipo === "PAGAR" ? "/v1/finance/contas-pagar" : "/v1/finance/contas-receber";
-
-      const totalCentavos = Money.parse(document.getElementById("conta-valor").value);
-      const qtdParcelas = parseInt(document.getElementById("conta-parcelas").value, 10) || 1;
-      const primeiroVenc = document.getElementById("conta-vencimento").value;
-
-      // Gera parcelas
-      const valorBaseParcela = Math.floor(totalCentavos / qtdParcelas);
-      const resto = totalCentavos % qtdParcelas;
-
-      const parcelas = [];
-      const d = new Date(primeiroVenc + "T12:00:00Z");
-
-      for (let i = 0; i < qtdParcelas; i++) {
-        const vcto = new Date(d);
-        vcto.setMonth(vcto.getMonth() + i);
-        const valorParc = i === 0 ? valorBaseParcela + resto : valorBaseParcela;
-        parcelas.push({
-          numero: i + 1,
-          vencimento: vcto.toISOString().slice(0, 10),
-          valor_centavos: valorParc,
-        });
-      }
-
-      const payload = {
-        descricao: document.getElementById("conta-desc").value.trim(),
-        pessoa_id: null,
-        plano_contas_id: null,
-        parcelas: parcelas,
-      };
-
-      const { ok, data } = await fetchJSON(endpoint, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (ok) {
-        toast("Conta registrada com sucesso!");
-        modalConta.style.display = "none";
-        carregarContas();
-      } else {
-        toast(data.erro || "Falha ao registrar conta.");
-      }
-    };
-
-    // Modal Liquidar
-    const modalLiq = document.getElementById("modal-liquidar");
-    const formLiq = document.getElementById("form-liquidar");
-    const btnCancelaLiq = document.getElementById("btn-cancelar-liq");
-
-    function abrirModalLiquidar(id, tipo, idx, valorCents, desc) {
-      document.getElementById("liq-id").value = id;
-      document.getElementById("liq-tipo").value = tipo;
-      document.getElementById("liq-idx").value = idx;
-      document.getElementById("liquidar-info").textContent = `${tipo}: ${desc} — Parcela ${idx}`;
-      document.getElementById("liq-valor").value = (valorCents / 100).toFixed(2).replace(".", ",");
-      modalLiq.style.display = "flex";
-      document.getElementById("liq-forma").focus();
-    }
-
-    btnCancelaLiq.onclick = () => { modalLiq.style.display = "none"; };
-
-    formLiq.onsubmit = async (e) => {
-      e.preventDefault();
-      const id = document.getElementById("liq-id").value;
-      const tipo = document.getElementById("liq-tipo").value;
-      const idx = document.getElementById("liq-idx").value;
-      const forma = document.getElementById("liq-forma").value;
-      const valorCentavos = Money.parse(document.getElementById("liq-valor").value);
-
-      const endpoint = tipo === "PAGAR"
-        ? `/v1/finance/contas-pagar/${id}/parcelas/${idx}/liquidar`
-        : `/v1/finance/contas-receber/${id}/parcelas/${idx}/liquidar`;
-
-      const payload = {
-        forma_pagamento: forma,
-        valor_centavos: valorCentavos,
-      };
-
-      const { ok, data } = await fetchJSON(endpoint, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (ok) {
-        toast("Parcela liquidada com sucesso!");
-        modalLiq.style.display = "none";
-        carregarContas();
-      } else {
-        toast(data.erro || "Falha ao liquidar parcela.");
-      }
-    };
-
-    // Backup Local
-    document.getElementById("btn-backup").onclick = async () => {
-      toast("Gerando cópia de segurança local...");
-      const { ok, data } = await fetchJSON("/v1/sistema/backup-local", { 
-        method: "POST",
-        body: JSON.stringify({})
-      });
-      if (ok) {
-        toast(`Backup gerado: ${data.arquivo} (${data.tamanho_bytes} bytes).`);
-      } else {
-        toast(data.erro || "Falha ao gerar backup.");
-      }
-    };
-
-    // Voltar
-    document.getElementById("btn-voltar").onclick = () => { window.location.href = "main-menu.html"; };
-
-    // Teclas de atalho
-    document.addEventListener("keydown", (e) => {
-      if (modalConta.style.display === "flex" || modalLiq.style.display === "flex") {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          modalConta.style.display = "none";
-          modalLiq.style.display = "none";
-        }
-        return;
-      }
-
-      if (e.key === "F1") { e.preventDefault(); btnNovaConta.click(); }
-      else if (e.key === "F2") { e.preventDefault(); document.getElementById("btn-backup").click(); }
-      else if (e.key === "Escape") { e.preventDefault(); document.getElementById("btn-voltar").click(); }
-    });
-
-    carregarContas();
-  </script>
+  <script type="module" src="../features/finance/finance.js"></script>
 </body>
 </html>

@@ -84,6 +84,23 @@ impl HashChain for Blake3HashChain {
     }
 }
 
+/// Blind index para CPF/CNPJ de clientes (SEC-014 / LGPD-003).
+///
+/// Usa BLAKE3 keyed-hash com a chave da loja (32 bytes), garantindo que:
+/// - Dois documentos iguais produzem o mesmo blind index (permitindo busca exata).
+/// - Sem a chave da loja, o banco vazado não revela quais documentos pertencem
+///   a quais clientes (proteção de PII conforme LGPD).
+///
+/// A chave deve ser derivada de `MIKELLA_STORE_KEY` (hex 64 chars = 32 bytes)
+/// e mantida estável enquanto houver dados no banco. Trocar a chave invalida
+/// todos os índices existentes.
+pub fn blind_index_documento(documento_digits: &str, chave_loja: &[u8; 32]) -> String {
+    // blake3::keyed_hash garante autenticação de domínio embutida: a chave
+    // faz parte do estado inicial do hasher (512 bits de setup interno).
+    let hash = blake3::keyed_hash(chave_loja, documento_digits.as_bytes());
+    hash.to_hex().to_string()
+}
+
 /// Hash de um registro de auditoria.
 #[allow(clippy::too_many_arguments)] // espelha as colunas do registro de auditoria
 pub fn hash_auditoria(

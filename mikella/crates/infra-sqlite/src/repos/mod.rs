@@ -8,6 +8,7 @@
 
 pub mod auditoria;
 pub mod caixa;
+pub mod config_loja;
 pub mod doacao;
 pub mod financeiro;
 pub mod financeiro_dashboard;

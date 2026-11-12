@@ -1,5 +1,10 @@
 # Mikella ERP — especificação funcional e planos
 
+> **Nota de atualização (09/11/2026):** especificação histórica. Vários itens
+> já foram entregues (vendas, caixa, financeiro, clientes/crediário, CSV,
+> backup e LGPD). O piso de hardware vigente é i3/i5 de 5ª geração, 6 GB e HDD
+> 5400 rpm. Consulte `PLANO E FASES/00_PLANO_MESTRE.md` para o estado real.
+
 **Status:** especificação inicial. Itens **[DECISÃO PENDENTE]** não podem ser implementados com valor fixo; devem ler de configuração (entitlements). Termos em `00_README_INDICE_E_CONTEXTO.md`.
 
 ## 1. Papéis e hierarquia
@@ -88,7 +93,7 @@
 
 ## 3. Requisitos não funcionais (resumo; detalhes nos documentos próprios)
 
-- RNF-001: rodar em i5 de 2ª geração, 4 GB de RAM, Lubuntu/Linux Mint/Linux Lite (WebKitGTK 4.1) e Windows 10+ (`07`).
+- RNF-001: rodar em i3/i5 de 5ª geração, 6 GB de RAM, HDD 5400 rpm, Lubuntu/Linux Mint/Linux Lite (WebKitGTK 4.1) e Windows 10+ (`07` e `09`).
 - RNF-002: sem perda de movimentação em queda de energia (`06`).
 - RNF-003: segurança e LGPD por desenho (`04`).
 - RNF-004: modularidade, testabilidade e ausência de acoplamento rígido (`03`).

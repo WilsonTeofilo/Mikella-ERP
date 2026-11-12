@@ -13,9 +13,11 @@ mod dto;
 mod handlers;
 mod middleware;
 mod state;
+mod suporte;
 mod util;
 
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::DefaultBodyLimit;
@@ -34,6 +36,108 @@ use crate::state::{AppState, ConsoleEmailBackend};
 
 // Re-exporta handlers no crate root para routing mais limpo.
 use handlers::*;
+
+fn imprimir_ajuda_manutencao() {
+    println!("Mikella Store Server — manutenção de backup");
+    println!();
+    println!("Uso:");
+    println!("  mikella-store-server --verificar-backup <arquivo.db>");
+    println!("  mikella-store-server --restaurar-backup <arquivo.db> [--destino <banco.db>]");
+    println!();
+    println!("A restauração exige o servidor PARADO. O banco atual é preservado");
+    println!("como <banco>.pre-restauracao-<timestamp>.db antes da troca.");
+    println!("O destino padrão vem de MIKELLA_DB_PATH (ou dados/loja.db).");
+}
+
+/// Executa o modo de manutenção offline. Devolve `true` quando o processo deve
+/// encerrar sem subir o servidor HTTP.
+fn executar_manutencao(
+    argumentos: &[String],
+    db_path: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    if argumentos.is_empty() {
+        return Ok(false);
+    }
+
+    let mut verificar: Option<PathBuf> = None;
+    let mut restaurar: Option<PathBuf> = None;
+    let mut destino = PathBuf::from(db_path);
+
+    let mut i = 0;
+    while i < argumentos.len() {
+        match argumentos[i].as_str() {
+            "--ajuda" | "--help" | "-h" => {
+                imprimir_ajuda_manutencao();
+                return Ok(true);
+            }
+            "--verificar-backup" => {
+                i += 1;
+                let valor = argumentos
+                    .get(i)
+                    .ok_or("--verificar-backup exige o caminho do arquivo .db")?;
+                verificar = Some(PathBuf::from(valor));
+            }
+            "--restaurar-backup" => {
+                i += 1;
+                let valor = argumentos
+                    .get(i)
+                    .ok_or("--restaurar-backup exige o caminho do arquivo .db")?;
+                restaurar = Some(PathBuf::from(valor));
+            }
+            "--destino" => {
+                i += 1;
+                let valor = argumentos
+                    .get(i)
+                    .ok_or("--destino exige o caminho do banco de destino")?;
+                destino = PathBuf::from(valor);
+            }
+            outro => {
+                return Err(format!("argumento desconhecido: {outro} (use --ajuda)").into());
+            }
+        }
+        i += 1;
+    }
+
+    if verificar.is_some() && restaurar.is_some() {
+        return Err("use --verificar-backup OU --restaurar-backup, não os dois".into());
+    }
+
+    if let Some(arquivo) = verificar {
+        let verificacao = mikella_infra_sqlite::verificar_backup(&arquivo)?;
+        println!("{}", serde_json::to_string_pretty(&verificacao)?);
+        if !verificacao.valido {
+            return Err("backup REPROVADO na verificação".into());
+        }
+        println!("\nBackup aprovado: pode ser usado para restauração.");
+        return Ok(true);
+    }
+
+    if let Some(origem) = restaurar {
+        println!(
+            "Restaurando {} sobre {} (servidor deve estar parado)...",
+            origem.display(),
+            destino.display()
+        );
+        let resultado = mikella_infra_sqlite::restaurar_backup(&origem, &destino)?;
+        println!("Restauração concluída.");
+        println!("  origem: {}", resultado.origem);
+        println!("  destino: {}", resultado.destino);
+        println!(
+            "  cópia do banco anterior: {}",
+            resultado
+                .copia_seguranca
+                .as_deref()
+                .unwrap_or("(não existia banco anterior)")
+        );
+        println!(
+            "  blake3 do backup restaurado: {}",
+            resultado.verificacao.blake3_hash
+        );
+        return Ok(true);
+    }
+
+    Err("nenhum modo de manutenção informado (use --ajuda)".into())
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,6 +158,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ─── Resolve caminho do DB a partir de MIKELLA_DB_PATH (default: dados/loja.db)
     let db_path = std::env::var("MIKELLA_DB_PATH").unwrap_or_else(|_| "dados/loja.db".into());
     tracing::info!(db_path = %db_path, "abrindo banco de dados");
+
+    // ─── Modo manutenção offline: verificar/restaurar backup.
+    // Roda antes de abrir a conexão SQLite; restauração com o servidor no ar
+    // trocaria o arquivo por baixo de uma conexão aberta.
+    let argumentos: Vec<String> = std::env::args().skip(1).collect();
+    if executar_manutencao(&argumentos, &db_path)? {
+        return Ok(());
+    }
 
     // SEC-014/LGPD-003: a chave é resolvida antes do boot para que a migração
     // de blind index rode de forma consistente entre reinícios.
@@ -133,12 +245,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/clientes", get(listar_clientes_handler))
         .route("/v1/clientes", post(salvar_cliente_handler))
         .route("/v1/clientes/:id/exportar", get(exportar_titular_handler))
-        .route("/v1/clientes/:id", delete(excluir_ou_anonimizar_cliente_handler))
+        .route(
+            "/v1/clientes/:id",
+            delete(excluir_ou_anonimizar_cliente_handler),
+        )
         .route("/v1/crediario/devedores", get(listar_devedores_handler))
         .route("/v1/crediario/liquidar", post(liquidar_divida_handler))
         .route("/v1/sistema/backup-local", post(backup_local))
+        .route(
+            "/v1/sistema/backup/verificar",
+            post(verificar_backup_handler),
+        )
+        .route("/v1/sistema/backups", get(listar_backups_handler))
+        .route("/v1/sistema/lgpd/expurgo", post(expurgo_lgpd_handler))
+        .route("/v1/config/pagamento", get(obter_config_pagamento))
+        .route(
+            "/v1/sistema/config-pagamento",
+            put(atualizar_config_pagamento),
+        )
         .route("/v1/sistema/diagnostico", get(diagnostico))
-        .route("/v1/sistema/teste-impressora", post(teste_impressora_handler))
+        .route("/v1/sistema/suporte/pacote", post(pacote_suporte_handler))
+        .route(
+            "/v1/sistema/teste-impressora",
+            post(teste_impressora_handler),
+        )
         .route("/v1/sistema/cep/:cep", get(consultar_cep))
         .route("/v1/donation/prompt", get(donation_prompt))
         .route("/v1/donation/ack", post(donation_ack))
@@ -146,8 +276,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/finance/resumo", get(obter_resumo_dashboard_handler))
         .route("/v1/finance/fluxo-caixa", get(obter_fluxo_caixa_handler))
         .route("/v1/finance/resultado", get(obter_resultado_dre_handler))
-        .route("/v1/finance/contas-pagar", post(registrar_conta_pagar_handler))
-        .route("/v1/finance/contas-receber", post(registrar_conta_receber_handler))
+        .route(
+            "/v1/finance/contas-pagar",
+            post(registrar_conta_pagar_handler),
+        )
+        .route(
+            "/v1/finance/contas-receber",
+            post(registrar_conta_receber_handler),
+        )
         .route(
             "/v1/finance/contas-pagar/:id/parcelas/:idx/liquidar",
             post(liquidar_parcela_handler),
@@ -156,7 +292,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/v1/finance/contas-receber/:id/parcelas/:idx/liquidar",
             post(liquidar_parcela_receber_handler),
         )
-        .route("/v1/finance/contas-abertas", get(listar_contas_abertas_handler))
+        .route(
+            "/v1/finance/contas-abertas",
+            get(listar_contas_abertas_handler),
+        )
         // CSV import (PROD-010).
         .route("/v1/import/csv", post(import_csv_handler))
         // Aplica middleware de token em todas as rotas protegidas.

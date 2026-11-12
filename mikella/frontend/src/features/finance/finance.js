@@ -177,7 +177,7 @@ async function carregarPainelChokko(periodo, dataInicio = null, dataFim = null) 
     tdVazio.colSpan = 6;
     tdVazio.style.textAlign = "center";
     tdVazio.style.padding = "24px";
-    tdVazio.style.color = "#666";
+    tdVazio.style.color = "var(--cinza-500)";
     tdVazio.textContent = "Nenhuma venda registrada no período selecionado.";
     trVazio.appendChild(tdVazio);
     tbody.appendChild(trVazio);
@@ -240,7 +240,7 @@ async function carregarPainelChokko(periodo, dataInicio = null, dataFim = null) 
     const tdLucro = document.createElement("td");
     tdLucro.style.textAlign = "right";
     tdLucro.style.fontWeight = "900";
-    tdLucro.style.color = v.lucro_liquido_centavos >= 0 ? "#047857" : "#C81E16";
+    tdLucro.style.color = v.lucro_liquido_centavos >= 0 ? "var(--verde)" : "var(--vermelho)";
     tdLucro.textContent = formatarCentavos(v.lucro_liquido_centavos);
 
     tr.append(tdId, tdData, tdCli, tdForma, tdBruto, tdLucro);
@@ -349,7 +349,7 @@ function renderGraficoSvgFluxo(dias) {
 
   if (dias.length < 2) {
     const p = document.createElement("p");
-    p.style.color = "#777";
+    p.style.color = "var(--cinza-500)";
     p.style.fontStyle = "italic";
     p.textContent = "Histórico insuficiente para curva de saldo (mínimo de 2 dias com dados).";
     container.appendChild(p);
@@ -749,7 +749,7 @@ function renderTabelaReceber(contas, filtro) {
         tdVcto.appendChild(tag);
       } else if (ehHoje) {
         const tag = document.createElement("span");
-        tag.style.color = "#0040D8";
+        tag.style.color = "var(--azul-600)";
         tag.style.fontWeight = "bold";
         tag.style.marginLeft = "8px";
         tag.textContent = "(VENCE HOJE)";
@@ -880,13 +880,13 @@ async function carregarResultadoDRE() {
   const elDiag = document.getElementById("dre-diagnostico");
   if (data.resultado_liquido_centavos > 0) {
     elDiag.textContent = "Superávit Operacional";
-    elDiag.style.color = "#047857";
+    elDiag.style.color = "var(--verde)";
   } else if (data.resultado_liquido_centavos < 0) {
     elDiag.textContent = "Déficit / Prejuízo";
-    elDiag.style.color = "#DC2626";
+    elDiag.style.color = "var(--vermelho)";
   } else {
     elDiag.textContent = "Equilíbrio Exato";
-    elDiag.style.color = "#0040D8";
+    elDiag.style.color = "var(--azul-600)";
   }
 }
 

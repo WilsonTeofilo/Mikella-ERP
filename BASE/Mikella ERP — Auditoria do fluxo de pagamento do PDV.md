@@ -6,6 +6,23 @@
 
 **Precedência:** a ideia do dono (esboço e texto) manda. Visual segue o `08`, desempenho o `07`, regras de caixa e livro imutável o `06`, aprovações o `05`.
 
+> **Atualização de implementação (09/11/2026):**
+> - **Resolvidos e verificados no código:** PAG-01 (pagamento parcial), PAG-02
+>   (grade separada no F3), PAG-03 (parcelas com preview), PAG-04 (um campo de
+>   valor), PAG-05 (`Quitado` em verde), PAG-06 (`Finalizar venda`), PAG-07
+>   (sombra preta), PAG-08 (rótulos em caixa de frase), PAG-09 (botão
+>   “Remover” com confirmação), PAG-10 (hover neutro; seleção amarela é estado
+>   intencional), PAG-11 (toast à esquerda, sem cobrir a ação primária) e
+>   VND-03 (cabeçalhos sem caixa alta). VND-01/VND-02 também foram corrigidos,
+>   mas dependem de validação visual no hardware real.
+> - **Resolvido:** parcelas de cartão e prazo de crediário configuráveis por
+>   loja. A migração `0012_config_pagamento.sql` grava os limites em
+>   `loja_config`, `GET /v1/config/pagamento` alimenta o PDV e
+>   `PUT /v1/sistema/config-pagamento` (DONO, auditado) altera os valores. A
+>   venda revalida no servidor; a UI não é fronteira confiável.
+> - O PDV é **não fiscal**: a menção “CPF na nota” foi substituída por vínculo
+>   do CPF à venda.
+
 ---
 
 ## 1. A ideia do dono, organizada

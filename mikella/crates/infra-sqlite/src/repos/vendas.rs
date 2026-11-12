@@ -15,6 +15,7 @@ use mikella_shared_kernel::{
 
 use super::{data_hora_sql, limit_seguro, parse_data_hora, parse_id, sql, ParaDominio};
 use crate::error::InfraResult;
+use crate::tempo::{data_local_iso, intervalo_utc_do_dia};
 
 /// Filtros do histórico de vendas (query params já validados pelo handler).
 #[derive(Debug, Clone, Default)]
@@ -134,13 +135,16 @@ impl<'a> VendaRepo<'a> {
                 sql_query.push_str(" AND v.created_at <= ?");
                 args.push(Value::Text(fim.to_string()));
             }
-            // Sem filtro de data: `sem_filtro_data` ou o chamador passou os limites explicitamente.
-            // O antigo `date('now')` era UTC — usaria o dia errado entre 21h-0h no fuso de Brasília.
-            // O filtro correto deve ser calculado pelo handler com o fuso IANA da loja_config.
-            // Se nenhum filtro for fornecido e sem_filtro_data == false, retorna registros de hoje
-            // em UTC como fallback conservador (evita retornar tabela inteira).
-            if filtro.data_inicio.is_none() && filtro.data_fim.is_none() && !filtro.sem_filtro_data {
-                sql_query.push_str(" AND date(v.created_at) = date('now')");
+            // Sem filtro de data: usa o dia local da loja para não depender do
+            // `date('now')` UTC (entre 21h e 0h em Brasília ele aponta para o
+            // dia seguinte — TZ-001). Sem `sem_filtro_data`, restringe a hoje.
+            if filtro.data_inicio.is_none() && filtro.data_fim.is_none() && !filtro.sem_filtro_data
+            {
+                let fuso = super::sistema::DiagnosticoRepo::novo(self.conn).fuso_horario();
+                let (inicio_utc, fim_utc) = intervalo_utc_do_dia(&fuso, &data_local_iso(&fuso))?;
+                sql_query.push_str(" AND v.created_at >= ? AND v.created_at <= ?");
+                args.push(Value::Text(inicio_utc));
+                args.push(Value::Text(fim_utc));
             }
         }
 
@@ -224,7 +228,8 @@ impl<'a> VendaRepo<'a> {
 
         let mut pagamentos = Vec::new();
         for linha in linhas {
-            let (forma, valor, recebido, detalhe, parcelas, maquininha, modalidade, taxa_centavos) = linha?;
+            let (forma, valor, recebido, detalhe, parcelas, maquininha, modalidade, taxa_centavos) =
+                linha?;
             let forma = FormaPagamento::from_db_com_detalhe(&forma, detalhe.as_deref())
                 .map_err(|erro| crate::error::erro_campo("venda_pagamentos.forma", erro))?;
             pagamentos.push(Pagamento {

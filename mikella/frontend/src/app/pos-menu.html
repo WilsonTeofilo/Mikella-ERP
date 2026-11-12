@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../features/pos/pos-menu.css" />
+  <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body data-tema="balcao">
 
@@ -32,8 +33,8 @@
         <span id="user-display">OPERADOR: Carregando...</span>
         <span id="user-papel-tag" class="hud-operador-papel">DONO / ADM</span>
       </div>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <button id="btn-teste-impressora" class="btn-voltar-topo" type="button" title="Testar Impressora Local" style="background: #111; border-color: #333;">
+      <div class="u-0da5f422">
+        <button id="btn-teste-impressora" class="btn-voltar-topo u-5c85fc21" type="button" title="Testar Impressora Local">
           <span>[TESTE]</span>
           <span>IMPRESSORA</span>
         </button>
@@ -163,10 +164,10 @@
   <div id="toast"></div>
 
   <!-- MODAL F2: Digitar Comanda -->
-  <div id="modal-comanda" class="modal-overlay" style="display: none;">
-    <div class="modal-corpo" style="max-width: 440px;">
+  <div id="modal-comanda" class="modal-overlay u-5790ffba">
+    <div class="modal-corpo u-c31abe07">
       <h2>Iniciar Venda com Comanda</h2>
-      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Digite ou bipe o número da comanda do cliente:</p>
+      <p class="u-f6ad00f0">Digite ou bipe o número da comanda do cliente:</p>
       <form id="form-comanda">
         <div class="form-linha">
           <label for="input-num-comanda">Número da Comanda (ex: 101)</label>
@@ -181,40 +182,40 @@
   </div>
 
   <!-- MODAL F3: Histórico de Vendas -->
-  <div id="modal-historico" class="modal-overlay" style="display: none;">
-    <div class="modal-corpo" style="max-width: 800px;">
+  <div id="modal-historico" class="modal-overlay u-5790ffba">
+    <div class="modal-corpo u-90eb10a1">
       <h2>Histórico de Vendas</h2>
-      <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-3); flex-wrap: wrap;">
-        <input id="hist-filtro-cod" class="form-input" style="flex: 2; height: 42px;" type="text" placeholder="Buscar por Código da Venda (COO)..." />
-        <input id="hist-data-ini" class="form-input" style="flex: 1; height: 42px;" type="date" />
-        <input id="hist-data-fim" class="form-input" style="flex: 1; height: 42px;" type="date" />
-        <button id="btn-hist-filtrar" class="btn-acao" style="height: 42px; flex: 0.8;">Buscar</button>
+      <div class="u-4e40c5d9">
+        <input id="hist-filtro-cod" class="form-input u-9815ce72" type="text" placeholder="Buscar por Código da Venda (COO)..." />
+        <input id="hist-data-ini" class="form-input u-76360271" type="date" />
+        <input id="hist-data-fim" class="form-input u-76360271" type="date" />
+        <button id="btn-hist-filtrar" class="btn-acao u-9d5ca009">Buscar</button>
       </div>
 
-      <div style="max-height: 280px; overflow-y: auto;">
+      <div class="u-e6d43c66">
         <table class="tabela-modal">
           <thead>
             <tr>
               <th>Código / COO</th>
               <th>Data/Hora</th>
               <th>Status</th>
-              <th style="text-align: right;">Total</th>
-              <th style="text-align: center;">Ações</th>
+              <th class="u-30489cbd">Total</th>
+              <th class="u-65f9d5a3">Ações</th>
             </tr>
           </thead>
           <tbody id="hist-tabela-corpo">
-            <tr><td colspan="5" style="text-align: center; padding: 16px;">Carregando histórico...</td></tr>
+            <tr><td class="u-35a20b0f" colspan="5">Carregando histórico...</td></tr>
           </tbody>
         </table>
       </div>
 
       <!-- Pré-visualização do Cupom Térmico -->
-      <div id="hist-preview-bloco" style="display: none; margin-top: var(--espaco-3);">
-        <h3 style="font-size: 1.1rem; text-transform: uppercase;">Comprovante de Venda (Bobina):</h3>
+      <div class="u-541ff56f" id="hist-preview-bloco">
+        <h3 class="u-4a158703">Comprovante de Venda (Bobina):</h3>
         <div id="hist-preview-cupom" class="bobina-termica"></div>
-        <div style="display: flex; gap: var(--espaco-2);">
-          <button id="btn-reimprimir-cupom" class="btn-acao" style="height: 44px;">Reimprimir Cupom (ESC/POS)</button>
-          <button type="button" class="btn-acao secundario" style="height: 44px;" data-acao="fechar-cupom">Fechar Cupom</button>
+        <div class="u-4a76da36">
+          <button id="btn-reimprimir-cupom" class="btn-acao u-993fff8b">Reimprimir Cupom (ESC/POS)</button>
+          <button type="button" class="btn-acao secundario u-993fff8b" data-acao="fechar-cupom">Fechar Cupom</button>
         </div>
       </div>
 
@@ -225,8 +226,8 @@
   </div>
 
   <!-- MODAL F3: Estorno de Venda (3 passos) -->
-  <div id="modal-estorno" class="modal-overlay" style="display: none;">
-    <div class="modal-corpo" style="max-width: 580px;">
+  <div id="modal-estorno" class="modal-overlay u-5790ffba">
+    <div class="modal-corpo u-672a0f7b">
       <h2>Estorno de Venda</h2>
 
       <!-- Passo 1: conferir -->
@@ -249,7 +250,7 @@
       </section>
 
       <!-- Passo 2: motivo + observação -->
-      <section id="estorno-passo-2" style="display: none;">
+      <section class="u-5790ffba" id="estorno-passo-2">
         <div class="form-linha">
           <label for="est-motivo">Motivo do estorno *</label>
           <select id="est-motivo" class="form-input">
@@ -278,7 +279,7 @@
       </section>
 
       <!-- Passo 3: autorização -->
-      <section id="estorno-passo-3" style="display: none;">
+      <section class="u-5790ffba" id="estorno-passo-3">
         <div id="estorno-aprovacao-campos">
           <p class="estorno-aviso">
             Operador precisa da autorização de um gerente ou dono. A senha não é
@@ -293,7 +294,7 @@
             <input id="est-aprovador-senha" class="form-input" type="password" autocomplete="off" />
           </div>
         </div>
-        <p id="estorno-autoaprovado" class="estorno-aviso" style="display: none;">
+        <p id="estorno-autoaprovado" class="estorno-aviso u-5790ffba">
           Você é gerente/dono e autoriza esta operação.
         </p>
         <div class="botoes-linha">
@@ -303,9 +304,9 @@
       </section>
 
       <!-- Resultado -->
-      <section id="estorno-resultado" style="display: none;">
-        <p id="estorno-resultado-texto" style="font-weight: 800;"></p>
-        <pre id="estorno-cupom" class="bobina-termica" style="max-height: 260px;"></pre>
+      <section class="u-5790ffba" id="estorno-resultado">
+        <p class="u-209732a3" id="estorno-resultado-texto"></p>
+        <pre id="estorno-cupom" class="bobina-termica u-8a792775"></pre>
         <div class="botoes-linha">
           <button type="button" class="btn-acao" id="btn-estorno-reimprimir">Reimprimir Comprovante</button>
           <button type="button" class="btn-acao secundario" id="btn-estorno-concluir">Concluir</button>
@@ -315,90 +316,90 @@
   </div>
 
   <!-- MODAL F4: Cadastro e Consulta de Clientes (SUMIR BUSCA AO CADASTRAR) -->
-  <div id="modal-clientes" class="modal-overlay" style="display: none;">
-    <div class="modal-corpo" style="max-width: 760px;">
+  <div id="modal-clientes" class="modal-overlay u-5790ffba">
+    <div class="modal-corpo u-c06a247c">
       <h2 id="modal-cli-titulo">Clientes da Loja</h2>
       
       <!-- Caixa de Busca (SUMIR QUANDO CLICAR EM NOVO CLIENTE) -->
-      <div id="box-busca-cliente" style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-3);">
-        <input id="cli-filtro-termo" class="form-input" style="flex: 1; height: 44px;" type="text" placeholder="Buscar cliente por CPF, Nome ou Celular..." />
-        <button id="btn-novo-cliente-form" class="btn-acao" style="flex: 0.6; height: 44px;">+ Novo Cliente</button>
+      <div class="u-dbdaba10" id="box-busca-cliente">
+        <input id="cli-filtro-termo" class="form-input u-c351d280" type="text" placeholder="Buscar cliente por CPF, Nome ou Celular..." />
+        <button id="btn-novo-cliente-form" class="btn-acao u-8134d656">+ Novo Cliente</button>
       </div>
 
       <!-- Formulário de Cadastro (Exclusivo — Oculta a busca e a tabela) -->
-      <div id="box-form-cliente" style="display: none; background: #F8F9FC; border: 1px solid #CCC; padding: var(--espaco-3); margin-bottom: var(--espaco-3);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--espaco-3);">
-          <span style="font-size: 0.9rem; font-weight: 700; color: #555;">Campos marcados com * são obrigatórios</span>
+      <div class="u-6b6ba57d" id="box-form-cliente">
+        <div class="u-d2b021ce">
+          <span class="u-3b80ab86">Campos marcados com * são obrigatórios</span>
           
         </div>
         
         <form id="form-cliente-salvar" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
           <input type="hidden" id="cli-id" />
           <input type="hidden" id="cli-end" />
-          <div style="display: flex; gap: var(--espaco-3); margin-bottom: var(--espaco-2);">
-            <div class="form-linha" style="flex: 1.5;">
+          <div class="u-57c3327e">
+            <div class="form-linha u-409b3c5d">
               <label for="cli-nome">Nome completo *</label>
-              <input id="cli-nome" class="form-input" type="text" required style="height: 42px;" placeholder="Ex: Maria da Silva" autocomplete="off" />
+              <input id="cli-nome" class="form-input u-f0ee752a" type="text" required placeholder="Ex: Maria da Silva" autocomplete="off" />
             </div>
-            <div class="form-linha" style="flex: 1;">
+            <div class="form-linha u-634a28be">
               <label for="cli-cpf">CPF (chave única) *</label>
-              <input id="cli-cpf" class="form-input" type="text" required placeholder="000.000.000-00" maxlength="14" style="height: 42px;" autocomplete="off" />
+              <input id="cli-cpf" class="form-input u-f0ee752a" type="text" required placeholder="000.000.000-00" maxlength="14" autocomplete="off" />
             </div>
           </div>
-          <div style="display: flex; gap: var(--espaco-3); margin-bottom: var(--espaco-3);">
-            <div class="form-linha" style="flex: 1;">
+          <div class="u-e748e577">
+            <div class="form-linha u-634a28be">
               <label for="cli-tel">Celular / WhatsApp</label>
-              <input id="cli-tel" class="form-input" type="text" placeholder="(00) 00000-0000" maxlength="15" style="height: 42px;" autocomplete="off" />
+              <input id="cli-tel" class="form-input u-f0ee752a" type="text" placeholder="(00) 00000-0000" maxlength="15" autocomplete="off" />
             </div>
-            <div class="form-linha" style="flex: 1;">
+            <div class="form-linha u-634a28be">
               <label for="cli-email">E-mail</label>
-              <input id="cli-email" class="form-input" type="email" placeholder="cliente@email.com" style="height: 42px;" autocomplete="off" />
+              <input id="cli-email" class="form-input u-f0ee752a" type="email" placeholder="cliente@email.com" autocomplete="off" />
             </div>
           </div>
 
           <!-- Endereço Estruturado -->
-          <div style="background: #FFFFFF; border: 2px solid #000; padding: var(--espaco-3); margin-bottom: var(--espaco-3);">
-            <div style="font-weight: 800; font-size: 0.9rem; margin-bottom: var(--espaco-2); color: #000;">
+          <div class="u-d17c567d">
+            <div class="u-761073f4">
               Endereço para entrega / cobrança (opcional)
             </div>
-            <div style="display: flex; gap: var(--espaco-2); align-items: flex-end; margin-bottom: var(--espaco-2);">
-              <div class="form-linha" style="flex: 1;">
+            <div class="u-856d2346">
+              <div class="form-linha u-634a28be">
                 <label for="cli-cep">CEP</label>
-                <input id="cli-cep" class="form-input" type="text" placeholder="00000-000" maxlength="9" style="height: 40px;" autocomplete="off" />
+                <input id="cli-cep" class="form-input u-341c0418" type="text" placeholder="00000-000" maxlength="9" autocomplete="off" />
               </div>
-              <button type="button" id="btn-buscar-cep" class="btn-acao secundario" style="height: 40px; margin-bottom: 2px;">Buscar CEP</button>
+              <button type="button" id="btn-buscar-cep" class="btn-acao secundario u-ea16197b">Buscar CEP</button>
             </div>
-            <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-2);">
-              <div class="form-linha" style="flex: 2.5;">
+            <div class="u-f8047958">
+              <div class="form-linha u-f6f08574">
                 <label for="cli-logradouro">Logradouro / rua</label>
-                <input id="cli-logradouro" class="form-input" type="text" placeholder="Rua, Avenida, etc." style="height: 40px;" autocomplete="off" />
+                <input id="cli-logradouro" class="form-input u-341c0418" type="text" placeholder="Rua, Avenida, etc." autocomplete="off" />
               </div>
-              <div class="form-linha" style="flex: 1;">
+              <div class="form-linha u-634a28be">
                 <label for="cli-numero">Número</label>
-                <div style="display: flex; gap: 4px;">
-                  <input id="cli-numero" class="form-input" type="text" placeholder="Nº" style="height: 40px; flex: 1;" autocomplete="off" />
-                  <button type="button" id="btn-sn-num" class="btn-acao secundario" style="padding: 0 8px; font-size: 0.75rem; height: 40px;" title="Sem Número">S/N</button>
+                <div class="u-cf5a83a2">
+                  <input id="cli-numero" class="form-input u-a52d5064" type="text" placeholder="Nº" autocomplete="off" />
+                  <button type="button" id="btn-sn-num" class="btn-acao secundario u-a668b4f8" title="Sem Número">S/N</button>
                 </div>
               </div>
             </div>
-            <div style="display: flex; gap: var(--espaco-2); margin-bottom: var(--espaco-2);">
-              <div class="form-linha" style="flex: 1.2;">
+            <div class="u-f8047958">
+              <div class="form-linha u-083fe537">
                 <label for="cli-complemento">Complemento</label>
-                <input id="cli-complemento" class="form-input" type="text" placeholder="Apto, Bloco, Fundos..." style="height: 40px;" autocomplete="off" />
+                <input id="cli-complemento" class="form-input u-341c0418" type="text" placeholder="Apto, Bloco, Fundos..." autocomplete="off" />
               </div>
-              <div class="form-linha" style="flex: 1;">
+              <div class="form-linha u-634a28be">
                 <label for="cli-bairro">Bairro</label>
-                <input id="cli-bairro" class="form-input" type="text" placeholder="Bairro" style="height: 40px;" autocomplete="off" />
+                <input id="cli-bairro" class="form-input u-341c0418" type="text" placeholder="Bairro" autocomplete="off" />
               </div>
             </div>
-            <div style="display: flex; gap: var(--espaco-2);">
-              <div class="form-linha" style="flex: 2;">
+            <div class="u-4a76da36">
+              <div class="form-linha u-08ec4a15">
                 <label for="cli-cidade">Cidade</label>
-                <input id="cli-cidade" class="form-input" type="text" placeholder="Cidade" style="height: 40px;" autocomplete="off" />
+                <input id="cli-cidade" class="form-input u-341c0418" type="text" placeholder="Cidade" autocomplete="off" />
               </div>
-              <div class="form-linha" style="flex: 0.8;">
+              <div class="form-linha u-697279fc">
                 <label for="cli-uf">UF</label>
-                <select id="cli-uf" class="form-input" style="height: 40px; font-weight: bold;">
+                <select id="cli-uf" class="form-input u-b6b8f123">
                   <option value="">UF</option>
                   <option value="AC">AC</option>
                   <option value="AL">AL</option>
@@ -433,38 +434,38 @@
           </div>
 
           <!-- Base Legal e Consentimento LGPD (CLI-010, CLI-011) -->
-          <div style="background: #FFFFFF; border: 2px solid #000; padding: 12px; margin-bottom: var(--espaco-3); font-size: 0.82rem; line-height: 1.4;">
-            <p style="margin: 0 0 8px 0; color: #444;">
+          <div class="u-79840341">
+            <p class="u-f2fb25e9">
               <strong>Base legal LGPD (Art. 7º, V da Lei 13.709/2018):</strong> Os dados de identificação e contato são coletados para identificação do cliente na venda, controle de crediário e combinar entregas de mercadorias.
             </p>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #000;">
+            <label class="u-cb630b74">
               <input type="checkbox" id="cli-lgpd-marketing" />
               <span>Aceito receber novidades e promoções por WhatsApp / SMS (opcional)</span>
             </label>
           </div>
 
-          <div style="display: flex; gap: var(--espaco-3);">
-            <button type="submit" id="btn-salvar-cli-form" class="btn-acao" style="height: 46px; flex: 1;">Salvar cliente (Enter)</button>
-            <button type="button" id="btn-cancelar-cliente" class="btn-acao secundario" style="height: 46px; flex: 1;">Cancelar e voltar</button>
-            <button type="button" id="btn-anonimizar-cliente" class="btn-acao danger" style="height: 46px; display: none;">Anonimizar Titular (LGPD)</button>
+          <div class="u-96ff0970">
+            <button type="submit" id="btn-salvar-cli-form" class="btn-acao u-e844d0d3">Salvar cliente (Enter)</button>
+            <button type="button" id="btn-cancelar-cliente" class="btn-acao secundario u-e844d0d3">Cancelar e voltar</button>
+            <button type="button" id="btn-anonimizar-cliente" class="btn-acao danger u-4304cb14">Anonimizar Titular (LGPD)</button>
           </div>
         </form>
       </div>
 
       <!-- Tabela de Clientes (Ocultada durante o cadastro) -->
-      <div id="box-tabela-clientes" style="max-height: 280px; overflow-y: auto;">
+      <div class="u-e6d43c66" id="box-tabela-clientes">
         <table class="tabela-modal">
           <thead>
             <tr>
               <th>Nome</th>
               <th>CPF</th>
               <th>Telefone</th>
-              <th style="text-align: right;">Crediário</th>
-              <th style="text-align: center;">Ação</th>
+              <th class="u-30489cbd">Crediário</th>
+              <th class="u-65f9d5a3">Ação</th>
             </tr>
           </thead>
           <tbody id="cli-tabela-corpo">
-            <tr><td colspan="5" style="text-align: center; padding: 16px;">Carregando clientes...</td></tr>
+            <tr><td class="u-35a20b0f" colspan="5">Carregando clientes...</td></tr>
           </tbody>
         </table>
       </div>
@@ -476,20 +477,20 @@
   </div>
 
   <!-- MODAL F5: Sangria de Caixa -->
-  <div id="modal-sangria" class="modal-overlay" style="display: none;">
-    <div class="modal-corpo" style="max-width: 480px;">
+  <div id="modal-sangria" class="modal-overlay u-5790ffba">
+    <div class="modal-corpo u-eb7d2f47">
       <h2>Realizar Sangria de Caixa</h2>
-      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Retirada de valores da gaveta para cofre ou depósito:</p>
+      <p class="u-f6ad00f0">Retirada de valores da gaveta para cofre ou depósito:</p>
       <form id="form-sangria">
         <div class="form-linha">
           <label for="sangria-valor">Valor da Sangria (R$) *</label>
-          <input id="sangria-valor" class="form-input" type="text" placeholder="0,00" style="text-align: right; font-size: 1.5rem; font-weight: 900;" autocomplete="off" required />
+          <input id="sangria-valor" class="form-input u-59a0324f" type="text" placeholder="0,00" autocomplete="off" required />
         </div>
         <div class="form-linha">
           <label for="sangria-motivo">Observação da Sangria (Até 256 caracteres)</label>
-          <textarea id="sangria-motivo" class="form-input" style="height: 80px; padding: var(--espaco-2); font-size: 0.95rem; resize: none;" maxlength="256" placeholder="Ex: Retirada de sangria para cofre central"></textarea>
+          <textarea id="sangria-motivo" class="form-input u-50368c13" maxlength="256" placeholder="Ex: Retirada de sangria para cofre central"></textarea>
         </div>
-        <div id="sangria-aprovacao-campos" style="display: none;">
+        <div class="u-5790ffba" id="sangria-aprovacao-campos">
           <p class="estorno-aviso">
             Operador precisa da autorização de um gerente ou dono. A senha
             não é armazenada.
@@ -512,47 +513,47 @@
   </div>
 
   <!-- MODAL F6: Pagar Dívidas (Crediário) -->
-  <div id="modal-devedores" class="modal-overlay" style="display: none;">
-    <div class="modal-corpo" style="max-width: 760px;">
+  <div id="modal-devedores" class="modal-overlay u-5790ffba">
+    <div class="modal-corpo u-c06a247c">
       <h2>Pagar Dívidas — Crediário</h2>
-      <p style="margin-bottom: var(--espaco-3); font-weight: 700;">Catálogo de clientes com débito pendente na loja:</p>
+      <p class="u-f6ad00f0">Catálogo de clientes com débito pendente na loja:</p>
       
-      <div class="form-linha" style="margin-bottom: var(--espaco-3);">
-        <label for="dev-filtro" style="font-weight: 700; margin-bottom: 4px; display: block;">Buscar por Nome, CPF ou Telefone:</label>
-        <input id="dev-filtro" class="form-input" style="width: 100%; height: 42px;" type="text" placeholder="Digite ao menos 2 letras do nome ou dígitos do CPF/telefone..." autocomplete="off" autofocus />
+      <div class="form-linha u-003d41e5">
+        <label class="u-bfe4218a" for="dev-filtro">Buscar por Nome, CPF ou Telefone:</label>
+        <input id="dev-filtro" class="form-input u-8bf7b810" type="text" placeholder="Digite ao menos 2 letras do nome ou dígitos do CPF/telefone..." autocomplete="off" autofocus />
       </div>
 
-      <div style="max-height: 280px; overflow-y: auto;">
+      <div class="u-e6d43c66">
         <table class="tabela-modal">
           <thead>
             <tr>
               <th>Cliente</th>
               <th>Descrição / Compra</th>
               <th>Vencimento</th>
-              <th style="text-align: right;">Valor</th>
-              <th style="text-align: center;">Ação</th>
+              <th class="u-30489cbd">Valor</th>
+              <th class="u-65f9d5a3">Ação</th>
             </tr>
           </thead>
           <tbody id="dev-tabela-corpo">
-            <tr><td colspan="5" style="text-align: center; padding: 16px;">Carregando devedores...</td></tr>
+            <tr><td class="u-35a20b0f" colspan="5">Carregando devedores...</td></tr>
           </tbody>
         </table>
       </div>
 
       <!-- Submodal de Recebimento de Dívida -->
-      <div id="dev-submodal-pagar" style="display: none; background: #F8F9FC; border: 3px solid #000; padding: var(--espaco-3); margin-top: var(--espaco-3);">
-        <h3 id="dev-liq-titulo" style="font-size: 1.1rem; text-transform: uppercase; margin-bottom: var(--espaco-2);">Receber Dívida</h3>
+      <div class="u-710b589b" id="dev-submodal-pagar">
+        <h3 class="u-e0811c00" id="dev-liq-titulo">Receber Dívida</h3>
         <form id="form-dev-liquidar">
           <input type="hidden" id="dev-liq-conta-id" />
           <input type="hidden" id="dev-liq-parc-num" />
-          <div style="display: flex; gap: var(--espaco-2);">
-            <div class="form-linha" style="flex: 1;">
+          <div class="u-4a76da36">
+            <div class="form-linha u-634a28be">
               <label>Valor da Dívida</label>
-              <input id="dev-liq-valor" class="form-input" type="text" readonly style="background: #E5E7EB; font-weight: 900;" />
+              <input id="dev-liq-valor" class="form-input u-dda1fcc6" type="text" readonly />
             </div>
-            <div class="form-linha" style="flex: 1.5;">
+            <div class="form-linha u-409b3c5d">
               <label for="dev-liq-forma">Forma de Pagamento *</label>
-              <select id="dev-liq-forma" class="form-input" style="height: 44px; font-weight: 800;">
+              <select id="dev-liq-forma" class="form-input u-031bf1e8">
                 <option value="DINHEIRO">1 - DINHEIRO (Entra no Caixa)</option>
                 <option value="PIX">2 - PIX</option>
                 <option value="DEBITO">3 - CARTÃO DE DÉBITO</option>
@@ -560,7 +561,7 @@
               </select>
             </div>
           </div>
-          <div style="display: flex; gap: var(--espaco-2); margin-top: var(--espaco-2);">
+          <div class="u-7817c15b">
             <button type="submit" class="btn-acao">Confirmar Recebimento</button>
             <button type="button" class="btn-acao secundario" data-acao="fechar-submodal-devedor">Cancelar</button>
           </div>
@@ -574,13 +575,13 @@
   </div>
 
   <!-- MODAL F8: Fechamento de Caixa -->
-  <div id="modal-fechar-fluxo" class="modal-overlay" style="display: none;">
-    <div class="modal-corpo" style="max-width: 580px;">
+  <div id="modal-fechar-fluxo" class="modal-overlay u-5790ffba">
+    <div class="modal-corpo u-672a0f7b">
       <h2>Fechamento de Sessão do Caixa</h2>
       
       <!-- Etapa 1: Pergunta sobre Sangria Prévia -->
       <div id="fech-etapa-1">
-        <p style="font-size: 1.1rem; font-weight: 700; margin-bottom: var(--espaco-3);">
+        <p class="u-5e062dcd">
           Atenção: Antes de fechar, já realizou a <strong>SANGRIA FINAL</strong> deixando apenas o valor padrão de troco para o próximo operador?
         </p>
         <div class="botoes-linha">
@@ -590,19 +591,19 @@
       </div>
 
       <!-- Etapa 2: Conferência Física, Operador e Observação -->
-      <div id="fech-etapa-2" style="display: none;">
+      <div class="u-5790ffba" id="fech-etapa-2">
         <form id="form-fechamento-exec">
           <div class="form-linha">
             <label for="fech-user-id">Operador Responsável</label>
-            <input id="fech-user-id" class="form-input" type="text" readonly style="background: #E5E7EB; font-weight: 900;" />
+            <input id="fech-user-id" class="form-input u-dda1fcc6" type="text" readonly />
           </div>
           <div class="form-linha">
             <label for="fech-contado">Valor Físico Contado na Gaveta (R$) *</label>
-            <input id="fech-contado" class="form-input" type="text" placeholder="0,00" style="font-size: 1.4rem; font-weight: 900; text-align: right;" required />
+            <input id="fech-contado" class="form-input u-cc1e82c5" type="text" placeholder="0,00" required />
           </div>
           <div class="form-linha">
             <label for="fech-obs">Observação do Fechamento (Até 512 caracteres)</label>
-            <textarea id="fech-obs" class="form-input" style="height: 70px; padding: var(--espaco-2); font-size: 0.95rem; resize: none;" maxlength="512" placeholder="Observações de quebra, troca de turno, divergências ou justificativas..."></textarea>
+            <textarea id="fech-obs" class="form-input u-d06d02f8" maxlength="512" placeholder="Observações de quebra, troca de turno, divergências ou justificativas..."></textarea>
           </div>
           <div class="botoes-linha">
             <button type="submit" class="btn-acao danger">Fechar Caixa e Emitir Bobina</button>
@@ -612,9 +613,9 @@
       </div>
 
       <!-- Etapa 3: Comprovante Final com Linha de Assinatura -->
-      <div id="fech-etapa-3" style="display: none;">
-        <h3 style="color: green; font-size: 1.25rem; text-transform: uppercase;">Caixa Fechado com Sucesso!</h3>
-        <p style="font-weight: 700;">Comprovante de conferência emitido:</p>
+      <div class="u-5790ffba" id="fech-etapa-3">
+        <h3 class="u-fcaaaf21">Caixa Fechado com Sucesso!</h3>
+        <p class="u-5db75d4d">Comprovante de conferência emitido:</p>
         <div id="fech-cupom-texto" class="bobina-termica"></div>
         <div class="botoes-linha">
           <button id="btn-imprimir-fechamento" class="btn-acao">Imprimir Bobina (ESC/POS)</button>

@@ -1,5 +1,10 @@
 # Mikella ERP — otimização para PC fraco
 
+> **Nota de atualização (09/11/2026):** o frontend entregue é HTML/CSS/JS puro,
+> sem React ou Tailwind. O piso vigente é i3/i5 de 5ª geração, 6 GB e HDD
+> 5400 rpm; as metas de desempenho ainda precisam ser medidas nesse hardware
+> (`scripts/benchmark-hardware.ps1`, P0-5).
+
 **Status:** metas de projeto. **Os números abaixo são metas e hipóteses, não medições.** Nada foi medido ainda. O MVP-0 (spike) existe para validar ou refutar este documento.
 
 ## 1. Hardware e sistemas-alvo
@@ -51,13 +56,13 @@ Se reprovar: avaliar **Qt 5.15/QML** (ou outra camada nativa), preservando domí
 - PERF-029: serialização enxuta na API local (JSON compacto; considerar formato binário só se medição justificar), compressão **somente** onde compensa (backup), não em cada resposta curta.
 - PERF-030: **backup e hashing em baixa prioridade** (nice/ionice, janelas de ociosidade), nunca competindo com a venda.
 
-## 5. Frontend (React + Tailwind) leve
+## 5. Frontend (HTML/CSS/JS) leve
 
 - PERF-040: **bundle pequeno:** sem bibliotecas de componentes pesadas, sem moment/lodash completos, sem ícones por pacote inteiro. Orçamento de JS inicial definido (meta: ordem de algumas centenas de KB comprimidos) e verificado no CI.
 - PERF-041: **code splitting por rota/feature**; carregar módulos (financeiro, comissões, relatórios) sob demanda.
 - PERF-042: **virtualização** de listas e tabelas longas (renderizar só o visível). Nenhuma tabela com milhares de linhas no DOM.
 - PERF-043: **evitar re-render desnecessário**: estado local o mais próximo possível de quem usa; `memo` e seletores onde a medição mostrar necessidade (não por reflexo). Busca com *debounce* curto e cancelamento de requisição anterior.
-- PERF-044: **Tailwind em produção** com purge/geração por uso; sem CSS morto; tokens em variáveis CSS.
+- PERF-044: **CSS próprio e modular**, sem framework utilitário; sem CSS morto; tokens em variáveis CSS. CSS conservador para o WebKitGTK alvo.
 - PERF-045: **fontes locais, subconjunto (subset) em woff2**, poucas variações (1 a 2 famílias, poucos pesos). Sem fontes remotas. `font-display` adequado.
 - PERF-046: **ícones em SVG inline/sprite**, poucos e simples. **Imagens quase inexistentes:** apenas o logo da loja e do produto (SVG ou imagem pequena otimizada); logo da loja redimensionado e recomprimido no cadastro. Nenhuma imagem decorativa pesada.
 - PERF-047: **sem polling constante** na UI; atualização por eventos (SSE/WebSocket simples) ou consulta sob demanda. Parar atualizações quando a janela estiver oculta.

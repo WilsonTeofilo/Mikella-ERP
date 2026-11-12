@@ -1,7 +1,13 @@
 # Mikella ERP — identidade visual, design system e UX
 
+> **Nota de atualização (09/11/2026):** o design system **já foi implementado**
+> em `mikella/frontend/src/shared/design` e nas features. As fontes e formas
+> são originais/licenciadas (`mikella/docs/design/ASSETS.md`). O CSS é próprio;
+> Tailwind não foi adotado. O piso vigente é i3/i5 de 5ª geração, 6 GB e HDD
+> 5400 rpm.
+
 **Criado em:** 28/10/2026
-**Status:** direção de design e especificação. **Nada foi desenhado, codificado nem testado em hardware real.** Os hex da paleta foram amostrados da imagem de referência e os contrastes foram calculados (seção 5.4), mas cores em tela, fontes e efeitos ainda precisam ser validados no PC de referência (i5 de 2ª geração, 4 GB, tela de baixa resolução). Tudo marcado **[DECISÃO PENDENTE]** ou **[VERIFICAR]** não deve ser tratado como fato.
+**Status:** direção de design implementada em HTML/CSS/JS. Os hex da paleta foram amostrados da imagem de referência e os contrastes foram calculados (seção 5.4). Cores, fontes e efeitos foram validados no WebView2 desta máquina; a homologação no piso real (i3/i5 de 5ª geração, 6 GB, tela de baixa resolução) ainda depende de hardware físico. Itens marcados **[DECISÃO PENDENTE]** ou **[VERIFICAR]** não devem ser tratados como fato.
 **Relação com os outros documentos:** este arquivo estende `07_OTIMIZACAO_PC_FRACO.md` (seções 5, 6 e 7) e `03_ARQUITETURA_CLEAN_E_PADROES.md` (seção 7). Em conflito, **`07` vence**: o caixa (latência e confiabilidade) vem antes de qualquer beleza que custe desempenho. Posição sugerida na ordem de precedência do `00`: `04` e `05` > `06` > `03` > `02` > `07` > **`08`** > `01`.
 **IDs de requisito:** `VIS-` (visual) e `UX-` (experiência).
 
@@ -625,7 +631,7 @@ Os tokens vivem em `frontend/src/shared/design/tokens.css` como **variáveis CSS
 ```
 
 - VIS-110: nenhum valor de cor, tamanho de fonte ou espaçamento **hardcoded** fora de `tokens.css` (`00`, regra inviolável 4). Regra de lint (`stylelint`) proíbe `gradient`, `backdrop-filter`, `filter: blur`, `border-radius` diferente de `0` e cores literais fora dos tokens.
-- VIS-111: **[VERIFICAR] risco de compatibilidade do Tailwind.** A versão 4 do Tailwind depende de recursos modernos de CSS e, segundo a documentação do projeto, de navegadores recentes; o WebKitGTK de distribuições Ubuntu 22.04 pode ser mais antigo. Antes de fixar a versão, testar no hardware de referência. Alternativas: Tailwind 3.4 ou CSS próprio com os tokens. Escrever CSS **conservador**: sem `color-mix()`, sem recursos sem suporte comprovado no WebKitGTK alvo.
+- VIS-111: **[RESOLVIDO — CSS próprio]** o Tailwind não foi adotado. O frontend usa CSS modular com tokens em variáveis, compatível com o WebKitGTK alvo. A ressalva original fica registrada apenas como histórico: Tailwind 4 exigiria validação de compatibilidade.
 - VIS-112: **uma página interna "galeria de componentes"** (rota só de desenvolvimento, fora do build de produção) mostra todos os componentes nos três modos e no Modo Desempenho. Dispensa Storybook e seu peso.
 - VIS-113: **orçamentos no CI** (`07`, PERF-102): CSS total, JS inicial, peso de fontes, número de elementos com `clip-path` na galeria.
 - VIS-114: o **Modo Desempenho** (`07`, PERF-064) é uma classe no `html` que desliga: transições, placa deslocada, halftone, Letreiro animado e qualquer sombra. O visual (cor, corte, tipografia) permanece.

@@ -1,7 +1,12 @@
 # Mikella ERP — lacunas, novo piso de hardware e corte de MVP
 
+> **Nota de atualização (09/11/2026):** documento histórico de revisão. Suas
+> decisões de piso (i3/i5 de 5ª geração, 6 GB, HDD 5400 rpm) foram adotadas e
+> o produto já está implementado. O estado vigente está em
+> `PLANO E FASES/00_PLANO_MESTRE.md`.
+
 **Criado em:** 28/10/2026
-**Status:** revisão crítica e emenda dos documentos 00 a 08. **Nada foi implementado nem medido.** Todo número de desempenho, custo e prazo aqui é **meta ou hipótese**. Itens **[DECISÃO PENDENTE]** pedem resposta do dono do produto; itens **[VERIFICAR]** vêm de conhecimento geral ou de fonte secundária e precisam de confirmação antes de virarem promessa.
+**Status:** documento histórico de revisão (28/10/2026). Na época, **nada estava implementado nem medido**. Hoje o produto já existe; o estado vigente está em `PLANO E FASES/00_PLANO_MESTRE.md`. Todo número de desempenho, custo e prazo aqui é **meta ou hipótese**. Itens **[DECISÃO PENDENTE]** pedem resposta do dono do produto; itens **[VERIFICAR]** vêm de conhecimento geral ou de fonte secundária e precisam de confirmação antes de virarem promessa.
 **IDs novos:** `HW-` (hardware e ambiente), `ARQ-`, `PROD-`, `REC-` (recuperação de conta), `OPS-` (operação e suporte), `NEG-` (negócio), `MVP-`. Decisões novas continuam a numeração do `00` (P12 em diante).
 
 ## 0. Como ler este documento

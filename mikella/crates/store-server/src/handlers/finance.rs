@@ -18,11 +18,10 @@ use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use chrono_tz::Tz;
 
 use mikella_app_finance::contas::{
-    listar_contas as listar_contas_uc, liquidar_parcela_pagar as liquidar_pagar_uc,
-    liquidar_parcela_receber as liquidar_receber_uc, registrar_conta_pagar as registrar_pagar_uc,
-    registrar_conta_receber as registrar_receber_uc, ContasRepos, ListaContasQuery,
-    LiquidarParcelaPagarCmd, LiquidarParcelaReceberCmd, RegistrarContaPagarCmd,
-    RegistrarContaReceberCmd,
+    liquidar_parcela_pagar as liquidar_pagar_uc, liquidar_parcela_receber as liquidar_receber_uc,
+    listar_contas as listar_contas_uc, registrar_conta_pagar as registrar_pagar_uc,
+    registrar_conta_receber as registrar_receber_uc, ContasRepos, LiquidarParcelaPagarCmd,
+    LiquidarParcelaReceberCmd, ListaContasQuery, RegistrarContaPagarCmd, RegistrarContaReceberCmd,
 };
 use mikella_infra_sqlite::{
     ContaPagarRepo, ContaReceberRepo, DiagnosticoRepo, FinanceiroDashboardRepo, ParcelaRepo,
@@ -49,7 +48,12 @@ pub async fn registrar_conta_pagar_handler(
     exigir!(ator, "financeiro.gerenciar");
     tracing::debug!(operador = %ator.0.username, "registrando conta a pagar");
 
-    let parcelas = match validar_form(&form.descricao, &form.plano_codigo, &form.plano_nome, &form.parcelas) {
+    let parcelas = match validar_form(
+        &form.descricao,
+        &form.plano_codigo,
+        &form.plano_nome,
+        &form.parcelas,
+    ) {
         Ok(p) => p,
         Err(msg) => return bad_request(msg),
     };
@@ -112,7 +116,12 @@ pub async fn registrar_conta_receber_handler(
     exigir!(ator, "financeiro.gerenciar");
     tracing::debug!(operador = %ator.0.username, "registrando conta a receber");
 
-    let parcelas = match validar_form(&form.descricao, &form.plano_codigo, &form.plano_nome, &form.parcelas) {
+    let parcelas = match validar_form(
+        &form.descricao,
+        &form.plano_codigo,
+        &form.plano_nome,
+        &form.parcelas,
+    ) {
         Ok(p) => p,
         Err(msg) => return bad_request(msg),
     };
@@ -320,12 +329,7 @@ pub async fn listar_contas_abertas_handler(
         parcelas: &parcela_repo,
     };
 
-    match listar_contas_uc(
-        &repos,
-        ListaContasQuery {
-            tipo: query.tipo,
-        },
-    ) {
+    match listar_contas_uc(&repos, ListaContasQuery { tipo: query.tipo }) {
         Ok(contas) => (
             StatusCode::OK,
             Json(serde_json::json!({ "contas": contas })),
@@ -457,9 +461,10 @@ pub async fn obter_fluxo_caixa_handler(
     tracing::debug!(operador = %ator.0.username, "obtendo extrato de fluxo de caixa");
 
     let db = state.db.lock().await;
+    let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
     let repo = FinanceiroDashboardRepo::novo(db.conn());
 
-    match repo.obter_fluxo_caixa(query.inicio.as_deref(), query.fim.as_deref()) {
+    match repo.obter_fluxo_caixa(&fuso, query.inicio.as_deref(), query.fim.as_deref()) {
         Ok(fluxo) => (
             StatusCode::OK,
             Json(serde_json::to_value(fluxo).unwrap_or_default()),
@@ -481,9 +486,10 @@ pub async fn obter_resultado_dre_handler(
     tracing::debug!(operador = %ator.0.username, mes = ?query.mes, "obtendo DRE simplificada");
 
     let db = state.db.lock().await;
+    let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
     let repo = FinanceiroDashboardRepo::novo(db.conn());
 
-    match repo.obter_resultado_dre(query.mes.as_deref()) {
+    match repo.obter_resultado_dre(&fuso, query.mes.as_deref()) {
         Ok(dre) => (
             StatusCode::OK,
             Json(serde_json::to_value(dre).unwrap_or_default()),

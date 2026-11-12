@@ -1,10 +1,15 @@
 # Mikella ERP — arquitetura, clean code e design patterns
 
+> **Nota de atualização (09/11/2026):** as fronteiras de Clean Architecture
+> descritas aqui foram implementadas em crates Rust. O frontend é HTML/CSS/JS
+> modular — **não React/TypeScript/Tailwind**. O piso de hardware vigente é
+> i3/i5 de 5ª geração, 6 GB e HDD 5400 rpm.
+
 **Status:** diretrizes de projeto. Nenhuma estrutura abaixo foi criada. As decisões estruturais relevantes devem virar ADR.
 
 ## 1. O que "anti-monolito" significa aqui (e o que não significa)
 
-O produto roda em computadores com 4 GB de RAM. **Microserviços locais seriam prejudiciais**: cada processo extra consome memória, aumenta complexidade de instalação e cria novas superfícies de ataque.
+O produto roda em computadores com 6 GB de RAM (piso vigente). **Microserviços locais seriam prejudiciais**: cada processo extra consome memória, aumenta complexidade de instalação e cria novas superfícies de ataque.
 
 Adotamos, então, o desenho correto para este contexto:
 
@@ -19,7 +24,7 @@ Regra de ouro: dá para trocar a implementação de um contexto, ou testá-lo so
 Dependências apontam **sempre para dentro**.
 
 ```
-Interface / Frameworks      Tauri commands, axum handlers, React, CLI
+Interface / Frameworks      Tauri commands, axum handlers, HTML/CSS/JS, CLI
         │
 Adapters (infrastructure)   SQLite, cloud HTTP client, crypto, ESC/POS, filesystem, OS keystore
         │
@@ -118,15 +123,15 @@ Padrões entram **quando resolvem uma variação ou acoplamento real**. Não apl
 - **Comentários explicam "por quê"**, invariantes e limitações. Não narram o código nem substituem nomes.
 - **Código morto e TODO sem dono não entram.**
 - **Testes de comportamento:** domínio com testes unitários rápidos; casos de uso com repositórios em memória; adapters com SQLite real em arquivo temporário; contratos de API com testes de contrato.
-- **Formatação e lint automáticos** (`rustfmt`, `clippy` sem avisos, ESLint/TypeScript estrito) no CI. Alertas só são suprimidos com justificativa curta.
+- **Formatação e lint automáticos** (`rustfmt`, `clippy` sem avisos) no CI. Alertas só são suprimidos com justificativa curta.
 - **Dependências:** poucas, fixadas, auditadas (`cargo audit`/`cargo deny`, `npm audit`), com impacto em tamanho e RAM avaliado.
 
-## 7. Frontend (React + TypeScript + Tailwind)
+## 7. Frontend (HTML/CSS/JS modular)
 
-- TypeScript `strict`. Sem `any` sem justificativa.
-- **Estado do servidor** (dados da loja) separado de **estado de UI**. Preferir uma biblioteca pequena de cache de requisições ou `fetch` + hooks próprios; evitar bibliotecas de estado globais pesadas se o caso não exigir.
-- **Componentes de apresentação puros** na camada `ui/`; lógica em hooks da feature (`model/`).
-- **Tokens de design em variáveis CSS/Tailwind `@theme`**, para que a identidade visual (ainda indefinida) seja trocável sem reescrever componentes.
+- JavaScript ES modules, sem framework. Cada tela tem um ponto de entrada pequeno; comportamento em `features/<feature>/*.js` e apresentação em `*.css`.
+- **Estado do servidor** (dados da loja) separado de **estado de UI**. Acesso HTTP centralizado em `shared/services/api.js`.
+- **Componentes de apresentação** em `shared/ui/`; lógica de tela na feature correspondente.
+- **Tokens de design em variáveis CSS** (`shared/design/tokens.css`), sem utilitários de framework.
 - Acessibilidade básica: foco visível, navegação por teclado completa no caixa (um PDV é usado no teclado), rótulos, contraste.
 - O caixa é **operável sem mouse**: atalhos documentados.
 - **A UI nunca recalcula total oficial.** Pode exibir uma prévia otimista, mas o valor exibido como final vem da resposta do servidor.

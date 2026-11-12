@@ -1,7 +1,13 @@
 # Mikella ERP — índice e contexto para continuidade
 
+> **Nota de atualização (09/11/2026):** documento histórico de concepção. O
+> produto **já está implementado** em Rust + Tauri 2 + HTML/CSS/JS (sem React,
+> TypeScript ou Tailwind). O piso vigente é i3/i5 de 5ª geração, 6 GB e HDD
+> 5400 rpm. Status, gates e pendências reais estão em
+> `PLANO E FASES/00_PLANO_MESTRE.md` e `mikella/docs/fases.md`.
+
 **Criado em:** 28/10/2026
-**Status:** plano inicial. **Nada está implementado.** Todo requisito, número e meta aqui é decisão de projeto ou hipótese a validar, não fato comprovado.
+**Status:** documento histórico de concepção. O produto já está implementado; este texto é mantido para rastrear as decisões originais. Status real em `PLANO E FASES/00_PLANO_MESTRE.md`.
 **Escopo desta pasta:** produto, requisitos, arquitetura, segurança, anti-fraude, resiliência e desempenho. A **identidade visual ainda não foi decidida** e não faz parte deste pacote; restrições de desempenho que afetam design (motion, efeitos, fontes) estão em `07_OTIMIZACAO_PC_FRACO.md`.
 
 ## Como usar estes documentos (humanos e agentes de IA)
@@ -23,11 +29,11 @@
 | `04_SEGURANCA.md` | Ameaças, autenticação, rede local, criptografia, Tauri, cadeia de suprimentos, LGPD |
 | `05_ANTI_FRAUDE_E_LICENCIAMENTO.md` | Licença, cotas, vínculo banco↔conta, sessão única, limite de dispositivos, fraude de caixa/comissão |
 | `06_RESILIENCIA_E_BACKUP.md` | Queda de luz/internet, livro do caixa, backup local e na nuvem, restauração, desastre |
-| `07_OTIMIZACAO_PC_FRACO.md` | Orçamentos de RAM/CPU/tempo, SQLite, React, Tauri, motion, plano de medição |
+| `07_OTIMIZACAO_PC_FRACO.md` | Orçamentos de RAM/CPU/tempo, SQLite, HTML/CSS/JS, Tauri, motion, plano de medição |
 
 ## Resumo do produto
 
-**Mikella ERP** é um sistema de gestão comercial **desktop e local-first** para pequenos comércios: frente de caixa (PDV), estoque, contas a pagar e a receber, financeiro, usuários com permissões, comissões e backup cifrado na nuvem. Roda em computadores fracos (meta: i5 de 2ª geração, 4 GB de RAM, Lubuntu/Linux Mint/Linux Lite e Windows 10+). A loja opera sem depender da internet; a nuvem serve para conta, licença, backup e restauração. Há plano **Gratuito** (generoso, com limites) e plano **Pago**.
+**Mikella ERP** é um sistema de gestão comercial **desktop e local-first** para pequenos comércios: frente de caixa (PDV), estoque, contas a pagar e a receber, financeiro, usuários com permissões, comissões e backup cifrado na nuvem. Roda em computadores fracos (piso vigente: i3/i5 de 5ª geração, 6 GB de RAM, HDD 5400 rpm, Lubuntu/Linux Mint/Linux Lite e Windows 10+). A loja opera sem depender da internet; a nuvem serve para conta, licença, backup e restauração. Há plano **Gratuito** (generoso, com limites) e plano **Pago**.
 
 **Sobre o termo "ERP":** o produto cobre venda, estoque, financeiro e equipe de uma loja, o que o qualifica como ERP leve / sistema de gestão comercial. Não cobre (nesta fase) produção industrial, RH/folha, contabilidade completa nem emissão fiscal de saída. A marca pode usar "ERP" desde que as páginas públicas deixem claro o escopo. **Verificar disponibilidade do nome "Mikella" no INPI e em domínios antes de investir em marca.**
 
@@ -45,7 +51,7 @@ O app desktop é um só instalador com dois papéis (servidor ou cliente), escol
 
 ## Stack decidida
 
-- **Desktop:** Tauri 2 (núcleo Rust) + React + TypeScript + Tailwind.
+- **Desktop:** Tauri 2 (núcleo Rust) + HTML/CSS/JS modular (sem React/TypeScript/Tailwind).
 - **Banco da loja:** SQLite (WAL), cifrado em repouso (decisão em `04_SEGURANCA`).
 - **API local:** Rust (axum) dentro do Servidor da Loja, TLS na rede local.
 - **Nuvem, portal e landing:** stack **[DECISÃO PENDENTE]**. Recomendação: serviço próprio e pequeno, reaproveitando os desenhos do Peditto (seção abaixo). Landing pré-renderizada (ex.: Astro).
@@ -101,7 +107,7 @@ Cada fase só termina quando seu gate for **comprovado** (teste ou medição), n
 
 ## Regras invioláveis
 
-1. A **UI React nunca é autoridade**. Preço, total, desconto, estoque, papel, plano e cota são decididos no domínio (Rust), no servidor local ou na nuvem.
+1. A **UI nunca é autoridade**. Preço, total, desconto, estoque, papel, plano e cota são decididos no domínio (Rust), no servidor local ou na nuvem.
 2. Todo dinheiro é **inteiro em centavos**. Nunca `float`.
 3. Dados financeiros e de estoque são **movimentações imutáveis**; saldos são derivados.
 4. Nada de limite de plano, URL, chave ou parâmetro operacional **hardcoded**.

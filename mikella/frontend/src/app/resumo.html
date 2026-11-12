@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="../shared/ui/forms.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../features/finance/resumo.css" />
+  <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body data-tema="caixa">
   <div class="corte-m"></div>
@@ -47,7 +48,7 @@
               <div id="kpi-faturamento" class="faturamento-valor-grande">R$ 0,00</div>
             </div>
             <div>
-              <span id="kpi-comparativo" class="comparativo-tag" style="display:none;"></span>
+              <span id="kpi-comparativo" class="comparativo-tag u-5790ffba"></span>
             </div>
           </div>
 
@@ -67,9 +68,9 @@
           </div>
 
           <div class="ponto-equilibrio-box">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="u-f120801a">
               <span class="rotulo-kpi">Ponto de Equilíbrio do Mês</span>
-              <span id="ponto-equilibrio-texto" style="font-size:0.8rem; font-weight:bold; color:var(--preto);">Carregando meta...</span>
+              <span class="u-974821a3" id="ponto-equilibrio-texto">Carregando meta...</span>
             </div>
             <div class="barra-progresso-container">
               <div id="barra-progresso-equilibrio" class="barra-progresso-preenchimento"></div>
@@ -81,43 +82,43 @@
         <div class="faixa-dinheiro-contas">
           <div class="card-conta-faixa">
             <span class="rotulo-kpi">A Pagar (7 Dias)</span>
-            <div id="kpi-a-pagar-7d" class="valor" style="color:var(--vermelho);">R$ 0,00</div>
-            <div id="kpi-a-pagar-vencidas" style="font-size:0.75rem; margin-top:2px; font-weight:bold;">0 vencidas</div>
+            <div id="kpi-a-pagar-7d" class="valor u-ff4132a1">R$ 0,00</div>
+            <div class="u-0e8ba4df" id="kpi-a-pagar-vencidas">0 vencidas</div>
           </div>
 
           <div class="card-conta-faixa">
             <span class="rotulo-kpi">A Receber (7 Dias)</span>
-            <div id="kpi-a-receber-7d" class="valor" style="color:#047857;">R$ 0,00</div>
-            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">Previsto a entrar</div>
+            <div id="kpi-a-receber-7d" class="valor u-868f5c54">R$ 0,00</div>
+            <div class="u-16d6fc7c">Previsto a entrar</div>
           </div>
 
           <div class="card-conta-faixa">
             <span class="rotulo-kpi">Crediário Vencido</span>
-            <div id="kpi-crediario-vencido" class="valor" style="color:#D97706;">R$ 0,00</div>
-            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">Cobranças pendentes</div>
+            <div id="kpi-crediario-vencido" class="valor u-b6569f66">R$ 0,00</div>
+            <div class="u-16d6fc7c">Cobranças pendentes</div>
           </div>
 
           <div class="card-conta-faixa">
             <span class="rotulo-kpi">Saldo Caixa (Físico)</span>
-            <div id="kpi-saldo-caixa" class="valor" style="color:var(--preto);">R$ 0,00</div>
-            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">Dinheiro em gaveta</div>
+            <div id="kpi-saldo-caixa" class="valor u-d76d862b">R$ 0,00</div>
+            <div class="u-16d6fc7c">Dinheiro em gaveta</div>
           </div>
 
           <div class="card-conta-faixa">
             <span class="rotulo-kpi">Saldo Projetado 7d</span>
-            <div id="kpi-saldo-projetado" class="valor" style="color:var(--azul-600);">R$ 0,00</div>
-            <div style="font-size:0.75rem; color:var(--cinza-500); margin-top:2px;">(Caixa + Rec − Pag)</div>
+            <div id="kpi-saldo-projetado" class="valor u-9e5ed31c">R$ 0,00</div>
+            <div class="u-16d6fc7c">(Caixa + Rec − Pag)</div>
           </div>
         </div>
 
         <!-- Gráfico em SVG Puro (VIZ-010 a VIZ-024) -->
         <div class="area-grafico-svg">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--espaco-2);">
+          <div class="u-c4ad4c9b">
             <h3>Faturamento Diário (Últimos Dias)</h3>
-            <span style="font-size:0.75rem; color:var(--cinza-500); font-weight:bold;">Série em Azul Cobalto</span>
+            <span class="u-a13e233d">Série em Azul Cobalto</span>
           </div>
           <div id="grafico-svg-container">
-            <div style="padding:var(--espaco-3); color:var(--cinza-500); text-align:center;">Carregando gráfico...</div>
+            <div class="u-df7c6cae">Carregando gráfico...</div>
           </div>
         </div>
 
@@ -134,7 +135,7 @@
               </tr>
             </thead>
             <tbody id="tabela-fita-corpo">
-              <tr><td colspan="4" style="text-align:center;">Carregando movimentações...</td></tr>
+              <tr><td class="u-65f9d5a3" colspan="4">Carregando movimentações...</td></tr>
             </tbody>
           </table>
         </div>
@@ -142,7 +143,7 @@
 
       <!-- Coluna Lateral de Atenção (Pergunta 3 - Máximo 3 selos) -->
       <div>
-        <div class="rotulo-kpi" style="margin-bottom:var(--espaco-2); display:block;">Atenção Imediata (Até 3)</div>
+        <div class="rotulo-kpi u-261fa111">Atenção Imediata (Até 3)</div>
         <div id="coluna-atencao-container" class="coluna-atencao">
           <div class="card-atencao">
             <div class="card-atencao-titulo">Verificando alertas...</div>
@@ -152,7 +153,7 @@
     </div>
 
     <!-- Barra de Navegação Rápida -->
-    <div class="barra-botoes" style="margin-top:var(--espaco-4);">
+    <div class="barra-botoes u-4185747a">
       <button type="button" id="btn-ir-financeiro" class="botao primario"><span class="tecla">F1</span> Abrir Financeiro Completo</button>
       <button type="button" id="btn-ir-caixa" class="botao"><span class="tecla">F2</span> Ir para o Caixa</button>
       <button type="button" id="btn-voltar" class="botao"><span class="tecla">Esc</span> Voltar ao Menu</button>

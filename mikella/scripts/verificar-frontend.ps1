@@ -11,9 +11,10 @@
     3. Nenhum handler inline on*= (onclick, onchange, onsubmit, ...).
     4. Todo href/src relativo aponta para um arquivo existente.
     5. Nenhuma pasta de fontes duplicada fora de shared/design/fontes.
-    6. Nenhum `innerHTML`/`data-*` montado com interpolacao de dado dinamico
-       (XSS armazenado — SEC-008).
-    7. Todo modulo JS referenciado passa em `node --check` (se node existir).
+    6. Nenhum `innerHTML` montado com interpolacao de dado dinamico
+       (XSS armazenado — SEC-008), inclusive template literal multi-linha.
+    7. Nenhum `style=` montado dentro de string/template JS (CSP style-src).
+    8. Todo modulo JS referenciado passa em `node --check` (se node existir).
 
 .PARAMETER Raiz
     Pasta de origem do frontend. Padrao: ../frontend/src relativo ao script.
@@ -53,12 +54,14 @@ foreach ($arquivo in $htmls) {
     $rel = $arquivo.FullName.Substring($Raiz.Length).TrimStart('\')
     $texto = Get-Content -LiteralPath $arquivo.FullName -Raw
 
-    # 1) blocos <style> longos
+    # 1) blocos <style> inline (bloqueados pela CSP SEC-009)
     foreach ($m in [regex]::Matches($texto, '(?s)<style[^>]*>(.*?)</style>')) {
-        $tamanho = $m.Groups[1].Value.Trim().Length
-        if ($tamanho -gt $limiteCssInline) {
-            Registrar-Falha "$rel tem bloco <style> inline com $tamanho caracteres (limite $limiteCssInline). Mova para features/<feature>/*.css."
-        }
+        Registrar-Falha "$rel tem bloco <style> inline. A CSP do desktop não permite; mova para features/<feature>/*.css."
+    }
+
+    # 1b) atributos style= inline (style-src 'self' sem 'unsafe-inline')
+    foreach ($m in [regex]::Matches($texto, '\sstyle\s*=')) {
+        Registrar-Falha "$rel usa atributo style= inline (bloqueado pela CSP). Use uma classe em *.css."
     }
 
     # 2) scripts inline
@@ -102,8 +105,25 @@ foreach ($modulo in $modulos) {
         if ($linha -match 'innerHTML\s*=' -and ($linha -match '\$\{' -or $linha -match '\+')) {
             Registrar-Falha "$($modulo.Name):$($i + 1) atribui innerHTML com interpolacao/concatencao. Use textContent/createElement (SEC-008)."
         }
+
+        # Template literal multi-linha: olha a janela do statement inteiro.
+        if ($linha -match 'innerHTML\s*=') {
+            $fim = [Math]::Min($i + 12, $linhas.Count - 1)
+            $janela = ($linhas[$i..$fim] -join "`n")
+            if ($janela -match '\$\{') {
+                Registrar-Falha "$($modulo.Name):$($i + 1) monta innerHTML com template multi-linha e interpolacao. Use createElement/textContent (SEC-008)."
+            }
+        }
+
         if ($linha -match 'data-[a-z-]+\s*=\s*[''"][^''"]*\$\{') {
             Registrar-Falha "$($modulo.Name):$($i + 1) monta atributo data-* com interpolacao. Guarde o objeto em closure (SEC-008)."
+        }
+        if ($linha -match '\.style\.cssText\s*=|setAttribute\(\s*[''"]style[''"]') {
+            Registrar-Falha "$($modulo.Name):$($i + 1) define style via cssText/setAttribute (bloqueado pela CSP). Use classList ou propriedades .style.x."
+        }
+        # style="..." dentro de template literal JS tambem fura a CSP.
+        if ($linha -match '\sstyle\s*=\s*["'']') {
+            Registrar-Falha "$($modulo.Name):$($i + 1) injeta atributo style= dentro de string/template. Use classe em *.css (CSP style-src 'self')."
         }
     }
 }

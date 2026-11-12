@@ -17,7 +17,10 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::error::InfraResult;
-use crate::tempo::data_hora_sql;
+use crate::tempo::{
+    data_hora_sql, data_local_iso, data_local_mais_dias, hoje_local, intervalo_utc_do_mes,
+    mes_local,
+};
 
 /// Converte uma janela local (`AAAA-MM-DD`, inclusiva) no fuso IANA da loja
 /// para o intervalo UTC fechado usado nas comparações com `created_at`.
@@ -42,9 +45,7 @@ fn intervalo_utc_da_janela(
         .ok_or_else(|| crate::error::erro_campo("data_inicio", "horário inexistente no fuso"))?
         .with_timezone(&Utc);
     let fim_local = tz
-        .from_local_datetime(
-            &fim.and_time(NaiveTime::from_hms_milli_opt(23, 59, 59, 999).unwrap()),
-        )
+        .from_local_datetime(&fim.and_time(NaiveTime::from_hms_milli_opt(23, 59, 59, 999).unwrap()))
         .single()
         .ok_or_else(|| crate::error::erro_campo("data_fim", "horário inexistente no fuso"))?
         .with_timezone(&Utc);
@@ -163,54 +164,70 @@ impl<'a> FinanceiroDashboardRepo<'a> {
         data_fim: Option<&str>,
         fuso: &str,
     ) -> InfraResult<ResumoDashboardView> {
-        let (inicio_local, fim_local, comp_inicio_local, comp_fim_local) = if let Some(ini) = data_inicio {
-            let fim = data_fim.unwrap_or(ini);
-            (
-                ini.to_string(),
-                fim.to_string(),
-                (NaiveDate::parse_from_str(ini.trim(), "%Y-%m-%d")
-                    .map_err(|_| crate::error::erro_campo("data_inicio", "use AAAA-MM-DD"))?
-                    - Duration::days(30))
-                .to_string(),
-                ini.to_string(),
-            )
-        } else {
-            // Fallback sem data explícita: resolve o "hoje" no fuso da loja.
-            let tz: Tz = fuso.parse().unwrap_or(chrono_tz::America::Sao_Paulo);
-            let hoje = Utc::now().with_timezone(&tz).date_naive();
-            match periodo {
-                "semana" => (
-                    (hoje - Duration::days(6)).to_string(),
-                    hoje.to_string(),
-                    (hoje - Duration::days(13)).to_string(),
-                    (hoje - Duration::days(6)).to_string(),
-                ),
-                "mes" => {
-                    let primeiro = hoje.with_day(1).unwrap_or(hoje);
-                    let anterior = primeiro - Duration::days(1);
-                    (
-                        primeiro.to_string(),
+        let (inicio_local, fim_local, comp_inicio_local, comp_fim_local) =
+            if let Some(ini) = data_inicio {
+                let fim = data_fim.unwrap_or(ini);
+                (
+                    ini.to_string(),
+                    fim.to_string(),
+                    (NaiveDate::parse_from_str(ini.trim(), "%Y-%m-%d")
+                        .map_err(|_| crate::error::erro_campo("data_inicio", "use AAAA-MM-DD"))?
+                        - Duration::days(30))
+                    .to_string(),
+                    ini.to_string(),
+                )
+            } else {
+                // Fallback sem data explícita: resolve o "hoje" no fuso da loja.
+                let tz: Tz = fuso.parse().unwrap_or(chrono_tz::America::Sao_Paulo);
+                let hoje = Utc::now().with_timezone(&tz).date_naive();
+                match periodo {
+                    "semana" => (
+                        (hoje - Duration::days(6)).to_string(),
                         hoje.to_string(),
-                        anterior.with_day(1).unwrap_or(anterior).to_string(),
-                        primeiro.to_string(),
-                    )
+                        (hoje - Duration::days(13)).to_string(),
+                        (hoje - Duration::days(6)).to_string(),
+                    ),
+                    "mes" => {
+                        let primeiro = hoje.with_day(1).unwrap_or(hoje);
+                        let anterior = primeiro - Duration::days(1);
+                        (
+                            primeiro.to_string(),
+                            hoje.to_string(),
+                            anterior.with_day(1).unwrap_or(anterior).to_string(),
+                            primeiro.to_string(),
+                        )
+                    }
+                    _ => (
+                        hoje.to_string(),
+                        hoje.to_string(),
+                        (hoje - Duration::days(1)).to_string(),
+                        hoje.to_string(),
+                    ),
                 }
-                _ => (
-                    hoje.to_string(),
-                    hoje.to_string(),
-                    (hoje - Duration::days(1)).to_string(),
-                    hoje.to_string(),
-                ),
-            }
-        };
+            };
 
         let (inicio_utc, fim_utc) = intervalo_utc_da_janela(fuso, &inicio_local, &fim_local)?;
         let (comp_inicio_utc, comp_fim_utc) =
             intervalo_utc_da_janela(fuso, &comp_inicio_local, &comp_fim_local)?;
 
+        // Datas locais para os vencimentos. `date('now')` do SQLite é UTC e
+        // erraria o dia entre 21h e 0h no fuso da loja (TZ-001).
+        let hoje = hoje_local(fuso);
+        let hoje_s = hoje.to_string();
+        let em_7_dias = (hoje + Duration::days(7)).to_string();
+        let em_60_dias = (hoje + Duration::days(60)).to_string();
+        let inicio_mes = hoje.with_day(1).unwrap_or(hoje);
+        let proximo_mes = if inicio_mes.month() == 12 {
+            NaiveDate::from_ymd_opt(inicio_mes.year() + 1, 1, 1)
+        } else {
+            NaiveDate::from_ymd_opt(inicio_mes.year(), inicio_mes.month() + 1, 1)
+        }
+        .unwrap_or(inicio_mes);
+        let inicio_mes_s = inicio_mes.to_string();
+        let proximo_mes_s = proximo_mes.to_string();
+
         // 1. Faturamento e quantidade de vendas
-        let sql_vendas =
-            "SELECT COALESCE(SUM(total_centavos), 0), COUNT(*)
+        let sql_vendas = "SELECT COALESCE(SUM(total_centavos), 0), COUNT(*)
              FROM vendas
              WHERE estado = 'FINALIZADA'
                AND created_at >= ?1
@@ -228,24 +245,28 @@ impl<'a> FinanceiroDashboardRepo<'a> {
         };
 
         // Comparativo com período anterior
-        let sql_comp =
-            "SELECT COALESCE(SUM(total_centavos), 0)
+        let sql_comp = "SELECT COALESCE(SUM(total_centavos), 0)
              FROM vendas
              WHERE estado = 'FINALIZADA'
                AND created_at >= ?1
                AND created_at < ?2";
-        let faturamento_anterior: i64 = self
-            .conn
-            .query_row(sql_comp, params![comp_inicio_utc, comp_fim_utc], |row| row.get(0))?;
+        let faturamento_anterior: i64 =
+            self.conn
+                .query_row(sql_comp, params![comp_inicio_utc, comp_fim_utc], |row| {
+                    row.get(0)
+                })?;
         let comparativo_faturamento_pct = if faturamento_anterior > 0 {
-            Some(((faturamento_centavos as f64 - faturamento_anterior as f64) / faturamento_anterior as f64) * 100.0)
+            Some(
+                ((faturamento_centavos as f64 - faturamento_anterior as f64)
+                    / faturamento_anterior as f64)
+                    * 100.0,
+            )
         } else {
             None
         };
 
         // 2. Custo da mercadoria vendida (CMV) congelado / snapshot
-        let sql_cmv =
-            "SELECT COALESCE(SUM(
+        let sql_cmv = "SELECT COALESCE(SUM(
                  COALESCE(l.custo_centavos, p.custo_centavos, 0) * vi.quantidade
              ), 0)
              FROM venda_itens vi
@@ -255,9 +276,9 @@ impl<'a> FinanceiroDashboardRepo<'a> {
              WHERE v.estado = 'FINALIZADA'
                AND v.created_at >= ?1
                AND v.created_at <= ?2";
-        let cmv_centavos: i64 = self
-            .conn
-            .query_row(sql_cmv, params![inicio_utc, fim_utc], |row| row.get(0))?;
+        let cmv_centavos: i64 =
+            self.conn
+                .query_row(sql_cmv, params![inicio_utc, fim_utc], |row| row.get(0))?;
         let lucro_bruto_centavos = faturamento_centavos.saturating_sub(cmv_centavos);
         let margem_bruta_pct = if faturamento_centavos > 0 {
             (lucro_bruto_centavos as f64 / faturamento_centavos as f64) * 100.0
@@ -266,8 +287,7 @@ impl<'a> FinanceiroDashboardRepo<'a> {
         };
 
         // 3. Ponto de Equilíbrio mensal (despesas fixas / margem)
-        let sql_despesas_fixas =
-            "SELECT COALESCE(SUM(p.valor_centavos), 0)
+        let sql_despesas_fixas = "SELECT COALESCE(SUM(p.valor_centavos), 0)
              FROM parcelas p
              JOIN contas_pagar cp ON cp.id = p.conta_id
              WHERE p.conta_tipo = 'PAGAMENTO'
@@ -275,10 +295,13 @@ impl<'a> FinanceiroDashboardRepo<'a> {
                     OR cp.descricao LIKE '%Aluguel%'
                     OR cp.descricao LIKE '%Salário%'
                     OR cp.descricao LIKE '%Energia%')
-               AND date(p.vencimento) >= date('now', 'start of month')
-               AND date(p.vencimento) < date('now', 'start of month', '+1 month')";
-        let despesas_fixas_centavos: i64 =
-            self.conn.query_row(sql_despesas_fixas, [], |row| row.get(0))?;
+               AND date(p.vencimento) >= ?1
+               AND date(p.vencimento) < ?2";
+        let despesas_fixas_centavos: i64 = self.conn.query_row(
+            sql_despesas_fixas,
+            params![inicio_mes_s, proximo_mes_s],
+            |row| row.get(0),
+        )?;
 
         let margem_calculo = if margem_bruta_pct > 5.0 {
             margem_bruta_pct / 100.0
@@ -303,28 +326,29 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             "SELECT COALESCE(SUM(valor_centavos), 0)
              FROM parcelas
              WHERE conta_tipo = 'PAGAMENTO' AND status = 'ABERTA'
-               AND date(vencimento) >= date('now')
-               AND date(vencimento) <= date('now', '+7 days')",
-            [],
+               AND date(vencimento) >= ?1
+               AND date(vencimento) <= ?2",
+            params![hoje_s, em_7_dias],
             |row| row.get(0),
         )?;
 
-        let (a_pagar_vencidas_centavos, num_contas_pagar_vencidas): (i64, i64) = self.conn.query_row(
-            "SELECT COALESCE(SUM(valor_centavos), 0), COUNT(*)
+        let (a_pagar_vencidas_centavos, num_contas_pagar_vencidas): (i64, i64) =
+            self.conn.query_row(
+                "SELECT COALESCE(SUM(valor_centavos), 0), COUNT(*)
              FROM parcelas
              WHERE conta_tipo = 'PAGAMENTO' AND status = 'ABERTA'
-               AND date(vencimento) < date('now')",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
+               AND date(vencimento) < ?1",
+                params![hoje_s],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
 
         let a_receber_7d_centavos: i64 = self.conn.query_row(
             "SELECT COALESCE(SUM(valor_centavos), 0)
              FROM parcelas
              WHERE conta_tipo = 'RECEBIMENTO' AND status = 'ABERTA'
-               AND date(vencimento) >= date('now')
-               AND date(vencimento) <= date('now', '+7 days')",
-            [],
+               AND date(vencimento) >= ?1
+               AND date(vencimento) <= ?2",
+            params![hoje_s, em_7_dias],
             |row| row.get(0),
         )?;
 
@@ -332,8 +356,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             "SELECT COALESCE(SUM(valor_centavos), 0)
              FROM parcelas
              WHERE conta_tipo = 'RECEBIMENTO' AND status = 'ABERTA'
-               AND date(vencimento) < date('now')",
-            [],
+               AND date(vencimento) < ?1",
+            params![hoje_s],
             |row| row.get(0),
         )?;
 
@@ -345,9 +369,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             |row| row.get(0),
         )?;
 
-        let saldo_projetado_7d_centavos = saldo_caixa_dinheiro_centavos
-            + a_receber_7d_centavos
-            - a_pagar_7d_centavos;
+        let saldo_projetado_7d_centavos =
+            saldo_caixa_dinheiro_centavos + a_receber_7d_centavos - a_pagar_7d_centavos;
 
         // 5. Selos de atenção (máximo 3, priorizados por valor e urgência)
         let mut atencao_itens = Vec::new();
@@ -357,35 +380,37 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             "SELECT p.nome,
                     COALESCE(l.numero_lote, 'Padrão') as lote_num,
                     l.validade,
-                    CAST(julianday(l.validade) - julianday('now') AS INTEGER) as dias_restantes,
+                    CAST(julianday(l.validade) - julianday(?1) AS INTEGER) as dias_restantes,
                     l.quantidade * COALESCE(l.custo_centavos, p.custo_centavos, 0) as valor_risco
              FROM lotes l
              JOIN produtos p ON p.id = l.produto_id
              WHERE l.ativo = 1 AND l.quantidade > 0 AND l.validade IS NOT NULL
-               AND date(l.validade) <= date('now', '+60 days')
+               AND date(l.validade) <= ?2
              ORDER BY date(l.validade) ASC, valor_risco DESC
              LIMIT 1",
         )?;
-        let item_validade = stmt_val.query_row([], |row| {
-            let p_nome: String = row.get(0)?;
-            let lote_num: String = row.get(1)?;
-            let _validade: String = row.get(2)?;
-            let dias_restantes: i64 = row.get(3)?;
-            let valor_risco: i64 = row.get(4)?;
-            let titulo = if dias_restantes < 0 {
-                "LOTE VENCIDO".to_string()
-            } else {
-                format!("VENCE EM {} DIAS", dias_restantes)
-            };
-            Ok(ItemAtencaoView {
-                tipo: "VALIDADE".to_string(),
-                titulo,
-                subtitulo: format!("{}, lote {}", p_nome, lote_num),
-                valor_risco_centavos: valor_risco,
-                acao_rotulo: "Ver Estoque".to_string(),
-                link_destino: "produtos.html".to_string(),
+        let item_validade = stmt_val
+            .query_row(params![hoje_s, em_60_dias], |row| {
+                let p_nome: String = row.get(0)?;
+                let lote_num: String = row.get(1)?;
+                let _validade: String = row.get(2)?;
+                let dias_restantes: i64 = row.get(3)?;
+                let valor_risco: i64 = row.get(4)?;
+                let titulo = if dias_restantes < 0 {
+                    "LOTE VENCIDO".to_string()
+                } else {
+                    format!("VENCE EM {} DIAS", dias_restantes)
+                };
+                Ok(ItemAtencaoView {
+                    tipo: "VALIDADE".to_string(),
+                    titulo,
+                    subtitulo: format!("{}, lote {}", p_nome, lote_num),
+                    valor_risco_centavos: valor_risco,
+                    acao_rotulo: "Ver Estoque".to_string(),
+                    link_destino: "produtos.html".to_string(),
+                })
             })
-        }).ok();
+            .ok();
         if let Some(item) = item_validade {
             atencao_itens.push(item);
         }
@@ -399,21 +424,23 @@ impl<'a> FinanceiroDashboardRepo<'a> {
              ORDER BY sc.fechada_em DESC
              LIMIT 1",
         )?;
-        let item_quebra = stmt_quebra.query_row([], |row| {
-            let numero_caixa: i64 = row.get(0)?;
-            let _operador: String = row.get(1)?;
-            let _fechada_em: Option<String> = row.get(2)?;
-            let diferenca: i64 = row.get(3)?;
-            let sinal = if diferenca > 0 { "+" } else { "" };
-            Ok(ItemAtencaoView {
-                tipo: "QUEBRA_CAIXA".to_string(),
-                titulo: format!("CAIXA {:02}", numero_caixa),
-                subtitulo: format!("Diferença {}R$ {:.2}", sinal, (diferenca as f64) / 100.0),
-                valor_risco_centavos: diferenca.abs(),
-                acao_rotulo: "Ver Caixas".to_string(),
-                link_destino: "pos-menu.html".to_string(),
+        let item_quebra = stmt_quebra
+            .query_row([], |row| {
+                let numero_caixa: i64 = row.get(0)?;
+                let _operador: String = row.get(1)?;
+                let _fechada_em: Option<String> = row.get(2)?;
+                let diferenca: i64 = row.get(3)?;
+                let sinal = if diferenca > 0 { "+" } else { "" };
+                Ok(ItemAtencaoView {
+                    tipo: "QUEBRA_CAIXA".to_string(),
+                    titulo: format!("CAIXA {:02}", numero_caixa),
+                    subtitulo: format!("Diferença {}R$ {:.2}", sinal, (diferenca as f64) / 100.0),
+                    valor_risco_centavos: diferenca.abs(),
+                    acao_rotulo: "Ver Caixas".to_string(),
+                    link_destino: "pos-menu.html".to_string(),
+                })
             })
-        }).ok();
+            .ok();
         if let Some(item) = item_quebra {
             atencao_itens.push(item);
         }
@@ -422,28 +449,30 @@ impl<'a> FinanceiroDashboardRepo<'a> {
         let mut stmt_dev = self.conn.prepare(
             "SELECT COALESCE(p.nome, 'Cliente') as cliente_nome,
                     SUM(par.valor_centavos) as divida_total,
-                    CAST(julianday('now') - julianday(MIN(date(par.vencimento))) AS INTEGER) as dias_atraso
+                    CAST(julianday(?1) - julianday(MIN(date(par.vencimento))) AS INTEGER) as dias_atraso
              FROM parcelas par
              JOIN contas_receber cr ON cr.id = par.conta_id
              LEFT JOIN pessoas p ON p.id = cr.pessoa_id
-             WHERE par.conta_tipo = 'RECEBIMENTO' AND par.status = 'ABERTA' AND date(par.vencimento) < date('now')
+             WHERE par.conta_tipo = 'RECEBIMENTO' AND par.status = 'ABERTA' AND date(par.vencimento) < ?1
              GROUP BY cr.pessoa_id
              ORDER BY divida_total DESC
              LIMIT 1",
         )?;
-        let item_devedor = stmt_dev.query_row([], |row| {
-            let cliente_nome: String = row.get(0)?;
-            let divida_total: i64 = row.get(1)?;
-            let dias_atraso: i64 = row.get(2)?;
-            Ok(ItemAtencaoView {
-                tipo: "DEVEDOR".to_string(),
-                titulo: "CREDIÁRIO VENCIDO".to_string(),
-                subtitulo: format!("{}, {} dias de atraso", cliente_nome, dias_atraso),
-                valor_risco_centavos: divida_total,
-                acao_rotulo: "Cobrar".to_string(),
-                link_destino: "financeiro.html?aba=receber".to_string(),
+        let item_devedor = stmt_dev
+            .query_row(params![hoje_s], |row| {
+                let cliente_nome: String = row.get(0)?;
+                let divida_total: i64 = row.get(1)?;
+                let dias_atraso: i64 = row.get(2)?;
+                Ok(ItemAtencaoView {
+                    tipo: "DEVEDOR".to_string(),
+                    titulo: "CREDIÁRIO VENCIDO".to_string(),
+                    subtitulo: format!("{}, {} dias de atraso", cliente_nome, dias_atraso),
+                    valor_risco_centavos: divida_total,
+                    acao_rotulo: "Cobrar".to_string(),
+                    link_destino: "financeiro.html?aba=receber".to_string(),
+                })
             })
-        }).ok();
+            .ok();
         if let Some(item) = item_devedor {
             atencao_itens.push(item);
         }
@@ -455,8 +484,14 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             )?;
             let ultimo_bkp: Option<String> = stmt_bkp.query_row([], |row| row.get(0)).ok();
             let (titulo, subtitulo) = match ultimo_bkp {
-                Some(dt) => ("BACKUP EM DIA".to_string(), format!("Última cópia: {}", &dt[..10.min(dt.len())])),
-                None => ("CÓPIA DE SEGURANÇA".to_string(), "Nenhum backup local gerado ainda".to_string()),
+                Some(dt) => (
+                    "BACKUP EM DIA".to_string(),
+                    format!("Última cópia: {}", &dt[..10.min(dt.len())]),
+                ),
+                None => (
+                    "CÓPIA DE SEGURANÇA".to_string(),
+                    "Nenhum backup local gerado ainda".to_string(),
+                ),
             };
             atencao_itens.push(ItemAtencaoView {
                 tipo: "BACKUP".to_string(),
@@ -503,8 +538,7 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             .collect::<Result<Vec<_>, _>>()?;
 
         // 7. Breakdown Chokko-Melt por método de pagamento no período
-        let sql_pix =
-            "SELECT COALESCE(SUM(vp.valor_centavos), 0)
+        let sql_pix = "SELECT COALESCE(SUM(vp.valor_centavos), 0)
              FROM venda_pagamentos vp
              JOIN vendas v ON v.id = vp.venda_id
              WHERE v.estado = 'FINALIZADA' AND vp.forma = 'PIX'
@@ -515,8 +549,7 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             .query_row(sql_pix, params![inicio_utc, fim_utc], |row| row.get(0))
             .unwrap_or(0);
 
-        let sql_cartao =
-            "SELECT COALESCE(SUM(vp.valor_centavos), 0)
+        let sql_cartao = "SELECT COALESCE(SUM(vp.valor_centavos), 0)
              FROM venda_pagamentos vp
              JOIN vendas v ON v.id = vp.venda_id
              WHERE v.estado = 'FINALIZADA' AND vp.forma IN ('DEBITO', 'CREDITO')
@@ -527,8 +560,7 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             .query_row(sql_cartao, params![inicio_utc, fim_utc], |row| row.get(0))
             .unwrap_or(0);
 
-        let sql_dinheiro =
-            "SELECT COALESCE(SUM(vp.valor_centavos), 0)
+        let sql_dinheiro = "SELECT COALESCE(SUM(vp.valor_centavos), 0)
              FROM venda_pagamentos vp
              JOIN vendas v ON v.id = vp.venda_id
              WHERE v.estado = 'FINALIZADA' AND vp.forma = 'DINHEIRO'
@@ -539,8 +571,7 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             .query_row(sql_dinheiro, params![inicio_utc, fim_utc], |row| row.get(0))
             .unwrap_or(0);
 
-        let sql_crediario =
-            "SELECT COALESCE(SUM(vp.valor_centavos), 0)
+        let sql_crediario = "SELECT COALESCE(SUM(vp.valor_centavos), 0)
              FROM venda_pagamentos vp
              JOIN vendas v ON v.id = vp.venda_id
              WHERE v.estado = 'FINALIZADA' AND vp.forma = 'CREDIARIO'
@@ -548,11 +579,16 @@ impl<'a> FinanceiroDashboardRepo<'a> {
                AND v.created_at <= ?2";
         let total_crediario_centavos: i64 = self
             .conn
-            .query_row(sql_crediario, params![inicio_utc, fim_utc], |row| row.get(0))
+            .query_row(sql_crediario, params![inicio_utc, fim_utc], |row| {
+                row.get(0)
+            })
             .unwrap_or(0);
 
         let total_outros_centavos = faturamento_centavos.saturating_sub(
-            total_pix_centavos + total_cartao_centavos + total_dinheiro_centavos + total_crediario_centavos
+            total_pix_centavos
+                + total_cartao_centavos
+                + total_dinheiro_centavos
+                + total_crediario_centavos,
         );
 
         // 8. Detalhamento de Entradas (Vendas Chokko-Melt)
@@ -622,9 +658,15 @@ impl<'a> FinanceiroDashboardRepo<'a> {
     }
 
     /// Extrato diário do Fluxo de Caixa (Regime de Caixa).
-    pub fn obter_fluxo_caixa(&self, _inicio: Option<&str>, _fim: Option<&str>) -> InfraResult<FluxoCaixaView> {
-        let sql =
-            "SELECT substr(data_hora, 1, 10) as dia,
+    pub fn obter_fluxo_caixa(
+        &self,
+        fuso: &str,
+        _inicio: Option<&str>,
+        _fim: Option<&str>,
+    ) -> InfraResult<FluxoCaixaView> {
+        let hoje_s = data_local_iso(fuso);
+        let em_30_dias = data_local_mais_dias(fuso, 30);
+        let sql = "SELECT substr(data_hora, 1, 10) as dia,
                     SUM(CASE WHEN tipo = 'ENTRADA' THEN valor_centavos ELSE 0 END) as entradas,
                     SUM(CASE WHEN tipo = 'SAIDA' THEN valor_centavos ELSE 0 END) as saidas
              FROM (
@@ -687,8 +729,9 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             "SELECT COALESCE(SUM(valor_centavos), 0)
              FROM parcelas
              WHERE conta_tipo = 'RECEBIMENTO' AND status = 'ABERTA'
-               AND date(vencimento) <= date('now', '+30 days')",
-            [],
+               AND date(vencimento) >= ?1
+               AND date(vencimento) <= ?2",
+            params![hoje_s, em_30_dias],
             |row| row.get(0),
         )?;
 
@@ -696,8 +739,9 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             "SELECT COALESCE(SUM(valor_centavos), 0)
              FROM parcelas
              WHERE conta_tipo = 'PAGAMENTO' AND status = 'ABERTA'
-               AND date(vencimento) <= date('now', '+30 days')",
-            [],
+               AND date(vencimento) >= ?1
+               AND date(vencimento) <= ?2",
+            params![hoje_s, em_30_dias],
             |row| row.get(0),
         )?;
 
@@ -713,21 +757,24 @@ impl<'a> FinanceiroDashboardRepo<'a> {
     }
 
     /// DRE Simplificada (Regime de Competência - 7 linhas) para um mês 'AAAA-MM'.
-    pub fn obter_resultado_dre(&self, mes: Option<&str>) -> InfraResult<ResultadoDREView> {
+    pub fn obter_resultado_dre(
+        &self,
+        fuso: &str,
+        mes: Option<&str>,
+    ) -> InfraResult<ResultadoDREView> {
         let mes_str = match mes {
             Some(m) if m.len() >= 7 => m[..7].to_string(),
-            _ => {
-                let now: String = self.conn.query_row("SELECT strftime('%Y-%m', 'now')", [], |r| r.get(0))?;
-                now
-            }
+            _ => mes_local(fuso),
         };
+        // `created_at`/`pago_em` são UTC; o mês é resolvido no fuso da loja.
+        let (mes_inicio_utc, mes_fim_utc) = intervalo_utc_do_mes(fuso, &mes_str)?;
 
         // 1. Receita Bruta e Descontos
         let (receita_bruta_centavos, descontos_centavos): (i64, i64) = self.conn.query_row(
             "SELECT COALESCE(SUM(subtotal_centavos), 0), COALESCE(SUM(desconto_centavos), 0)
              FROM vendas
-             WHERE estado = 'FINALIZADA' AND strftime('%Y-%m', created_at) = ?1",
-            params![mes_str],
+             WHERE estado = 'FINALIZADA' AND created_at >= ?1 AND created_at <= ?2",
+            params![mes_inicio_utc, mes_fim_utc],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )?;
         let receita_liquida_centavos = receita_bruta_centavos.saturating_sub(descontos_centavos);
@@ -741,8 +788,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
              JOIN vendas v ON v.id = vi.venda_id
              LEFT JOIN lotes l ON l.id = vi.lote_id
              LEFT JOIN produtos p ON p.id = vi.produto_id
-             WHERE v.estado = 'FINALIZADA' AND strftime('%Y-%m', v.created_at) = ?1",
-            params![mes_str],
+             WHERE v.estado = 'FINALIZADA' AND v.created_at >= ?1 AND v.created_at <= ?2",
+            params![mes_inicio_utc, mes_fim_utc],
             |row| row.get(0),
         )?;
         let lucro_bruto_centavos = receita_liquida_centavos.saturating_sub(cmv_centavos);
@@ -752,8 +799,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             "SELECT COALESCE(SUM(vi.comissao_centavos), 0)
              FROM venda_itens vi
              JOIN vendas v ON v.id = vi.venda_id
-             WHERE v.estado = 'FINALIZADA' AND strftime('%Y-%m', v.created_at) = ?1",
-            params![mes_str],
+             WHERE v.estado = 'FINALIZADA' AND v.created_at >= ?1 AND v.created_at <= ?2",
+            params![mes_inicio_utc, mes_fim_utc],
             |row| row.get(0),
         )?;
 
@@ -767,13 +814,14 @@ impl<'a> FinanceiroDashboardRepo<'a> {
              ), 0)
              FROM venda_pagamentos vp
              JOIN vendas v ON v.id = vp.venda_id
-             WHERE v.estado = 'FINALIZADA' AND strftime('%Y-%m', v.created_at) = ?1",
-            params![mes_str],
+             WHERE v.estado = 'FINALIZADA' AND v.created_at >= ?1 AND v.created_at <= ?2",
+            params![mes_inicio_utc, mes_fim_utc],
             |row| row.get(0),
         )?;
 
         let custos_variaveis_centavos = comissao_total + taxa_cartao_estimada;
-        let margem_contribuicao_centavos = lucro_bruto_centavos.saturating_sub(custos_variaveis_centavos);
+        let margem_contribuicao_centavos =
+            lucro_bruto_centavos.saturating_sub(custos_variaveis_centavos);
         let margem_contribuicao_pct = if receita_liquida_centavos > 0 {
             (margem_contribuicao_centavos as f64 / receita_liquida_centavos as f64) * 100.0
         } else {
@@ -786,8 +834,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
              FROM parcelas p
              JOIN contas_pagar cp ON cp.id = p.conta_id
              WHERE p.conta_tipo = 'PAGAMENTO' AND p.status = 'PAGA'
-               AND strftime('%Y-%m', p.pago_em) = ?1",
-            params![mes_str],
+               AND p.pago_em >= ?1 AND p.pago_em <= ?2",
+            params![mes_inicio_utc, mes_fim_utc],
             |row| row.get(0),
         )?;
 
@@ -812,7 +860,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             0
         };
 
-        let resultado_periodo_centavos = resultado_operacional_centavos - impostos_estimados_centavos;
+        let resultado_periodo_centavos =
+            resultado_operacional_centavos - impostos_estimados_centavos;
 
         // 6. Retiradas do dono (sangrias com motivo de retirada)
         let retiradas_dono_centavos: i64 = self.conn.query_row(
@@ -820,8 +869,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
              FROM livro_caixa
              WHERE tipo = 'SANGRIA'
                AND (motivo LIKE '%RETIRADA%' OR motivo LIKE '%PRO-LABORE%' OR motivo LIKE '%DONO%')
-               AND strftime('%Y-%m', created_at) = ?1",
-            params![mes_str],
+               AND created_at >= ?1 AND created_at <= ?2",
+            params![mes_inicio_utc, mes_fim_utc],
             |row| row.get(0),
         )?;
 
@@ -871,7 +920,9 @@ mod tests {
         let db = Database::em_memoria().unwrap();
         let repo = FinanceiroDashboardRepo::novo(db.conn());
 
-        let fluxo = repo.obter_fluxo_caixa(None, None).unwrap();
+        let fluxo = repo
+            .obter_fluxo_caixa("America/Sao_Paulo", None, None)
+            .unwrap();
         assert_eq!(fluxo.saldo_atual_centavos, 0);
         assert_eq!(fluxo.total_entradas_periodo_centavos, 0);
         assert_eq!(fluxo.total_saidas_periodo_centavos, 0);
@@ -882,7 +933,9 @@ mod tests {
         let db = Database::em_memoria().unwrap();
         let repo = FinanceiroDashboardRepo::novo(db.conn());
 
-        let dre = repo.obter_resultado_dre(Some("2026-11")).unwrap();
+        let dre = repo
+            .obter_resultado_dre("America/Sao_Paulo", Some("2026-11"))
+            .unwrap();
         assert_eq!(dre.periodo, "2026-11");
         assert_eq!(dre.receita_bruta_centavos, 0);
         assert_eq!(dre.cmv_centavos, 0);

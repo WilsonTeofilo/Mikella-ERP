@@ -43,3 +43,9 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Artefatos de operação gerados em runtime (backup e pacote de suporte)
+backups/
+**/backups/
+suporte/
+**/suporte/

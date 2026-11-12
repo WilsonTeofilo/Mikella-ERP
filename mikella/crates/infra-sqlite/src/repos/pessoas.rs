@@ -12,6 +12,7 @@ use mikella_shared_kernel::{
 use super::{bool_para_inteiro, inteiro_para_bool, parse_data_hora, parse_id, sql, ParaDominio};
 use crate::error::InfraResult;
 use crate::hash::blind_index_documento;
+use crate::tempo::data_local_iso;
 
 /// Repositório de usuários.
 ///
@@ -318,7 +319,14 @@ impl<'a> PessoaRepo<'a> {
     /// Mantém o ID e registros históricos de vendas/contas para fins fiscais e legais.
     pub fn anonimizar_cliente(&self, id: &str) -> InfraResult<bool> {
         let tem_debito: bool = self.conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM parcelas WHERE pessoa_id = ?1 AND conta_tipo = 'RECEBIMENTO' AND status = 'ABERTA')",
+            "SELECT EXISTS(
+                 SELECT 1
+                   FROM parcelas pa
+                   JOIN contas_receber cr ON cr.id = pa.conta_id
+                  WHERE cr.pessoa_id = ?1
+                    AND pa.conta_tipo = 'RECEBIMENTO'
+                    AND pa.status = 'ABERTA'
+             )",
             params![id],
             |r| r.get(0),
         )?;
@@ -332,7 +340,7 @@ impl<'a> PessoaRepo<'a> {
         let linhas = self.conn.execute(
             "UPDATE pessoas 
              SET nome = '[CLIENTE ANONIMIZADO]',
-                 documento = 'ENC:ANONIMIZADO',
+                 documento = NULL,
                  documento_blind = 'ANON_' || id,
                  telefone = NULL,
                  email = NULL,
@@ -420,7 +428,11 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
             .query_row(sql_query, [id], |row| {
                 let tipo_str: String = row.get(1)?;
                 let tipo = TipoPessoa::from_db(&tipo_str).map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(e))
+                    rusqlite::Error::FromSqlConversionFailure(
+                        1,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
                 })?;
                 let criado_em_str: String = row.get(8)?;
                 let atualizado_em_str: String = row.get(9)?;
@@ -438,12 +450,23 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                     documento: self.decifrar_campo(doc_raw),
                     endereco: self.decifrar_campo(end_raw),
                     ativo: row.get::<_, i64>(7)? != 0,
-                    criado_em: parse_data_hora(&criado_em_str, "pessoas.created_at").map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(e))
-                    })?,
-                    atualizado_em: parse_data_hora(&atualizado_em_str, "pessoas.updated_at").map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(9, rusqlite::types::Type::Text, Box::new(e))
-                    })?,
+                    criado_em: parse_data_hora(&criado_em_str, "pessoas.created_at").map_err(
+                        |e| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                8,
+                                rusqlite::types::Type::Text,
+                                Box::new(e),
+                            )
+                        },
+                    )?,
+                    atualizado_em: parse_data_hora(&atualizado_em_str, "pessoas.updated_at")
+                        .map_err(|e| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                9,
+                                rusqlite::types::Type::Text,
+                                Box::new(e),
+                            )
+                        })?,
                 })
             })
             .optional()
@@ -452,7 +475,9 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
     }
 
     fn telefone_em_uso(&self, telefone: &str, ignorar_id: Option<&str>) -> DomainResult<bool> {
-        let tel_cifrado = self.cifrar_campo(Some(telefone), "telefone").unwrap_or_else(|| telefone.to_string());
+        let tel_cifrado = self
+            .cifrar_campo(Some(telefone), "telefone")
+            .unwrap_or_else(|| telefone.to_string());
         let existe: i64 = sql(self.conn.query_row(
             "SELECT COUNT(*) FROM pessoas
              WHERE (telefone = ?1 OR telefone = ?2) AND (?3 IS NULL OR id <> ?3)",
@@ -541,10 +566,16 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
             .map_err(|e| DomainError::EstadoInvalido(format!("Erro ao preparar consulta: {e}")))?;
 
         let mut clientes = Vec::new();
+        let hoje_s =
+            data_local_iso(&crate::repos::sistema::DiagnosticoRepo::novo(self.conn).fuso_horario());
         let mapper = |row: &Row<'_>| {
             let tipo_str: String = row.get(1)?;
             let tipo = TipoPessoa::from_db(&tipo_str).map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(e))
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
             })?;
             let criado_em_str: String = row.get(8)?;
             let atualizado_em_str: String = row.get(9)?;
@@ -563,20 +594,33 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                 endereco: self.decifrar_campo(end_raw),
                 ativo: row.get::<_, i64>(7)? != 0,
                 criado_em: parse_data_hora(&criado_em_str, "pessoas.created_at").map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(e))
+                    rusqlite::Error::FromSqlConversionFailure(
+                        8,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
                 })?,
-                atualizado_em: parse_data_hora(&atualizado_em_str, "pessoas.updated_at").map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(9, rusqlite::types::Type::Text, Box::new(e))
-                })?,
+                atualizado_em: parse_data_hora(&atualizado_em_str, "pessoas.updated_at").map_err(
+                    |e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            9,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    },
+                )?,
             })
         };
 
         let rows = stmt
             .query_map(rusqlite::params_from_iter(param), mapper)
-            .map_err(|e| DomainError::EstadoInvalido(format!("Erro na consulta de clientes: {e}")))?;
+            .map_err(|e| {
+                DomainError::EstadoInvalido(format!("Erro na consulta de clientes: {e}"))
+            })?;
 
         for r in rows {
-            let pessoa = r.map_err(|e| DomainError::EstadoInvalido(format!("Erro ao ler cliente: {e}")))?;
+            let pessoa =
+                r.map_err(|e| DomainError::EstadoInvalido(format!("Erro ao ler cliente: {e}")))?;
 
             // Calcula saldo devedor e se há parcelas vencidas no crediário.
             // As parcelas de crediário vivem na tabela unificada `parcelas`
@@ -585,13 +629,13 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                 .conn
                 .query_row(
                     "SELECT COALESCE(SUM(p.valor_centavos), 0),
-                            COALESCE(MAX(CASE WHEN date(p.vencimento) < date('now') THEN 1 ELSE 0 END), 0)
+                            COALESCE(MAX(CASE WHEN date(p.vencimento) < ?2 THEN 1 ELSE 0 END), 0)
                      FROM parcelas p
                      INNER JOIN contas_receber c ON c.id = p.conta_id
                      WHERE c.pessoa_id = ?1
                        AND p.conta_tipo = 'RECEBIMENTO'
                        AND p.status = 'ABERTA'",
-                    [&pessoa.id],
+                    params![&pessoa.id, &hoje_s],
                     |row| Ok((row.get(0)?, row.get::<_, i64>(1)? > 0)),
                 )
                 .unwrap_or((0, false));
@@ -607,22 +651,26 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
     }
 
     fn listar_devedores(&self) -> DomainResult<Vec<DevedorItem>> {
+        let hoje_s =
+            data_local_iso(&crate::repos::sistema::DiagnosticoRepo::novo(self.conn).fuso_horario());
         let mut stmt = self
             .conn
             .prepare(
                 "SELECT pe.id, pe.nome, pe.documento, pe.telefone,
                         pa.id as parcela_id, pa.numero, pa.valor_centavos, pa.vencimento,
-                        CAST(julianday('now') - julianday(pa.vencimento) AS INTEGER) as dias_atraso
+                        CAST(julianday(?1) - julianday(pa.vencimento) AS INTEGER) as dias_atraso
                  FROM parcelas pa
                  INNER JOIN contas_receber c ON c.id = pa.conta_id
                  INNER JOIN pessoas pe ON pe.id = c.pessoa_id
                  WHERE pa.conta_tipo = 'RECEBIMENTO' AND pa.status = 'ABERTA'
                  ORDER BY pe.nome ASC, pa.vencimento ASC",
             )
-            .map_err(|e| DomainError::EstadoInvalido(format!("Erro ao preparar lista de devedores: {e}")))?;
+            .map_err(|e| {
+                DomainError::EstadoInvalido(format!("Erro ao preparar lista de devedores: {e}"))
+            })?;
 
         let rows = stmt
-            .query_map([], |row| {
+            .query_map(params![hoje_s], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
@@ -635,13 +683,17 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                     row.get::<_, i64>(8)?,
                 ))
             })
-            .map_err(|e| DomainError::EstadoInvalido(format!("Erro ao consultar devedores: {e}")))?;
+            .map_err(|e| {
+                DomainError::EstadoInvalido(format!("Erro ao consultar devedores: {e}"))
+            })?;
 
         // Agrupa por cliente (id), não por nome: homônimos são pessoas distintas.
-        let mut mapa: std::collections::BTreeMap<String, DevedorItem> = std::collections::BTreeMap::new();
+        let mut mapa: std::collections::BTreeMap<String, DevedorItem> =
+            std::collections::BTreeMap::new();
         for r in rows {
-            let (cid, nome, doc, tel, pid, num, valor, venc, atraso) =
-                r.map_err(|e| DomainError::EstadoInvalido(format!("Erro ao ler parcela devedora: {e}")))?;
+            let (cid, nome, doc, tel, pid, num, valor, venc, atraso) = r.map_err(|e| {
+                DomainError::EstadoInvalido(format!("Erro ao ler parcela devedora: {e}"))
+            })?;
 
             let doc_dec = self.decifrar_campo(doc);
             let tel_dec = self.decifrar_campo(tel);
@@ -680,7 +732,9 @@ impl<'a> PessoaRepository for PessoaRepo<'a> {
                 [parcela_id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
-            .map_err(|e| DomainError::EstadoInvalido(format!("Parcela não encontrada ou já liquidada: {e}")))?;
+            .map_err(|e| {
+                DomainError::EstadoInvalido(format!("Parcela não encontrada ou já liquidada: {e}"))
+            })?;
 
         let alteradas = sql(self.conn.execute(
             "UPDATE parcelas
@@ -779,13 +833,21 @@ pub fn backfill_blind_index(conn: &Connection, chave_loja: &[u8; 32]) -> InfraRe
                 OR (email IS NOT NULL AND email NOT LIKE 'ENC:%')
                 OR (endereco IS NOT NULL AND endereco NOT LIKE 'ENC:%')",
         )?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
         rows.collect::<Result<Vec<_>, _>>()?
     };
     for (id, tel, em, end) in legados {
-        let tc = tel.as_deref().and_then(|t| mikella_infra_crypto::cifrar_pii(t, chave_loja, "telefone").ok());
-        let ec = em.as_deref().and_then(|e| mikella_infra_crypto::cifrar_pii(e, chave_loja, "email").ok());
-        let endc = end.as_deref().and_then(|e| mikella_infra_crypto::cifrar_pii(e, chave_loja, "endereco").ok());
+        let tc = tel
+            .as_deref()
+            .and_then(|t| mikella_infra_crypto::cifrar_pii(t, chave_loja, "telefone").ok());
+        let ec = em
+            .as_deref()
+            .and_then(|e| mikella_infra_crypto::cifrar_pii(e, chave_loja, "email").ok());
+        let endc = end
+            .as_deref()
+            .and_then(|e| mikella_infra_crypto::cifrar_pii(e, chave_loja, "endereco").ok());
         let _ = conn.execute(
             "UPDATE pessoas SET
                 telefone = COALESCE(?1, telefone),
@@ -848,8 +910,14 @@ mod testes_blind_index {
         let db = Database::em_memoria().expect("banco em memória");
         inserir_pendente(&db, "p1", "12345678901");
 
-        assert_eq!(backfill_blind_index(db.conn(), &chave()).expect("1º backfill"), 1);
-        assert_eq!(backfill_blind_index(db.conn(), &chave()).expect("2º backfill"), 0);
+        assert_eq!(
+            backfill_blind_index(db.conn(), &chave()).expect("1º backfill"),
+            1
+        );
+        assert_eq!(
+            backfill_blind_index(db.conn(), &chave()).expect("2º backfill"),
+            0
+        );
     }
 
     #[test]
@@ -909,10 +977,77 @@ mod testes_blind_index {
         assert!(!end_cru.contains("Rua das Flores"));
 
         // 2. Verifica que o repositório lê e decifra transparentemente
-        let lido = repo.buscar_por_id("p_crip").expect("buscar").expect("encontrado");
+        let lido = repo
+            .buscar_por_id("p_crip")
+            .expect("buscar")
+            .expect("encontrado");
         assert_eq!(lido.documento.as_deref(), Some("52998224725"));
         assert_eq!(lido.telefone.as_deref(), Some("11988887777"));
         assert_eq!(lido.email.as_deref(), Some("teste@cliente.com"));
         assert_eq!(lido.endereco.as_deref(), Some("Rua das Flores, 123"));
+    }
+
+    #[test]
+    fn anonimizar_cliente_apaga_pii_sem_deixar_sentinela_ilegivel() {
+        let db = Database::em_memoria().expect("banco em memória");
+        let repo = PessoaRepo::com_chave(db.conn(), &chave());
+
+        let p = Pessoa::novo_cliente(
+            "p_anon".into(),
+            "Cliente a Anonimizar".into(),
+            Some("11977776666".into()),
+            Some("apagar@cliente.com".into()),
+            Some("52998224725".into()),
+            Some("Rua das Flores, 123".into()),
+            chrono::Utc::now(),
+        )
+        .expect("novo cliente");
+        repo.salvar(&p).expect("salvar");
+
+        assert!(repo.anonimizar_cliente("p_anon").expect("anonimizar"));
+
+        let (nome, doc, blind, tel, email, end): (
+            String,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        ) = db
+            .conn()
+            .query_row(
+                "SELECT nome, documento, documento_blind, telefone, email, endereco
+                   FROM pessoas WHERE id = 'p_anon'",
+                [],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                    ))
+                },
+            )
+            .expect("ler anonimizado");
+
+        assert_eq!(nome, "[CLIENTE ANONIMIZADO]");
+        assert!(
+            doc.is_none(),
+            "documento deve ser NULL, não ciphertext falso"
+        );
+        assert_eq!(blind, "ANON_p_anon");
+        assert!(tel.is_none());
+        assert!(email.is_none());
+        assert!(end.is_none());
+
+        // A leitura pelo repositório também não inventa dado nenhum.
+        let lido = repo
+            .buscar_por_id("p_anon")
+            .expect("buscar")
+            .expect("existe");
+        assert!(lido.documento.is_none());
+        assert!(lido.telefone.is_none());
     }
 }

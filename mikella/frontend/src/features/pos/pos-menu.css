@@ -549,3 +549,16 @@ body {
 .btn-perigo:hover {
   background: #991b1b;
 }
+/* Botões de ação das tabelas (substituem style= inline bloqueado pela CSP). */
+.btn-acao-tabela {
+  cursor: pointer;
+  font-size: 0.8rem;
+  height: 28px;
+  padding: 2px 8px;
+}
+.btn-acao-tabela--espacada {
+  margin-left: 6px;
+}
+.btn-acao-tabela--lg {
+  font-size: 0.85rem;
+}

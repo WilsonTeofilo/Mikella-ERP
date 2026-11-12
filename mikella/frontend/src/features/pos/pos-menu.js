@@ -194,7 +194,7 @@ async function carregarHistoricoVendas() {
     const br = document.createElement("br");
     const pequeno = document.createElement("span");
     pequeno.style.fontSize = "0.75rem";
-    pequeno.style.color = "#666";
+    pequeno.style.color = "var(--cinza-500)";
     pequeno.textContent = v.id;
     tdCod.append(strong, br, pequeno);
 
@@ -229,9 +229,7 @@ async function carregarHistoricoVendas() {
 
     const btnCupom = document.createElement("button");
     btnCupom.type = "button";
-    btnCupom.className = "badge-tecla";
-    btnCupom.style.cssText =
-      "cursor: pointer; font-size: 0.8rem; height: 28px; padding: 2px 8px;";
+    btnCupom.className = "badge-tecla btn-acao-tabela";
     btnCupom.textContent = "Cupom";
     btnCupom.addEventListener("click", () => exibirPreviewCupom(v.id));
     tdAcoes.appendChild(btnCupom);
@@ -239,9 +237,7 @@ async function carregarHistoricoVendas() {
     if (v.estado === "FINALIZADA") {
       const btnEstorno = document.createElement("button");
       btnEstorno.type = "button";
-      btnEstorno.className = "badge-tecla btn-perigo";
-      btnEstorno.style.cssText =
-        "cursor: pointer; font-size: 0.8rem; height: 28px; padding: 2px 8px; margin-left: 6px;";
+      btnEstorno.className = "badge-tecla btn-perigo btn-acao-tabela btn-acao-tabela--espacada";
       btnEstorno.textContent = "Estornar";
       btnEstorno.addEventListener("click", () => abrirEstornoVenda(v));
       tdAcoes.appendChild(btnEstorno);
@@ -620,7 +616,7 @@ async function carregarClientes() {
     const status = document.createElement("span");
     const temDivida = c.saldo_devedor_centavos > 0;
     if (temDivida) {
-      status.style.color = c.tem_vencido ? "red" : "#D97706";
+      status.style.color = c.tem_vencido ? "var(--vermelho)" : "#D97706";
       status.style.fontWeight = "900";
       status.textContent =
         `${c.saldo_devedor_fmt} ${c.tem_vencido ? "(VENCIDO)" : "(A VENCER)"}`;
@@ -635,9 +631,7 @@ async function carregarClientes() {
     tdAcoes.style.textAlign = "center";
     const btnEditar = document.createElement("button");
     btnEditar.type = "button";
-    btnEditar.className = "badge-tecla";
-    btnEditar.style.cssText =
-      "cursor: pointer; font-size: 0.8rem; height: 28px; padding: 2px 8px;";
+    btnEditar.className = "badge-tecla btn-acao-tabela";
     btnEditar.textContent = "Editar";
     // O objeto fica na closure: nada de serializar dado de cliente em atributo.
     btnEditar.addEventListener("click", () => editarCliente(c));
@@ -1111,7 +1105,7 @@ function renderDevedoresTabela(lista, termoBusca = "") {
     const br = document.createElement("br");
     const documento = document.createElement("span");
     documento.style.fontSize = "0.75rem";
-    documento.style.color = "#666";
+    documento.style.color = "var(--cinza-500)";
     documento.textContent = d.cliente_cpf || d.cliente_telefone || "-";
     tdCliente.append(nomeForte, br, documento);
 
@@ -1131,16 +1125,14 @@ function renderDevedoresTabela(lista, termoBusca = "") {
     const tdValor = document.createElement("td");
     tdValor.style.textAlign = "right";
     tdValor.style.fontWeight = "900";
-    tdValor.style.color = "#B91C1C";
+    tdValor.style.color = "var(--vermelho)";
     tdValor.textContent = d.valor_fmt;
 
     const tdAcoes = document.createElement("td");
     tdAcoes.style.textAlign = "center";
     const btnReceber = document.createElement("button");
     btnReceber.type = "button";
-    btnReceber.className = "badge-tecla";
-    btnReceber.style.cssText =
-      "cursor: pointer; font-size: 0.85rem; height: 28px; padding: 2px 8px;";
+    btnReceber.className = "badge-tecla btn-acao-tabela btn-acao-tabela--lg";
     btnReceber.textContent = "Receber";
     btnReceber.addEventListener("click", () => abrirRecebimentoDevedor(d));
     tdAcoes.appendChild(btnReceber);

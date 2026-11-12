@@ -1,5 +1,10 @@
 # Mikella ERP — regras de segurança e LGPD
 
+> **Nota de atualização (09/11/2026):** parte desta política já está
+> implementada (SQL parametrizado, Argon2id, blind index, CSP restritiva,
+> auditoria encadeada, expurgo LGPD). Itens ainda abertos: parecer jurídico,
+> TLS local e hardening final. A autoridade é o núcleo Rust, não uma UI React.
+
 **Status:** política-alvo. Nada aqui está implementado ou testado. Cada item vira tarefa com evidência na fase correspondente. Parâmetros numéricos são **pontos de partida a calibrar**.
 
 ## 1. Premissa de ameaça (leia primeiro)
@@ -7,7 +12,7 @@
 O Mikella roda **na máquina do cliente**. Quem controla o computador consegue, em tese, inspecionar e alterar o programa e o banco. Portanto:
 
 - **Não existe proteção local absoluta.** O objetivo é elevar o custo de ataque a um nível que não compensa para o público-alvo, e **mover para a nuvem as decisões que o cliente não pode fraudar** (licença, plano, cotas, entrega de backup).
-- A autoridade local é o **núcleo Rust do Servidor da Loja**, não a interface React.
+- A autoridade local é o **núcleo Rust do Servidor da Loja**, não a interface do usuário.
 - Detecção e rastreabilidade valem tanto quanto bloqueio: o que não dá para impedir deve deixar trilha.
 
 ### Ativos

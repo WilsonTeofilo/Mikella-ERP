@@ -26,8 +26,17 @@ let CLIENTES_CACHE = [];
 let clienteSelecionado = null; // { id, nome, cpf, telefone }
 let formaPreSelecionada = "DINHEIRO";
 let ultimaVendaIdConcluida = null;
+// Limites da loja (migração 0012). Enquanto a API não responde, valem os
+// defaults do servidor; a venda é revalidada no backend de qualquer forma.
+let configPagamento = {
+  max_parcelas_cartao: 12,
+  prazo_crediario_dias: 30,
+};
 
 const VENDA = {
+  // Chave de idempotência do rascunho (ADR-0002). Só muda quando o carrinho
+  // muda; um retry após falha ambígua reenvia exatamente o mesmo venda_id.
+  venda_id: crypto.randomUUID(),
   itens: [],
   pagamentos: [], // { forma, valor_centavos, recebido_centavos }
   total_centavos: 0,
@@ -59,15 +68,15 @@ async function inicializar() {
   if (resCaixa.ok && resCaixa.data && resCaixa.data.aberta) {
     localStorage.setItem("mikella_sessao_id", resCaixa.data.sessao_id);
     if (badgeSessao) {
-      badgeSessao.style.background = "#00FF66";
-      badgeSessao.style.color = "#000000";
+      badgeSessao.style.background = "var(--verde)";
+      badgeSessao.style.color = "var(--preto)";
       badgeSessao.textContent = `CAIXA 0${resCaixa.data.numero_caixa || 1} ABERTO`;
     }
   } else {
     localStorage.removeItem("mikella_sessao_id");
     if (badgeSessao) {
-      badgeSessao.style.background = "#FF3333";
-      badgeSessao.style.color = "#FFFFFF";
+      badgeSessao.style.background = "var(--vermelho)";
+      badgeSessao.style.color = "var(--branco)";
       badgeSessao.textContent = "CAIXA FECHADO";
     }
     avisar("Atenção: Caixa fechado! Abra o caixa no Menu PDV para realizar vendas.");
@@ -79,8 +88,31 @@ async function inicializar() {
     CLIENTES_CACHE = resCli.data.clientes;
   }
 
+  // Limites de parcelamento e prazo do crediário definidos pela loja
+  const resConfig = await requisitarJSON("/v1/config/pagamento");
+  if (resConfig.ok && resConfig.data) {
+    configPagamento = { ...configPagamento, ...resConfig.data };
+    aplicarConfigPagamento();
+  }
+
   // Foco no campo de produto
   document.getElementById("produto-input").focus();
+}
+
+function aplicarConfigPagamento() {
+  const inputParcelas = document.getElementById("pg-input-parcelas");
+  if (inputParcelas) {
+    inputParcelas.max = String(configPagamento.max_parcelas_cartao);
+    const atual = parseInt(inputParcelas.value, 10) || 1;
+    if (atual > configPagamento.max_parcelas_cartao) {
+      inputParcelas.value = String(configPagamento.max_parcelas_cartao);
+    }
+  }
+
+  const prazo = document.getElementById("pg-crediario-prazo");
+  if (prazo) {
+    prazo.textContent = `Prazo da loja: ${configPagamento.prazo_crediario_dias} dias para quitação.`;
+  }
 }
 
 // Bipagem / Adição de Produto com Janela de Sugestões Conforme Esboço do Paint (BUS-001 a BUS-016)
@@ -167,7 +199,7 @@ function exibirSugestoesProdutos(lista, termoOriginal) {
       const estDiv = document.createElement("div");
       estDiv.className = "item-sugestao-estoque";
       if (p.estoque_atual <= 0) {
-        estDiv.style.color = "#dc2626";
+        estDiv.style.color = "var(--vermelho)";
         estDiv.textContent = "Sem estoque";
       } else if (p.estoque_atual <= (p.estoque_minimo || 5)) {
         estDiv.style.color = "#d97706";
@@ -372,6 +404,10 @@ function renderItens() {
   VENDA.desconto_centavos = desc;
   VENDA.total_centavos = Math.max(0, subtotal - desc);
 
+  // Qualquer mutação do carrinho gera um novo rascunho: o venda_id anterior
+  // não pode ser reutilizado para uma venda diferente.
+  VENDA.venda_id = crypto.randomUUID();
+
   document.getElementById("total-valor").textContent = formatarCentavos(
     VENDA.total_centavos,
   );
@@ -437,7 +473,7 @@ function renderResultadosClientes(lista) {
     const vazio = document.createElement("div");
     vazio.style.padding = "8px";
     vazio.style.fontSize = "0.9rem";
-    vazio.style.color = "#666";
+    vazio.style.color = "var(--cinza-500)";
     vazio.textContent = "Nenhum cliente encontrado com estes dados.";
     box.appendChild(vazio);
     return;
@@ -462,7 +498,7 @@ function renderResultadosClientes(lista) {
     const direita = document.createElement("span");
     direita.style.fontSize = "0.8rem";
     const temDivida = c.saldo_devedor_centavos > 0;
-    direita.style.color = temDivida ? "red" : "green";
+    direita.style.color = temDivida ? "var(--vermelho)" : "var(--verde)";
     direita.textContent = temDivida
       ? `Débito: ${c.saldo_devedor_fmt}`
       : "Sem débito";
@@ -478,7 +514,7 @@ function vincularCliente(c) {
   const badge = document.getElementById("badge-cliente");
   const docExibicao = c.cpf ? formatarCPF(c.cpf) : "NÃO INFORMADO";
   badge.textContent = `CLIENTE: ${c.nome.toUpperCase()} | CPF: ${docExibicao}`;
-  badge.style.background = "#FFDD00";
+  badge.style.background = "var(--amarelo)";
   fecharModais();
   avisar(`Cliente vinculado: ${c.nome}`);
   produtoInput.focus();
@@ -565,10 +601,8 @@ function atualizarFitaLateral() {
 
     const btnX = document.createElement("button");
     btnX.type = "button";
-    btnX.className = "botao danger";
-    btnX.style.cssText =
-      "padding: 0 6px; min-height: 22px; font-size: 0.75rem; margin-left: 6px;";
-    btnX.textContent = "×";
+    btnX.className = "botao danger pg-botao-remover";
+    btnX.textContent = "Remover";
     btnX.title = "Remover este pagamento";
     btnX.onclick = () => removerPagamentoLinha(idx);
 
@@ -579,10 +613,10 @@ function atualizarFitaLateral() {
   const restante = calcularSaldoRestante();
   if (restante === 0) {
     lblFalta.textContent = "Quitado";
-    lblFalta.style.color = "#047857";
+    lblFalta.style.color = "var(--verde)";
   } else {
     lblFalta.textContent = formatarCentavos(restante);
-    lblFalta.style.color = "var(--vermelho, #C81E16)";
+    lblFalta.style.color = "var(--vermelho)";
   }
 }
 
@@ -638,20 +672,20 @@ function abrirModalMetodoPre(mensagemCustomizada) {
   const elFalta = document.getElementById("f3-falta-valor");
   if (restante === 0 && VENDA.total_centavos > 0) {
     elFalta.textContent = "Quitado";
-    elFalta.style.color = "#047857";
+    elFalta.style.color = "var(--verde)";
   } else {
     elFalta.textContent = formatarCentavos(restante);
-    elFalta.style.color = "var(--vermelho, #C81E16)";
+    elFalta.style.color = "var(--vermelho)";
   }
 
   const pInstrucao = document.getElementById("f3-instrucao");
   if (mensagemCustomizada) {
     pInstrucao.textContent = mensagemCustomizada;
-    pInstrucao.style.color = "#0040D8";
+    pInstrucao.style.color = "var(--azul-600)";
   } else {
     pInstrucao.textContent =
       "Selecione no teclado [F1 a F6] ou clique na forma desejada:";
-    pInstrucao.style.color = "#000000";
+    pInstrucao.style.color = "var(--preto)";
   }
 
   abrirModal("modal-metodos-pre");
@@ -786,10 +820,10 @@ function abrirTelaPagamento(forma) {
   const elRestante = document.getElementById("pg-restante-valor");
   if (restante === 0) {
     elRestante.textContent = "Quitado";
-    elRestante.style.color = "#047857";
+    elRestante.style.color = "var(--verde)";
   } else {
     elRestante.textContent = formatarCentavos(restante);
-    elRestante.style.color = "#000000";
+    elRestante.style.color = "var(--preto)";
   }
 
   // Nome e Ícone da Forma
@@ -819,6 +853,7 @@ function abrirTelaPagamento(forma) {
   } else if (forma === "CREDITO") {
     lblValor.textContent = "Valor a pagar (R$)";
     document.getElementById("pg-prazo-credito").style.display = "block";
+    inputParcelas.max = String(configPagamento.max_parcelas_cartao);
     inputParcelas.value = "1";
     lblParcelas.textContent = calcularParcelasTexto(restante, 1);
   } else if (forma === "PIX") {
@@ -830,7 +865,7 @@ function abrirTelaPagamento(forma) {
     const infoCli = document.getElementById("pg-crediario-cliente-info");
     if (clienteSelecionado) {
       infoCli.textContent = `Cliente: ${clienteSelecionado.nome}`;
-      infoCli.style.color = "#000000";
+      infoCli.style.color = "var(--preto)";
     } else {
       infoCli.textContent =
         "Atenção: Venda a crediário exige cliente identificado! Pressione F2.";
@@ -855,8 +890,8 @@ function abrirTelaPagamento(forma) {
       item.style.display = "flex";
       item.style.justifyContent = "space-between";
       item.style.alignItems = "center";
-      item.style.background = "#FFFFFF";
-      item.style.border = "1px solid #CCC";
+      item.style.background = "var(--branco)";
+      item.style.border = "1px solid var(--linha)";
       item.style.padding = "4px 8px";
       item.style.fontSize = "0.85rem";
 
@@ -867,9 +902,7 @@ function abrirTelaPagamento(forma) {
 
       const btnRemover = document.createElement("button");
       btnRemover.type = "button";
-      btnRemover.className = "botao danger";
-      btnRemover.style.cssText =
-        "padding: 2px 6px; font-size: 0.78rem; min-height: 24px;";
+      btnRemover.className = "botao danger pg-botao-remover-lista";
       btnRemover.textContent = "Remover pagamento";
       btnRemover.onclick = () => removerPagamentoLinha(idx);
 
@@ -929,9 +962,13 @@ function atualizarDinamicaPagamento() {
     }
   }
 
-  // Se Crédito, recalcula preview das parcelas
+  // Se Crédito, recalcula preview das parcelas (limitado pela loja)
   if (formaAtualPagamento === "CREDITO") {
-    const numParc = Math.max(1, parseInt(pgInputParcelas.value, 10) || 1);
+    let numParc = Math.max(1, parseInt(pgInputParcelas.value, 10) || 1);
+    if (numParc > configPagamento.max_parcelas_cartao) {
+      numParc = configPagamento.max_parcelas_cartao;
+      pgInputParcelas.value = String(numParc);
+    }
     const baseCalculo = valorDigitado > 0 ? valorDigitado : restante;
     document.getElementById("pg-parcelas-preview").textContent =
       calcularParcelasTexto(baseCalculo, numParc);
@@ -978,9 +1015,12 @@ document.getElementById("form-confirmar-pagamento").onsubmit = async (e) => {
     return;
   }
 
-  if (formaAtualPagamento === "CREDIARIO" && !clienteSelecionado) {
+  if (
+    formaAtualPagamento === "CREDIARIO" &&
+    (!clienteSelecionado || !clienteSelecionado.id)
+  ) {
     avisar(
-      "Venda a crediário exige cliente identificado! Pressione F2 para identificar.",
+      "Venda a crediário exige cliente cadastrado. Pressione F2 e selecione um cliente da lista.",
     );
     return;
   }
@@ -1021,6 +1061,13 @@ document.getElementById("form-confirmar-pagamento").onsubmit = async (e) => {
       ? Math.max(1, parseInt(pgInputParcelas.value, 10) || 1)
       : 1;
 
+  if (numParc > configPagamento.max_parcelas_cartao) {
+    avisar(
+      `Esta loja aceita no máximo ${configPagamento.max_parcelas_cartao} parcelas no cartão.`,
+    );
+    return;
+  }
+
   if (valorDigitado < restante) {
     VENDA.pagamentos.push({
       forma: formaAtualPagamento,
@@ -1055,7 +1102,7 @@ async function finalizarVendaEfetiva(trocoCentavos) {
     avisar("Caixa fechado! Abra o caixa antes de finalizar a venda.");
     return;
   }
-  const venda_id = crypto.randomUUID();
+  const venda_id = VENDA.venda_id;
 
   const payload = {
     venda_id,
@@ -1073,7 +1120,7 @@ async function finalizarVendaEfetiva(trocoCentavos) {
       parcelas: p.parcelas || 1,
     })),
     desconto_centavos: VENDA.desconto_centavos,
-    cliente_id: clienteSelecionado ? clienteSelecionado.id : null,
+    cliente_id: clienteSelecionado?.id || null,
     comanda_id: comandaNum || null,
   };
 
@@ -1085,6 +1132,8 @@ async function finalizarVendaEfetiva(trocoCentavos) {
 
   if (ok) {
     ultimaVendaIdConcluida = data.venda_id || venda_id;
+    // A venda gravada não pode ser reaproveitada por um novo rascunho.
+    VENDA.venda_id = crypto.randomUUID();
     fecharModais();
 
     const trocoCalculado =

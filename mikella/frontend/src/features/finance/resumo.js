@@ -35,6 +35,24 @@ const elBtnIrFinanceiro = document.getElementById("btn-ir-financeiro");
 const elBtnIrCaixa = document.getElementById("btn-ir-caixa");
 const elBtnVoltar = document.getElementById("btn-voltar");
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// Destinos internos conhecidos. Qualquer outro valor (javascript:, data:,
+// URL absoluta ou página inexistente) cai no menu principal.
+const PAGINAS_INTERNAS = new Set([
+  "financeiro.html",
+  "pos-menu.html",
+  "produtos.html",
+  "resumo.html",
+  "main-menu.html",
+]);
+
+function sanitizarLinkInterno(destino) {
+  const bruto = String(destino ?? "").trim().replace(/^\.\//, "");
+  const [pagina] = bruto.split("?");
+  return PAGINAS_INTERNAS.has(pagina) ? bruto : "main-menu.html";
+}
+
 function bindEventos() {
   elBtnHoje?.addEventListener("click", () => trocarPeriodo("hoje"));
   elBtnSemana?.addEventListener("click", () => trocarPeriodo("semana"));
@@ -76,12 +94,12 @@ async function carregarResumo() {
   try {
     const { ok, data } = await requisitarJSON(`/v1/finance/resumo?periodo=${periodoAtual}`);
     if (!ok || !data) {
-      mostrarToast("Não foi possível carregar o resumo executivo.", "aviso");
+      mostrarToast("Não foi possível carregar o resumo executivo.");
       return;
     }
     renderizarResumo(data);
   } catch (err) {
-    mostrarToast("Erro de comunicação ao carregar resumo.", "perigo");
+    mostrarToast("Erro de comunicação ao carregar resumo.");
   }
 
   // Carrega o histórico para o gráfico SVG
@@ -124,14 +142,15 @@ function renderizarResumo(d) {
   if (elAPagar7d) elAPagar7d.textContent = formatarCentavos(d.a_pagar_7d_centavos);
   if (elAPagarVencidas) {
     elAPagarVencidas.textContent = `${d.num_contas_pagar_vencidas} vencidas (${formatarCentavos(d.a_pagar_vencidas_centavos)})`;
-    elAPagarVencidas.style.color = d.num_contas_pagar_vencidas > 0 ? "var(--vermelho)" : "var(--cinza-500)";
+    elAPagarVencidas.classList.toggle("valor-perigo", d.num_contas_pagar_vencidas > 0);
   }
   if (elAReceber7d) elAReceber7d.textContent = formatarCentavos(d.a_receber_7d_centavos);
   if (elCrediarioVencido) elCrediarioVencido.textContent = formatarCentavos(d.crediario_vencido_centavos);
   if (elSaldoCaixa) elSaldoCaixa.textContent = formatarCentavos(d.saldo_caixa_dinheiro_centavos);
   if (elSaldoProjetado) {
     elSaldoProjetado.textContent = formatarCentavos(d.saldo_projetado_7d_centavos);
-    elSaldoProjetado.style.color = d.saldo_projetado_7d_centavos >= 0 ? "#047857" : "var(--vermelho)";
+    elSaldoProjetado.classList.toggle("valor-positivo", d.saldo_projetado_7d_centavos >= 0);
+    elSaldoProjetado.classList.toggle("valor-perigo", d.saldo_projetado_7d_centavos < 0);
   }
 
   // 3. Coluna de Atenção (Máximo 3 selos)
@@ -143,18 +162,28 @@ function renderizarResumo(d) {
 
 function renderizarAtencao(itens) {
   if (!elColunaAtencao) return;
-  elColunaAtencao.innerHTML = "";
+  elColunaAtencao.replaceChildren();
 
   if (itens.length === 0) {
     const elVazio = document.createElement("div");
     elVazio.className = "card-atencao";
-    elVazio.innerHTML = `
-      <div class="selo-atencao-cabecalho">
-        <span class="selo-tag backup">TUDO EM DIA</span>
-      </div>
-      <div class="card-atencao-titulo">Sem pendências críticas</div>
-      <div class="card-atencao-desc">Validades, caixa e crediário sem alertas no momento.</div>
-    `;
+
+    const cabecalho = document.createElement("div");
+    cabecalho.className = "selo-atencao-cabecalho";
+    const selo = document.createElement("span");
+    selo.className = "selo-tag backup";
+    selo.textContent = "TUDO EM DIA";
+    cabecalho.appendChild(selo);
+
+    const titulo = document.createElement("div");
+    titulo.className = "card-atencao-titulo";
+    titulo.textContent = "Sem pendências críticas";
+
+    const descricao = document.createElement("div");
+    descricao.className = "card-atencao-desc";
+    descricao.textContent = "Validades, caixa e crediário sem alertas no momento.";
+
+    elVazio.append(cabecalho, titulo, descricao);
     elColunaAtencao.appendChild(elVazio);
     return;
   }
@@ -168,25 +197,52 @@ function renderizarAtencao(itens) {
     if (it.tipo === "DEVEDOR") tagClasse = "devedor";
     if (it.tipo === "BACKUP") tagClasse = "backup";
 
-    card.innerHTML = `
-      <div class="selo-atencao-cabecalho">
-        <span class="selo-tag ${tagClasse}">${it.titulo}</span>
-        ${it.valor_risco_centavos > 0 ? `<strong style="font-size:0.85rem;">${formatarCentavos(it.valor_risco_centavos)}</strong>` : ""}
-      </div>
-      <div class="card-atencao-titulo">${it.subtitulo}</div>
-      <div class="card-atencao-desc">Ação preventiva recomendada</div>
-      <a href="${it.link_destino}" class="card-atencao-btn">${it.acao_rotulo}</a>
-    `;
+    const cabecalho = document.createElement("div");
+    cabecalho.className = "selo-atencao-cabecalho";
+
+    const selo = document.createElement("span");
+    selo.className = `selo-tag ${tagClasse}`;
+    selo.textContent = String(it.titulo ?? "");
+    cabecalho.appendChild(selo);
+
+    const risco = Number(it.valor_risco_centavos ?? 0);
+    if (Number.isFinite(risco) && risco > 0) {
+      const valor = document.createElement("strong");
+      valor.className = "selo-valor-risco";
+      valor.textContent = formatarCentavos(risco);
+      cabecalho.appendChild(valor);
+    }
+
+    const titulo = document.createElement("div");
+    titulo.className = "card-atencao-titulo";
+    titulo.textContent = String(it.subtitulo ?? "");
+
+    const descricao = document.createElement("div");
+    descricao.className = "card-atencao-desc";
+    descricao.textContent = "Ação preventiva recomendada";
+
+    const acao = document.createElement("a");
+    acao.className = "card-atencao-btn";
+    acao.href = sanitizarLinkInterno(it.link_destino);
+    acao.textContent = String(it.acao_rotulo ?? "Abrir");
+
+    card.append(cabecalho, titulo, descricao, acao);
     elColunaAtencao.appendChild(card);
   });
 }
 
 function renderizarFita(movimentos) {
   if (!elTabelaFitaCorpo) return;
-  elTabelaFitaCorpo.innerHTML = "";
+  elTabelaFitaCorpo.replaceChildren();
 
   if (movimentos.length === 0) {
-    elTabelaFitaCorpo.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:var(--espaco-3); color:var(--cinza-500);">Nenhuma movimentação registrada hoje ainda.</td></tr>`;
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.className = "fita-vazia";
+    td.textContent = "Nenhuma movimentação registrada hoje ainda.";
+    tr.appendChild(td);
+    elTabelaFitaCorpo.appendChild(tr);
     return;
   }
 
@@ -198,12 +254,25 @@ function renderizarFita(movimentos) {
       ? new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
       : "--:--";
     const sinal = m.tipo === "VENDA" ? "+" : "";
-    tr.innerHTML = `
-      <td style="font-weight:bold; font-size:0.85rem;">${hora}</td>
-      <td><strong>${m.descricao}</strong></td>
-      <td style="color:var(--cinza-500); font-size:0.85rem;">${m.detalhe}</td>
-      <td class="direita" style="font-weight:900; font-variant-numeric: tabular-nums lining-nums;">${sinal}${formatarCentavos(m.valor_centavos)}</td>
-    `;
+
+    const tdHora = document.createElement("td");
+    tdHora.className = "fita-hora";
+    tdHora.textContent = hora;
+
+    const tdDescricao = document.createElement("td");
+    const forte = document.createElement("strong");
+    forte.textContent = String(m.descricao ?? "");
+    tdDescricao.appendChild(forte);
+
+    const tdDetalhe = document.createElement("td");
+    tdDetalhe.className = "fita-detalhe";
+    tdDetalhe.textContent = String(m.detalhe ?? "");
+
+    const tdValor = document.createElement("td");
+    tdValor.className = "direita fita-valor";
+    tdValor.textContent = `${sinal}${formatarCentavos(m.valor_centavos)}`;
+
+    tr.append(tdHora, tdDescricao, tdDetalhe, tdValor);
     elTabelaFitaCorpo.appendChild(tr);
   });
 }
@@ -212,52 +281,67 @@ async function carregarGrafico() {
   if (!elGraficoSvg) return;
   try {
     const { ok, data } = await requisitarJSON("/v1/finance/fluxo-caixa");
-    if (!ok || !data || !data.dias) return;
+    if (!ok || !data || !Array.isArray(data.dias)) return;
 
     const dias = data.dias.slice(0, 14).reverse();
     if (dias.length === 0) {
-      elGraficoSvg.innerHTML = `<div style="padding:var(--espaco-3); color:var(--cinza-500); text-align:center;">Sem dados suficientes para o gráfico no período.</div>`;
+      const vazio = document.createElement("div");
+      vazio.className = "grafico-vazio";
+      vazio.textContent = "Sem dados suficientes para o gráfico no período.";
+      elGraficoSvg.replaceChildren(vazio);
       return;
     }
 
-    // Geração de SVG Puro (VIZ-010 / VIZ-020) sem bibliotecas externas
+    // Geração de SVG Puro (VIZ-010 / VIZ-020) sem bibliotecas externas.
+    // Montado com createElementNS: dado do servidor nunca vira HTML.
     const largura = 600;
     const altura = 160;
     const margem = { top: 20, right: 20, bottom: 30, left: 50 };
-    const maxValor = Math.max(...dias.map((d) => d.entradas_centavos), 10000);
-
+    const maxValor = Math.max(...dias.map((d) => Number(d.entradas_centavos) || 0), 10000);
     const barraLargura = Math.max(16, (largura - margem.left - margem.right) / dias.length - 8);
 
-    let svgBarras = "";
-    let svgRotulosX = "";
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${largura} ${altura}`);
+    svg.setAttribute("class", "grafico-svg");
+
+    // Eixo base 2px preto
+    const eixo = document.createElementNS(SVG_NS, "line");
+    eixo.setAttribute("x1", String(margem.left));
+    eixo.setAttribute("y1", String(altura - margem.bottom));
+    eixo.setAttribute("x2", String(largura - margem.right));
+    eixo.setAttribute("y2", String(altura - margem.bottom));
+    eixo.setAttribute("class", "grafico-eixo");
+    svg.appendChild(eixo);
 
     dias.forEach((d, i) => {
       const x = margem.left + i * (barraLargura + 8);
-      const h = (d.entradas_centavos / maxValor) * (altura - margem.top - margem.bottom);
+      const h = ((Number(d.entradas_centavos) || 0) / maxValor) * (altura - margem.top - margem.bottom);
       const y = altura - margem.bottom - h;
-      const diaTxt = d.data.substring(8, 10);
+      const diaTxt = String(d.data ?? "").substring(8, 10);
 
-      // Série principal em azul cobalto #0040D8 com contorno preto 1.5px (VIZ-010)
-      svgBarras += `
-        <rect x="${x}" y="${y}" width="${barraLargura}" height="${h}" fill="#0040D8" stroke="#000000" stroke-width="1.5">
-          <title>${d.data}: ${formatarCentavos(d.entradas_centavos)}</title>
-        </rect>
-      `;
-      svgRotulosX += `
-        <text x="${x + barraLargura / 2}" y="${altura - 10}" font-size="11" font-weight="bold" text-anchor="middle" fill="#000000">${diaTxt}</text>
-      `;
+      // Série principal em azul cobalto (VIZ-010).
+      const barra = document.createElementNS(SVG_NS, "rect");
+      barra.setAttribute("x", String(x));
+      barra.setAttribute("y", String(y));
+      barra.setAttribute("width", String(barraLargura));
+      barra.setAttribute("height", String(h));
+      barra.setAttribute("class", "grafico-barra");
+
+      const titulo = document.createElementNS(SVG_NS, "title");
+      titulo.textContent = `${d.data}: ${formatarCentavos(d.entradas_centavos)}`;
+      barra.appendChild(titulo);
+      svg.appendChild(barra);
+
+      const rotulo = document.createElementNS(SVG_NS, "text");
+      rotulo.setAttribute("x", String(x + barraLargura / 2));
+      rotulo.setAttribute("y", String(altura - 10));
+      rotulo.setAttribute("text-anchor", "middle");
+      rotulo.setAttribute("class", "grafico-rotulo");
+      rotulo.textContent = diaTxt;
+      svg.appendChild(rotulo);
     });
 
-    elGraficoSvg.innerHTML = `
-      <svg viewBox="0 0 ${largura} ${altura}" style="width:100%; height:auto; display:block;">
-        <!-- Eixo Base 2px preto -->
-        <line x1="${margem.left}" y1="${altura - margem.bottom}" x2="${largura - margem.right}" y2="${altura - margem.bottom}" stroke="#000000" stroke-width="2" />
-        <!-- Barras da Série -->
-        ${svgBarras}
-        <!-- Rótulos do Eixo X -->
-        ${svgRotulosX}
-      </svg>
-    `;
+    elGraficoSvg.replaceChildren(svg);
   } catch (_) {}
 }
 

@@ -163,5 +163,5 @@
 |---|---|---|
 | Wordmark/SVG logotipo | **[DECISÃO PENDENTE V3]** | Aguardando disponibilidade de marca |
 | Ícones | **[DECISÃO PENDENTE V9]** | Validar Lucide/Phosphor ou draw do zero |
-| Validação em hardware fraco (i5 2ª geração) | **[VERIFICAR]** | Validar no PC de referência |
+| Validação em hardware fraco (i3/i5 5ª geração, 6 GB, HDD 5400 rpm) | **[VERIFICAR]** | Executar `scripts/benchmark-hardware.ps1` no PC de referência |
 | Testes de contraste WCAG AA | **[VERIFICAR]** | Validar com ferramenta específica |

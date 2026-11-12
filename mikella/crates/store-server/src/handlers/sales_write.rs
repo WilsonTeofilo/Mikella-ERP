@@ -14,8 +14,8 @@ use mikella_app_sales::{
 use mikella_domain_sales::venda::{FormaPagamento, Pagamento};
 use mikella_infra_hardware::{EscPosGerador, LarguraPapel};
 use mikella_infra_sqlite::{
-    Blake3HashChain, ContaReceberRepo, DiagnosticoRepo, LivroRepo, LoteRepo, MovimentacaoRepo,
-    ProdutoRepo, SessaoRepo, VendaRepo,
+    Blake3HashChain, ConfigLojaRepo, ContaReceberRepo, DiagnosticoRepo, LivroRepo, LoteRepo,
+    MovimentacaoRepo, ProdutoRepo, SessaoRepo, VendaRepo,
 };
 use mikella_shared_kernel::clock::SystemClock;
 use mikella_shared_kernel::ids::{DispositivoId, LoteId, ProdutoId, SessaoId, VendaId};
@@ -96,6 +96,12 @@ pub async fn finalizar_venda_handler(
         }
     }
 
+    // Limites da loja (migração 0012): o servidor revalida o que a UI enviou.
+    let config_pagamento = {
+        let db_guard = state.db.lock().await;
+        ConfigLojaRepo::novo(db_guard.conn()).config_pagamento()
+    };
+
     // itens
     let itens: Vec<ItemCmd> = {
         let mut acc = Vec::with_capacity(form.itens.len());
@@ -139,6 +145,12 @@ pub async fn finalizar_venda_handler(
             if num_parcelas > 1 && forma != FormaPagamento::Credito {
                 return bad_request("Apenas pagamento em cartão de crédito permite parcelamento");
             }
+            if num_parcelas > config_pagamento.max_parcelas_cartao {
+                return bad_request(&format!(
+                    "cartão aceita no máximo {} parcelas nesta loja",
+                    config_pagamento.max_parcelas_cartao
+                ));
+            }
             let taxa = Money::from_centavos(p.taxa_centavos.unwrap_or(0));
             let pag = if forma == FormaPagamento::Dinheiro {
                 let recebido_centavos = p.recebido_centavos.unwrap_or(p.valor_centavos);
@@ -180,7 +192,7 @@ pub async fn finalizar_venda_handler(
         };
         Some(CrediarioCmd {
             cliente_id: cliente_id.to_string(),
-            vencimento_dias: 30,
+            vencimento_dias: config_pagamento.prazo_crediario_dias,
         })
     } else {
         None
@@ -610,10 +622,18 @@ pub async fn cancelar_venda_handler(
                         EscPosGerador::gerar_texto_estorno(&c, LarguraPapel::Colunas32, &fuso);
                     let texto_80mm =
                         EscPosGerador::gerar_texto_estorno(&c, LarguraPapel::Colunas48, &fuso);
-                    let bytes_58mm =
-                        EscPosGerador::gerar_bytes_estorno(&c, LarguraPapel::Colunas32, true, &fuso);
-                    let bytes_80mm =
-                        EscPosGerador::gerar_bytes_estorno(&c, LarguraPapel::Colunas48, true, &fuso);
+                    let bytes_58mm = EscPosGerador::gerar_bytes_estorno(
+                        &c,
+                        LarguraPapel::Colunas32,
+                        true,
+                        &fuso,
+                    );
+                    let bytes_80mm = EscPosGerador::gerar_bytes_estorno(
+                        &c,
+                        LarguraPapel::Colunas48,
+                        true,
+                        &fuso,
+                    );
                     let hex_58mm: String =
                         bytes_58mm.iter().map(|b| format!("{:02x}", b)).collect();
                     let hex_80mm: String =

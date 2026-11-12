@@ -196,3 +196,9 @@ th.direita {
 .toast.visivel {
   display: block;
 }
+
+.botao-acao-tabela {
+  min-height: 36px;
+  min-width: 64px;
+  padding: var(--espaco-1) var(--espaco-2);
+}

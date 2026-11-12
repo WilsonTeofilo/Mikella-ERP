@@ -9,15 +9,16 @@
   <link rel="stylesheet" href="../shared/ui/forms.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../features/products/products.css" />
+  <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body data-tema="caixa">
     <!-- Barra de Topo Unificada -->
-  <header style="background: #000; color: #FFF; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0040D8;">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <span style="font-family: var(--fonte-display); font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; color: #FFF;">MIKELLA <span style="background: #0040D8; padding: 2px 6px; font-size: 0.8rem;">ESTOQUE & PRODUTOS</span></span>
+  <header class="u-a152f58d">
+    <div class="u-b264e9d1">
+      <span class="u-a7d0a29f">MIKELLA <span class="u-aea9ed03">ESTOQUE & PRODUTOS</span></span>
     </div>
     <div>
-      <button id="btn-topo-voltar" type="button" class="botao" style="background: #FFF; color: #000; font-weight: 800; font-size: 0.85rem; padding: 4px 12px; height: 32px;" >
+      <button id="btn-topo-voltar" type="button" class="botao u-21f497f9" >
         [ESC] Voltar ao Menu
       </button>
     </div>
@@ -27,10 +28,10 @@
     <div class="linha-topo">
       <div>
         <h1 class="titulo-pagina">Catálogo de Produtos</h1>
-        <p style="margin:var(--espaco-1) 0 0 0; color:#555;">Cadastro local, controle de estoque e importação de planilhas</p>
+        <p class="u-ef86c155">Cadastro local, controle de estoque e importação de planilhas</p>
       </div>
       <div class="busca-box">
-        <label for="filtro-busca" style="display:block; font-size:0.85rem; font-weight:bold;">Filtrar produtos</label>
+        <label class="u-3abfc521" for="filtro-busca">Filtrar produtos</label>
         <input id="filtro-busca" type="text" placeholder="digite nome ou código..." autocomplete="off" autofocus />
       </div>
     </div>
@@ -47,14 +48,14 @@
         </tr>
       </thead>
       <tbody id="tabela-produtos-corpo">
-        <tr><td colspan="6" style="text-align:center;">Carregando produtos...</td></tr>
+        <tr><td class="u-65f9d5a3" colspan="6">Carregando produtos...</td></tr>
       </tbody>
     </table>
 
     <div class="barra-botoes">
       <button id="btn-novo" class="botao primario"><span class="tecla">F1</span> Novo Produto</button>
       <button id="btn-csv" class="botao"><span class="tecla">F2</span> Importar Planilha CSV</button>
-      <input type="file" id="input-csv-file" accept=".csv" style="display:none;" />
+      <input class="u-5790ffba" type="file" id="input-csv-file" accept=".csv" />
       <button id="btn-voltar" class="botao"><span class="tecla">Esc</span> Voltar ao Menu</button>
     </div>
   </main>
@@ -62,16 +63,16 @@
   <div id="toast" class="toast"></div>
 
   <!-- Modal: Cadastrar Produto -->
-  <div id="modal-produto" class="modal" style="display:none;">
+  <div id="modal-produto" class="modal u-5790ffba">
     <div class="modal-conteudo">
       <h2 class="modal-titulo">Novo Produto</h2>
       <form id="form-produto" autocomplete="off">
-        <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo-grupo" style="flex:1.5;">
+        <div class="u-4a76da36">
+          <div class="campo-grupo u-409b3c5d">
             <label for="prod-barras">Cód. Barras (Leitor / EAN-13)</label>
             <input id="prod-barras" type="text" placeholder="Bipe ou digite o código..." autocomplete="off" autofocus />
           </div>
-          <div class="campo-grupo" style="flex:1;">
+          <div class="campo-grupo u-634a28be">
             <label for="prod-sku">SKU / Cód. Interno</label>
             <input id="prod-sku" type="text" placeholder="Código interno" autocomplete="off" />
           </div>
@@ -82,8 +83,8 @@
           <input id="prod-nome" type="text" required placeholder="Ex: Arroz Tipo 1 5kg" autocomplete="off" />
         </div>
 
-        <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo-grupo" style="flex:1;">
+        <div class="u-4a76da36">
+          <div class="campo-grupo u-634a28be">
             <label for="prod-unidade">Unidade</label>
             <select id="prod-unidade">
               <option value="UN">UN (Unidade)</option>
@@ -93,34 +94,34 @@
               <option value="CX">CX (Caixa)</option>
             </select>
           </div>
-          <div class="campo-grupo" style="flex:1;">
+          <div class="campo-grupo u-634a28be">
             <label for="prod-custo">Preço de Custo (R$)</label>
-            <input id="prod-custo" type="text" placeholder="0,00" style="text-align:right;" autocomplete="off" />
+            <input class="u-30489cbd" id="prod-custo" type="text" placeholder="0,00" autocomplete="off" />
           </div>
         </div>
 
         <div class="campo-grupo">
-          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div class="u-706b7758">
             <label for="prod-preco">Preço de Venda (R$) *</label>
-            <span id="prod-margem-preview" style="font-size: 0.85rem; font-weight: bold; color: #0040D8;">Margem: --</span>
+            <span class="u-cda281b9" id="prod-margem-preview">Margem: --</span>
           </div>
-          <input id="prod-preco" type="text" required placeholder="0,00" style="text-align:right;" autocomplete="off" />
+          <input class="u-30489cbd" id="prod-preco" type="text" required placeholder="0,00" autocomplete="off" />
         </div>
 
-        <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo-grupo" style="flex:1;">
+        <div class="u-4a76da36">
+          <div class="campo-grupo u-634a28be">
             <label for="prod-qtd-inicial">Qtd. Entrada (Estoque Atual)</label>
             <input id="prod-qtd-inicial" type="number" value="0" min="0" autocomplete="off" />
           </div>
-          <div class="campo-grupo" style="flex:1;">
+          <div class="campo-grupo u-634a28be">
             <label for="prod-estoque-min">Estoque Mínimo (Alerta)</label>
             <input id="prod-estoque-min" type="number" value="0" min="0" autocomplete="off" />
           </div>
         </div>
 
-        <div style="margin-top:var(--espaco-4); display:flex; gap:var(--espaco-2);">
-          <button type="submit" class="botao primario" style="flex:1;">Salvar Produto</button>
-          <button type="button" id="btn-cancelar-modal" class="botao" style="flex:1;">Cancelar</button>
+        <div class="u-a8d69778">
+          <button type="submit" class="botao primario u-634a28be">Salvar Produto</button>
+          <button type="button" id="btn-cancelar-modal" class="botao u-634a28be">Cancelar</button>
         </div>
       </form>
     </div>

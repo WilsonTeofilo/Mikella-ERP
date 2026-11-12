@@ -26,10 +26,10 @@
   gap: 6px;
   min-height: 96px;
   padding: 10px 6px;
-  background: #ffffff;
-  color: #000000;
-  border: 3px solid #000000;
-  box-shadow: 4px 4px 0 #000000;
+  background: var(--branco, #ffffff);
+  color: var(--preto, #000000);
+  border: 3px solid var(--preto, #000000);
+  box-shadow: 4px 4px 0 var(--preto, #000000);
   font: inherit;
   text-align: center;
   cursor: pointer;
@@ -41,7 +41,7 @@
 }
 
 .card-forma-pagamento:hover {
-  background: #fffff0;
+  background: var(--papel, #eef0f6);
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 #000000;
 }
@@ -52,7 +52,7 @@
 }
 
 .card-forma-pagamento:focus-visible {
-  outline: 3px solid #0040d8;
+  outline: 3px solid var(--azul-600, #0040d8);
   outline-offset: 2px;
 }
 
@@ -93,7 +93,6 @@
   font-weight: 900;
   letter-spacing: 0.04em;
   line-height: 1.1;
-  text-transform: uppercase;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -8,6 +8,12 @@
 **Toolchain verificada:** `cargo 1.99.1`, `node v24.18.0`, `tauri 2.12.5`,
 `tauri-build 2.7.4`, `wry 0.57.1`.
 
+> **Nota de atualização (09/11/2026):** depois desta auditoria, os P0 de
+> restauração de backup, queda de energia, fusos IANA, CSP sem estilo inline,
+> expurgo LGPD e pacote de suporte foram implementados. O `dist/` atual é
+> anterior a essas mudanças e precisa de rebuild. Ver
+> `PLANO E FASES/00_PLANO_MESTRE.md`.
+
 ---
 
 ## 1. Método
@@ -240,8 +246,9 @@ assets no binário; Docker não participa do runtime da loja.
 4. **Confirmar `withGlobalTauri`** em runtime: `window.__TAURI__` deve existir
    no WebView2. Se o toast “Não foi possível…” aparecer, o build não contém a
    capability (verificar `gen/schemas/capabilities.json`).
-5. **CSP restritiva** não foi habilitada: não há como validar o WebView2 neste
-   ambiente. Exige teste dedicado antes de produção.
+5. **CSP restritiva habilitada** (`style-src 'self'`, sem estilo inline) e
+   validada no WebView2 desta máquina. Ainda falta revalidar no hardware real
+   do piso (i3/i5 de 5ª geração) e no executável empacotado após o rebuild.
 6. **Migração de schema de fonte/estilos globais**: `tokens.css` e `forms.css`
    foram mantidos como estavam para evitar churn.
 

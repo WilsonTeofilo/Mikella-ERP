@@ -3,8 +3,13 @@
 > **Documento consolidado.** Substitui as tabelas conflitantes de `00` (Fase 0-10)
 > e `09` (MVP-0 a MVP-6). Adoptado conforme decisão em `09 §8.1`: **um único roadmap.**
 >
-> **Data de atualização:** 30/10/2026
+> **Data de atualização:** 09/11/2026
 >
+> **Nota de estado (09/11/2026):** este é o roadmap histórico consolidado. O
+> estado vigente, os gates e as pendências são mantidos em
+> `PLANO E FASES/00_PLANO_MESTRE.md`. F0–F7 estão concluídas; F8 está em
+> andamento (hardware real, parecer jurídico e rebuild do shell pendentes).
+> Contas a pagar/receber e importação CSV **já foram entregues**, não são MVP-5.
 
 Documento de precedência: `04/05 > 06 > 09 > 03 > 02 > 07 > 08 > 01`.
 
@@ -30,7 +35,7 @@ Cada fase só termina quando seu gate for **comprovado** (teste ou medição), n
 | MVP | Objetivo | Status | Gate |
 |---|---|---|---|
 | **0** | Domínio, SQLite, livro do caixa, estoque, venda atômica, **modo de 1 computador**, caixa operável, impressão de comprovante | ✅ | Testes de queda de energia em HDD |
-| **MVP-1** | MVP-0 + **API local (store-server)**, onboarding, login (Argon2id), 2FA, caixa (abrir/fechar/status/sangria), vendas (pagamento multi-método, cancelamento), livro-caixa, **clientes e crediário** (cadastro, busca, liquidação), **menu intermediário do PDV (F1-F8)**, **gerenciamento de usuários** (hierarquia e catálogo fechado), **desktop-shell Tauri 2** (`mikella.exe` nativo), **impressão ESC/POS**, **backup local** e **diagnóstico** | ✅ | 172+ testes passando, clippy 0 warnings, Clean Architecture validada |
+| **MVP-1** | MVP-0 + **API local (store-server)**, onboarding, login (Argon2id), 2FA, caixa (abrir/fechar/status/sangria), vendas (pagamento multi-método, cancelamento), livro-caixa, **clientes e crediário** (cadastro, busca, liquidação), **menu intermediário do PDV (F1-F8)**, **gerenciamento de usuários** (hierarquia e catálogo fechado), **desktop-shell Tauri 2** (`mikella.exe` nativo), **impressão ESC/POS**, **backup local** e **diagnóstico** | ✅ | Suíte Rust do workspace aprovada, clippy 0 warnings, Clean Architecture validada |
 | **Piloto** | Homologação em 3 lojas reais por 30 dias (hardware real, sem dependência de nuvem, periféricos USB) | 🔄 Em Preparação (Próxima Etapa) | 30 dias sem divergência de caixa e tolerância comprovada a desligamento |
 | **2** | Servidor da loja: TLS local, pareamento de PCs, concorrência de caixas (3-8) | 🔒 Bloqueada por Piloto | 3-8 caixas simultâneos sem corrupção |
 | **3** | Conta na nuvem, portal, 2FA provider real, landing | 🔒 Adiada | Restauração em máquina limpa |
@@ -62,7 +67,7 @@ Cada fase só termina quando seu gate for **comprovado** (teste ou medição), n
 - `finalizar_venda`: idempotência por UUID, preço vem do banco, baixa de estoque, pagamento misto
 - `abrir_caixa`, `fechar_caixa`, `registrar_sangria` com verificação da cadeia de hashes
 
-**Testes:** 121 testes automatizados passando (104 originais + 17 novos de pessoas)
+**Testes:** suíte automatizada de domínio e infraestrutura (a contagem exata depende do ambiente; o gate vigente está no plano mestre).
 
 ### Gate MVP-0
 
@@ -144,7 +149,7 @@ Cada fase só termina quando seu gate for **comprovado** (teste ou medição), n
 
 - [x] E2E local: onboarding → login → token → abrir caixa → vendas → livro-caixa → fechar caixa
 - [x] E2E local: cadastro de produto → buscar produto → atualizar → arquivar
-- [x] 121 testes passando | fmt limpo | clippy limpo
+- [x] Suíte Rust do workspace passando | fmt limpo | clippy limpo
 - [x] Integração use case de produto (SQLite em memória)
 - [x] Testes de repositório: buscar_por_sku, FTS5, paginação, triggers
 - [x] Integração de usuário: domínio (Papel, capacidades), repositório SQLite, handlers HTTP
@@ -152,10 +157,11 @@ Cada fase só termina quando seu gate for **comprovado** (teste ou medição), n
 
 ### Concluído no MVP-1 e Recursos de Loja (100% Finalizado ✅)
 
-- [x] **172 testes automatizados passando no workspace** | clippy 0 warnings
+- [x] **Suíte automatizada do workspace passando** | clippy 0 warnings
 - [x] **Padrão UnitOfWork**: transações atômicas com rollback garantido em falhas (`infra-sqlite`)
-- [x] **Importação de CSV (PROD-010)**: streaming de produtos com validação estrita (`/v1/produtos/importar-csv`)
+- [x] **Importação de CSV (PROD-010)**: streaming de produtos com validação estrita (`POST /v1/import/csv`)
 - [x] **Contas a pagar/receber (RF-030)**: parcelas com liquidação atômica (`/v1/financeiro/contas-pagar` e `/v1/financeiro/contas-receber`)
+- [x] **Limites de pagamento por loja**: máximo de parcelas no cartão e prazo do crediário em `loja_config` (`GET /v1/config/pagamento`, `PUT /v1/sistema/config-pagamento`), revalidados na venda
 - [x] **Catálogo Fechado de Capacidades (FRD-055)**: `CAPACIDADES_CONHECIDAS` com hierarquia DONO > GERENTE > OPERADORES
 - [x] **Impressão Térmica ESC/POS (`infra-hardware`)**: comprovante de venda e de fechamento de caixa em 58mm/80mm, com adaptadores para impressora local USB/spooler RAW
 - [x] **Cópia de Segurança Local em 1 Clique (`RES-030`)**: endpoint `POST /v1/sistema/backup-local` via SQLite `VACUUM INTO` com hash BLAKE3
@@ -272,13 +278,16 @@ frontend/
 
 ## MVP-5 a MVP-6 + Pós-MVP
 
-Status: não implementado. Dependente de MVP-3 (nuvem) e MVP-4 (licença).
+Status: **MVP-5 e MVP-6 pendentes** — comissões, comendas, promoções,
+importação XML NF-e, conferência de recebimento e multi-loja. Dependem de MVP-3
+(nuvem) e MVP-4 (licença). Contas a pagar/receber e importação CSV **já foram
+entregues no MVP-1**.
 
 ### Pós-MVP
 
-- **UI Tauri (caixa, estoque, financeiro, equipe)** — integrando assets HTML/CSS com comandos Tauri
-- Backup cifrado, hardening, assinatura de código, atualização automática
+- Backup cifrado na nuvem, hardening, assinatura de código, atualização automática
 - Revisão de segurança (checklist `04`)
+- Revisão jurídica LGPD e piloto de 30 dias em hardware real
 
 ---
 
@@ -291,5 +300,5 @@ Status: não implementado. Dependente de MVP-3 (nuvem) e MVP-4 (licença).
 | Licença/cotas/billing | P6/P10/P2/P4/N1/N3/N4 — sem hardcoding de limites |
 | Landing page (redes sociais) | Última — aguardando referências visuais originais |
 | Auditoria | MVP-1+ — schema existe, mas sem repositório/caso de uso |
-| Contas a pagar/receber (RF-030) | MVP-5 — pendente |
-| CSV import (PROD-010) | MVP-5 — pendente
+| Contas a pagar/receber (RF-030) | ✅ Entregue no MVP-1 — não é MVP-5 |
+| CSV import (PROD-010) | ✅ Entregue no MVP-1 — não é MVP-5 |

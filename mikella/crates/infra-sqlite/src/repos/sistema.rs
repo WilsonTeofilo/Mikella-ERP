@@ -3,18 +3,27 @@
 //! Mantém `PRAGMA`, `VACUUM INTO` e contagens fora dos handlers Axum (ARQ-001).
 //! Nenhum método aqui devolve PII: apenas métricas volumétricas e metadados.
 
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
 
 use crate::error::InfraResult;
 
 /// Contagens estruturais apresentadas no pacote de diagnóstico.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContagensDiagnostico {
     pub produtos: i64,
     pub vendas: i64,
     pub movimentacoes_estoque: i64,
     pub entradas_livro_caixa: i64,
     pub registros_auditoria: i64,
+}
+
+/// Uma migração aplicada, como aparece no pacote de suporte.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MigracaoAplicada {
+    pub versao: String,
+    pub checksum: String,
+    pub aplicada_em: String,
 }
 
 pub struct DiagnosticoRepo<'a> {
@@ -85,9 +94,9 @@ impl<'a> DiagnosticoRepo<'a> {
 
     /// Confere o encadeamento `prev_hash` da trilha de auditoria append-only (LGPD-002 / FRD-053).
     pub fn cadeia_auditoria_integra(&self) -> InfraResult<bool> {
-        let mut stmt = self.conn.prepare(
-            "SELECT prev_hash, hash FROM auditoria ORDER BY created_at ASC, rowid ASC",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT prev_hash, hash FROM auditoria ORDER BY created_at ASC, rowid ASC")?;
         let mut rows = stmt.query([])?;
 
         let mut prev = "GENESIS".to_string();
@@ -113,23 +122,36 @@ impl<'a> DiagnosticoRepo<'a> {
     /// Lê uma preferência da tabela `loja_config` (criada pela migração 0010).
     /// Retorna `Ok(None)` se a chave não existir.
     pub fn loja_config(&self, chave: &str) -> InfraResult<Option<String>> {
-        let valor = self
-            .conn
-            .query_row(
-                "SELECT valor FROM loja_config WHERE chave = ?1",
-                [chave],
-                |row| row.get(0),
-            )
-            .optional()?;
-        Ok(valor)
+        super::config_loja::ConfigLojaRepo::novo(self.conn).obter(chave)
     }
 
     /// Lê o fuso horário IANA configurado para a loja (default: `America/Sao_Paulo`).
     pub fn fuso_horario(&self) -> String {
-        self.loja_config("fuso_horario")
-            .ok()
-            .flatten()
-            .unwrap_or_else(|| "America/Sao_Paulo".to_string())
+        super::config_loja::ConfigLojaRepo::novo(self.conn).fuso_horario()
+    }
+
+    /// Lista as migrações já aplicadas, em ordem cronológica.
+    ///
+    /// Usado pelo pacote de suporte para provar em qual schema o banco estava.
+    /// Não inclui dados de negócio nem PII.
+    pub fn migracoes(&self) -> InfraResult<Vec<MigracaoAplicada>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT versao, checksum, aplicada_em
+               FROM schema_migrations
+              ORDER BY versao ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(MigracaoAplicada {
+                versao: row.get(0)?,
+                checksum: row.get(1)?,
+                aplicada_em: row.get(2)?,
+            })
+        })?;
+        let mut migracoes = Vec::new();
+        for row in rows {
+            migracoes.push(row?);
+        }
+        Ok(migracoes)
     }
 }
 
@@ -148,5 +170,11 @@ mod tests {
         assert_eq!(repo.contagens().unwrap(), ContagensDiagnostico::default());
         assert!(repo.cadeia_livro_caixa_integra().unwrap());
         assert!(repo.cadeia_auditoria_integra().unwrap());
+
+        let migracoes = repo.migracoes().unwrap();
+        assert!(!migracoes.is_empty());
+        assert!(migracoes.iter().any(|m| m.versao == "0001_initial"));
+        assert!(migracoes.iter().all(|m| !m.checksum.is_empty()));
+        assert_eq!(repo.fuso_horario(), "America/Sao_Paulo");
     }
 }

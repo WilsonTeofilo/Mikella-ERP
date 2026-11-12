@@ -269,3 +269,69 @@
   border-bottom: 2px solid var(--preto);
   padding-bottom: 4px;
 }
+
+/* Estados numéricos (evitam style= inline e cor fora do token) */
+.valor-positivo {
+  color: var(--verde);
+}
+
+.valor-perigo {
+  color: var(--vermelho);
+}
+
+/* Coluna de atenção — valor de risco no cabeçalho do cartão */
+.selo-valor-risco {
+  font-size: 0.85rem;
+}
+
+/* Fita do dia — células geradas por createElement */
+.fita-vazia {
+  text-align: center;
+  padding: var(--espaco-3);
+  color: var(--cinza-500);
+}
+
+.fita-hora {
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.fita-detalhe {
+  color: var(--cinza-500);
+  font-size: 0.85rem;
+}
+
+.fita-valor {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Gráfico SVG — apresentação por classe, sem atributo style */
+.grafico-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.grafico-eixo {
+  stroke: var(--preto);
+  stroke-width: 2;
+}
+
+.grafico-barra {
+  fill: var(--azul-600);
+  stroke: var(--preto);
+  stroke-width: 1.5;
+}
+
+.grafico-rotulo {
+  fill: var(--preto);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.grafico-vazio {
+  padding: var(--espaco-3);
+  color: var(--cinza-500);
+  text-align: center;
+}

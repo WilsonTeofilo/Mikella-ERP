@@ -57,7 +57,26 @@ const MIGRACOES: &[Migracao] = &[
         versao: "0010_pagamentos_e_loja_config",
         sql: include_str!("migrations/0010_pagamentos_e_loja_config.sql"),
     },
+    Migracao {
+        versao: "0011_lgpd_consentimento",
+        sql: include_str!("migrations/0011_lgpd_consentimento.sql"),
+    },
+    Migracao {
+        versao: "0012_config_pagamento",
+        sql: include_str!("migrations/0012_config_pagamento.sql"),
+    },
 ];
+
+/// Versão da migração mais recente embutida no binário.
+///
+/// Testes e diagnóstico usam este valor em vez de repetir o número à mão:
+/// adicionar uma migração não deve deixar uma asserção silenciosamente velha.
+pub fn versao_mais_recente() -> &'static str {
+    match MIGRACOES.last() {
+        Some(m) => m.versao,
+        None => "0000_sem_migracao",
+    }
+}
 
 /// Aplica todas as migrações pendentes. Idempotente.
 pub fn aplicar(conn: &mut Connection) -> InfraResult<()> {
@@ -177,7 +196,9 @@ mod tests {
         let total: i64 = conn
             .query_row("SELECT COUNT(*) FROM schema_migrations", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(total, 10);
+        // Deriva de MIGRACOES: adicionar uma migração não deve exigir editar o
+        // teste, mas também não deve deixar a contagem silenciosamente errada.
+        assert_eq!(total as usize, MIGRACOES.len());
     }
 
     #[test]
@@ -427,14 +448,20 @@ mod tests {
              VALUES ('p0', 'cr1', 'RECEBIMENTO', 1, 0, '2026-12-01T00:00:00Z')",
             [],
         ).unwrap_err();
-        assert!(erro_zero.to_string().contains("DAT-004"), "deveria barrar valor 0: {erro_zero}");
+        assert!(
+            erro_zero.to_string().contains("DAT-004"),
+            "deveria barrar valor 0: {erro_zero}"
+        );
 
         let erro_negativo = conn.execute(
             "INSERT INTO parcelas (id, conta_id, conta_tipo, numero, valor_centavos, vencimento)
              VALUES ('pn', 'cr1', 'RECEBIMENTO', 1, -500, '2026-12-01T00:00:00Z')",
             [],
         ).unwrap_err();
-        assert!(erro_negativo.to_string().contains("DAT-004"), "deveria barrar valor negativo: {erro_negativo}");
+        assert!(
+            erro_negativo.to_string().contains("DAT-004"),
+            "deveria barrar valor negativo: {erro_negativo}"
+        );
 
         // 2. Inserir parcela com conta_id inexistente falha
         let erro_fk = conn.execute(
@@ -442,17 +469,26 @@ mod tests {
              VALUES ('pfk', 'conta_fantasma', 'RECEBIMENTO', 1, 1000, '2026-12-01T00:00:00Z')",
             [],
         ).unwrap_err();
-        assert!(erro_fk.to_string().contains("DAT-004"), "deveria barrar conta inexistente: {erro_fk}");
+        assert!(
+            erro_fk.to_string().contains("DAT-004"),
+            "deveria barrar conta inexistente: {erro_fk}"
+        );
 
         // 3. Parcela válida é inserida com sucesso
         conn.execute(
             "INSERT INTO parcelas (id, conta_id, conta_tipo, numero, valor_centavos, vencimento)
              VALUES ('pok', 'cr1', 'RECEBIMENTO', 1, 2500, '2026-12-01T00:00:00Z')",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         // 4. Excluir conta que possui parcelas é bloqueado
-        let erro_del = conn.execute("DELETE FROM contas_receber WHERE id = 'cr1'", []).unwrap_err();
-        assert!(erro_del.to_string().contains("DAT-004"), "deveria impedir delete de conta com parcelas: {erro_del}");
+        let erro_del = conn
+            .execute("DELETE FROM contas_receber WHERE id = 'cr1'", [])
+            .unwrap_err();
+        assert!(
+            erro_del.to_string().contains("DAT-004"),
+            "deveria impedir delete de conta com parcelas: {erro_del}"
+        );
     }
 }

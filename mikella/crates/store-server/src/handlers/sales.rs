@@ -15,12 +15,16 @@ use chrono::{NaiveTime, TimeZone, Utc};
 use chrono_tz::Tz;
 
 use crate::dto::VendaSummary;
-use crate::dto::{LivroCaixaQuery, PlanoParcelaDto, SimularParcelasQuery, SimularParcelasResponse, VendasQuery};
+use crate::dto::{
+    LivroCaixaQuery, PlanoParcelaDto, SimularParcelasQuery, SimularParcelasResponse, VendasQuery,
+};
 use crate::exigir;
 use crate::handlers::products::{produto_para_json, view_para_response};
 use crate::middleware::Ator;
 use crate::state::AppState;
-use mikella_infra_sqlite::{DiagnosticoRepo, FiltroVendas, LivroRepo, ProdutoRepo, VendaRepo};
+use mikella_infra_sqlite::{
+    ConfigLojaRepo, DiagnosticoRepo, FiltroVendas, LivroRepo, ProdutoRepo, VendaRepo,
+};
 use mikella_shared_kernel::ids::SessaoId;
 use mikella_shared_kernel::money::Money;
 
@@ -105,14 +109,15 @@ pub async fn vendas_listar(
     let limite = params.limite.clamp(1, 200);
 
     // Calcula o "hoje" correto no fuso da loja — resolve o bug 21h-0h BRT / UTC.
-    let (data_inicio, data_fim) = if params.data_inicio.is_none() && params.data_fim.is_none() && params.codigo.is_none() {
-        let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
-        let (ini, fim) = hoje_utc_intervalo(&fuso);
-        tracing::debug!(fuso = %fuso, inicio = %ini, fim = %fim, "calculando janela 'hoje'");
-        (Some(ini), Some(fim))
-    } else {
-        (params.data_inicio, params.data_fim)
-    };
+    let (data_inicio, data_fim) =
+        if params.data_inicio.is_none() && params.data_fim.is_none() && params.codigo.is_none() {
+            let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
+            let (ini, fim) = hoje_utc_intervalo(&fuso);
+            tracing::debug!(fuso = %fuso, inicio = %ini, fim = %fim, "calculando janela 'hoje'");
+            (Some(ini), Some(fim))
+        } else {
+            (params.data_inicio, params.data_fim)
+        };
 
     let filtro = FiltroVendas {
         codigo: params.codigo,
@@ -181,28 +186,28 @@ pub async fn livro_caixa(
             Ok(entradas) => entradas
                 .into_iter()
                 .map(|e| crate::dto::response::LivroEntradaResponse {
-                sequencia: e.sequencia,
-                tipo: e.tipo,
-                valor: Money::from_centavos(e.valor_centavos).to_string(),
-                troco: Money::from_centavos(e.troco_centavos).to_string(),
-                usuario_id: e.usuario_id,
-                aprovador_id: e.aprovador_id,
-                motivo: e.motivo,
-                referencia_id: e.referencia_id,
-                referencia_tipo: e.referencia_tipo,
-                prev_hash: e.prev_hash,
-                hash: e.hash,
-                created_at: e.created_at,
-            })
-            .collect(),
-        Err(e) => {
-            tracing::error!(erro = %e, sessao_id = %sessao_id, "erro ao ler livro-caixa");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "erro": "falha de banco" })),
-            );
-        }
-    };
+                    sequencia: e.sequencia,
+                    tipo: e.tipo,
+                    valor: Money::from_centavos(e.valor_centavos).to_string(),
+                    troco: Money::from_centavos(e.troco_centavos).to_string(),
+                    usuario_id: e.usuario_id,
+                    aprovador_id: e.aprovador_id,
+                    motivo: e.motivo,
+                    referencia_id: e.referencia_id,
+                    referencia_tipo: e.referencia_tipo,
+                    prev_hash: e.prev_hash,
+                    hash: e.hash,
+                    created_at: e.created_at,
+                })
+                .collect(),
+            Err(e) => {
+                tracing::error!(erro = %e, sessao_id = %sessao_id, "erro ao ler livro-caixa");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "erro": "falha de banco" })),
+                );
+            }
+        };
 
     let saldo_total = match livro.saldo_total(&sessao_id) {
         Ok(s) => s,
@@ -229,9 +234,17 @@ pub async fn livro_caixa(
 /// `GET /v1/vendas/simular-parcelas` — calcula planos de parcelamento de 1 a N vezes no servidor.
 /// Regra: o servidor decide e a tela só renderiza o que veio (resto na última parcela).
 pub async fn simular_parcelas(
+    State(state): State<AppState>,
     Query(q): Query<SimularParcelasQuery>,
 ) -> impl IntoResponse {
-    let max = q.max_parcelas.clamp(1, 12);
+    // Rust é a autoridade: o teto vem da configuração da loja, não do clique.
+    let max_loja = {
+        let db = state.db.lock().await;
+        ConfigLojaRepo::novo(db.conn())
+            .config_pagamento()
+            .max_parcelas_cartao
+    };
+    let max = q.max_parcelas.clamp(1, max_loja);
     let total = Money::from_centavos(q.total_centavos);
 
     let mut planos = Vec::with_capacity(max as usize);

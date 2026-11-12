@@ -14,16 +14,21 @@ crates/
   domain-sales/       Venda, ItemVenda, Pagamento, regras de fechamento
   domain-cash/        SessaoCaixa, LivroCaixa, cadeia de hashes
   domain-inventory/   Produto, Lote, MovimentacaoEstoque, ports (traits)
-  domain-finance/     (contratos iniciais)
-  domain-people/      Usuario, Papel, Capacidade, ports
-  domain-commission/  (contratos iniciais)
-  domain-licensing/   (contratos iniciais)
-  app-sales/          finalizar_venda
-  app-cash/           abrir_caixa, fechar_caixa, registrar_sangria
-  app-inventory/      criar_produto, atualizar_produto, arquivar_produto
-  app-people/         criar_usuario, atualizar_usuario, desativar_usuario
-  infra-sqlite/       schema, migrações, repositórios, hash blake3
-  store-server/       HTTP local (loopback): /v1/health, /v1/login (Argon2id), /v1/usuarios
+  domain-finance/     Contas, parcelas, crediário
+  domain-people/      Cliente, Usuario, Papel, Capacidade, ports
+  domain-commission/  Regras de comissão
+  domain-licensing/   Licença, entitlements (contratos)
+  app-sales/          finalizar_venda, cancelamento
+  app-cash/           abrir_caixa, fechar_caixa, sangria
+  app-inventory/      produtos, lotes, estoque
+  app-people/         usuários, clientes, crediário
+  app-finance/        contas a pagar/receber, parcelas
+  app-licensing/      validação de licença
+  infra-sqlite/       schema, migrações, repositórios, hash blake3, backup, LGPD
+  infra-cloud/        contratos de nuvem/licenciamento
+  infra-crypto/       primitivas criptográficas
+  infra-hardware/     impressora ESC/POS
+  store-server/       API HTTP local (loopback), handlers, DTOs e middleware
   desktop-shell/      casca Tauri (entry point + assets HTML/CSS integrados)
 ```
 
@@ -36,22 +41,21 @@ portas; `infra` implementa as portas; o composition root monta tudo.
 frontend/
   server.js                           # servidor HTTP estático (para preview)
   src/
-    index.html                        # entry point Tauri → redirect app/landing.html
-    app/
-      landing.html                    # landing page (Modo Rua)
-    features/
-      caixa/
-        ui/
-          cash-spike.html             # tela de PDV (Modo Dia)
+    index.html                        # entry point → app/landing.html
+    app/                              # somente HTML de entrada
+      landing.html, onboarding.html, pos.html, pos-menu.html,
+      produtos.html, financeiro.html, resumo.html, main-menu.html
+    features/                         # JS/CSS por tela
+      auth/, navigation/, pos/, products/, finance/, financeiro/,
+      caixa/, estoque/, comissoes/, equipe/, ajustes/
     shared/
-      design/
-        tokens.css                    # tokens de núcleo + temas (Dia/Noite/Rua)
-        fontes.css                    # @font-face (woff2 local)
-        halftone.svg                  # textura de pontos (< 2KB, Modo Rua)
-        fontes/                       # woff2 Archivo + Source Sans 3 (~103KB)
-      ui/
-        forms.css                     # componentes (5 formas, botões, tabela, etc.)
+      design/                         # tokens, fontes, utilitários, halftone
+      services/api.js                 # HTTP + token + base URL
+      ui/                             # forms, feedback, payment-icons, window-controls
 ```
+
+A estrutura exata e as regras de fronteira estão em `AGENTS.md`. Não crie
+`utils.js` genérico; cada módulo tem responsabilidade única.
 
 **Identidade visual:** `docs/design/ASSETS.md` (autoria/licença) e `docs/design/galeria.md` (decisões).
 Baseado em `BASE/08_IDENTIDADE_VISUAL_E_UX.md` — paleta cobalto/preto/branco,
@@ -115,64 +119,78 @@ POST /v1/onboarding
 ### Rotas protegidas (Bearer token)
 
 ```
-GET  /v1/produtos              — lista produtos não arquivados (response: {"produtos": [...]})
-POST /v1/produtos              — cria um produto (JSON body)
+GET  /v1/produtos              — lista produtos não arquivados
+POST /v1/produtos              — cria um produto
 GET  /v1/produtos/:id          — busca produto por ID
-PUT  /v1/produtos/:id          — atualização completa (JSON body)
-POST /v1/produtos/:id/arquivar — marca produto como arquivado (soft delete)
-POST /v1/caixa/abrir           — abre sessão de caixa (auto-provisioning de dispositivo)
-POST /v1/caixa/fechar          — fecha sessão de caixa (verifica cadeia de hashes, idempotente)
-GET  /v1/caixa/status           — status da sessão de caixa
-POST /v1/vendas               — finaliza uma venda (itens, pagamentos)
-GET  /v1/livro-caixa?sessao_id=<uuid> — entradas do livro (read model, CQRS)
-GET  /v1/vendas                 — lista vendas (read model, CQRS)
-GET  /v1/donation/prompt        — verifica prompt de doação
-POST /v1/donation/ack           — marca doação (suprime futuros prompts)
+PUT  /v1/produtos/:id          — atualização completa
+POST /v1/produtos/:id/arquivar — arquiva (soft delete)
+POST /v1/import/csv            — importação de produtos por CSV (PROD-010)
+GET/POST /v1/clientes          — lista e salva clientes
+GET  /v1/clientes/:id/exportar — portabilidade LGPD (JSON do titular)
+DELETE /v1/clientes/:id        — eliminação/anonimização LGPD
+GET  /v1/crediario/devedores   — devedores do crediário
+POST /v1/crediario/liquidar    — liquida dívida do crediário
+GET/POST /v1/usuarios          — usuários, papéis e capacidades
+POST /v1/caixa/abrir|fechar|sangria — operações de caixa
+GET  /v1/caixa/status          — status da sessão de caixa
+GET  /v1/livro-caixa           — entradas do livro (read model, CQRS)
+GET/POST /v1/vendas            — lista e finaliza vendas
+GET  /v1/vendas/simular-parcelas — planos de parcelamento (limite da loja)
+POST /v1/vendas/:id/cancelar|estornar — cancelamento e estorno
+GET/POST /v1/vendas/:id/comprovante|imprimir
+POST /v1/vendas/autorizar-cancelamento
+GET  /v1/finance/resumo|fluxo-caixa|resultado|contas-abertas
+POST /v1/finance/contas-pagar|contas-receber
+POST /v1/finance/contas-*/:id/parcelas/:idx/liquidar
+POST /v1/sistema/backup-local  — backup `VACUUM INTO` + BLAKE3
+POST /v1/sistema/backup/verificar — validação de backup
+GET  /v1/sistema/backups       — lista backups autorizados
+POST /v1/sistema/lgpd/expurgo  — simulação/aplicação de anonimização
+GET  /v1/config/pagamento      — limites de parcelas e prazo do crediário
+PUT  /v1/sistema/config-pagamento — altera os limites (DONO, auditado)
+GET  /v1/sistema/diagnostico   — integridade sem PII
+POST /v1/sistema/suporte/pacote — ZIP de suporte (OPS-001)
+POST /v1/sistema/teste-impressora
+GET  /v1/sistema/cep/:cep
+GET/POST /v1/donation/prompt|ack
 ```
 
 Token ausente, prefixo errado ou sessão inválida → HTTP 401.
 
 ## O que já está implementado
 
-- Schema `0001_initial` + migração `0002_app_preferences` + `0003_email_usuario` com tabelas `STRICT`, FKs, CHECKs e triggers.
-- Migração com checksum blake3 (editar migração aplicada faz o banco recusar abertura).
-- Repositórios SQLite de produtos, lotes, movimentações, vendas, sessões e livro do caixa.
-- `finalizar_venda`: idempotência por UUID, preço vindo do banco, baixa de estoque,
-  pagamento misto, lançamentos no livro e projeções por trigger.
-- `abrir_caixa`, `fechar_caixa` e `registrar_sangria` com verificação da cadeia de hashes.
-- **store-server MVP-1**: `GET /v1/health`, `POST /v1/login` (Argon2id),
-  `GET /v1/onboarding/status`, `POST /v1/onboarding`,
-  `GET /v1/caixa/status`, `GET /v1/livro-caixa`, `GET /v1/vendas`,
-  `POST /v1/caixa/abrir` (abre caixa, auto-provisioning de dispositivo),
-  `POST /v1/caixa/fechar` (verifica cadeia de hashes, idempotente).
-  `POST /v1/vendas` (finaliza venda, pagamento misto, baixa de estoque).
-- **Rotas de cadastro de produtos**: `POST /v1/produtos` (criar),
-  `GET /v1/produtos/:id`, `PUT /v1/produtos/:id`, `POST /v1/produtos/:id/arquivar`.
-- **Auth middleware**: Bearer token `mikella_<uuid-v4>` (CSPRNG), in-memory `sessoes`.
-- **Single admin session**: login e 2FA revogam token anterior via `sessoes.retain()`.
-- **2FA**: `POST /v1/2fa/solicitar` (código 6 dígitos, TTL 5 min),
-  `POST /v1/2fa/verificar` (one-time use). `EmailBackend` trait injetável.
-- **SEG-060**: Todos os DTOs de request usam `#[serde(deny_unknown_fields)]` — rejeita campos desconhecidos no JSON.
-- **Donation prompt**: `GET /v1/donation/prompt`, `POST /v1/donation/ack`,
-  tabela `app_preferences`, lógica a cada 3 dias + supressão mensal.
-- **121 testes automatizados**, clippy e fmt limpos. Inclui 6 testes de integração
-  para casos de uso de produto e 7 testes de repositório para `ProdutoRepo`/`buscar_por_sku`.
-- **E2E local validado:** server → onboarding → login → 2FA → token → produtos → caixa (abrir/fechar/status) → vendas → livro → donation → ack → suppress.
-- **Desktop-shell Tauri:** entry point (`main.rs`), `build.rs`, `tauri.conf.json` com
-  allowlist mínima (SEG-060). Assets HTML/CSS servidos via protocolo `asset://`.
-  Modo 1-computador (ARQ-001): UI carrega via Tauri e chama use cases via IPC.
+- Schema com migrações versionadas (`0001`–`0012`), checksums BLAKE3, tabelas
+  `STRICT`, FKs, CHECKs e triggers que bloqueiam UPDATE/DELETE em movimento.
+- Repositórios SQLite de produtos, lotes, movimentações, vendas, sessões,
+  livro do caixa, clientes, contas, parcelas e auditoria.
+- `finalizar_venda`: idempotência por UUID, preço vindo do banco, baixa de
+  estoque, pagamento misto, lançamentos no livro e projeções por trigger.
+- `abrir_caixa`, `fechar_caixa` e `registrar_sangria` com verificação da cadeia.
+- **API local completa**: auth (Argon2id + 2FA), usuários e capacidades, caixa,
+  vendas e cancelamento, clientes/crediário, contas a pagar/receber, CSV,
+  backup/restauração/verificação, diagnóstico, pacote de suporte, expurgo LGPD
+  e limites de pagamento por loja (parcelas de cartão e prazo do crediário).
+- **Auth middleware** Bearer `mikella_<uuid-v4>` com sessão em memória e
+  revogação da sessão anterior.
+- **DTOs** com `#[serde(deny_unknown_fields)]` e erros ao cliente sem SQL,
+  caminho ou stack (SEC-017).
+- **Desktop-shell Tauri 2** com CSP `style-src 'self'` (sem estilo inline),
+  permissões mínimas e assets embutidos.
+- **Frontend HTML/CSS/JS** (sem React/TypeScript/Tailwind), com design system
+  cobalto/preto/branco, Corte-M, fontes WOFF2 locais e gráficos SVG originais.
+- **Testes**: suíte Rust do workspace (contagem exata depende do ambiente) e
+  `scripts/verificar-frontend.ps1` como gate de frontend.
 
 ## O que falta antes de ser um produto
 
-1. Pareamento autenticado + TLS local — expor servidor na rede da loja (MVP-2).
-2. **Rotas HTTP de venda, caixa e relatórios (com autorização por capacidade). MVP-1** ✅
-3. **`POST /v1/vendas` (finalizar venda) — use case pronto; HTTP handler pronto. MVP-1** ✅
-4. Backup cifrado, licença e cotas do plano gratuito — **bloqueado** por P6/P10/P2/P4/N1/N3/N4.
-5. **Sistema de design implementado:** landing page (Modo Rua) e tela de
-   caixa (Modo Dia) com CSS tokens, fontes woff2 locais (Archivo + Source Sans 3),
-   textura halftone, e as 5 formas geométricas originais. Ver `docs/design/`.
-6. Auditoria (`auditoria` já existe no schema, ainda sem repositório/caso de uso).
-7. 2FA com provider de email real — **adiado** até decidir onde hospedar gratuitamente.
+1. Homologação em hardware real (i3/i5 de 5ª geração, 6 GB, HDD 5400 rpm) e
+   piloto de 30 dias em loja — F8/P0-5.
+2. Revisão jurídica do expurgo LGPD e assinatura de contrato de operador.
+3. Rebuild do shell Tauri para embutir o frontend atualizado (`dist/`).
+4. Pareamento autenticado + TLS local para expor o servidor na rede da loja (MVP-2).
+5. Backup cifrado na nuvem, licença e cotas — bloqueados por P6/P10/P2/P4/N1/N3/N4.
+6. 2FA com provider de email real — adiado até decidir a hospedagem.
+7. Comissões, comendas, promoções, XML NF-e e multi-loja (MVP-5/MVP-6).
 
 ### Conta de teste (local)
 

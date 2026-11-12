@@ -1,5 +1,11 @@
 # Mikella ERP — Conformidade LGPD (Lei nº 13.709/2018)
 
+> **Nota de atualização (09/11/2026):** eliminação/anonimização
+> (`DELETE /v1/clientes/:id`), portabilidade (`GET /v1/clientes/:id/exportar`)
+> e expurgo por retenção (`POST /v1/sistema/lgpd/expurgo`, simulação por
+> padrão) **já estão implementados**. Falta apenas a revisão jurídica e a
+> assinatura do contrato de operador. Ver `mikella/docs/LGPD-RETENCAO.md`.
+
 **Criado em:** 03/11/2026  
 **Base legal:** Lei Geral de Proteção de Dados Pessoais — Lei nº 13.709/2018 (atualizada até junho/2024, edição Senado Federal)  
 **Responsável:** Dono do sistema (papel `Dono` no ERP)  
@@ -51,13 +57,16 @@ O **lojista** (controlador) é responsável por atender os direitos. O ERP prov�
 | Confirmação de existência | Busca por CPF/telefone em F4 | ✅ Implementado |
 | Acesso aos dados | Tela de cadastro de cliente (F4) | ✅ Implementado |
 | Correção de dados inexatos | Edição do cadastro em F4 | ✅ Implementado |
-| Eliminação / anonimização | **TODO MVP-2:** endpoint `DELETE /v1/clientes/:id` com anonimização (substitui CPF/nome/telefone/email por hashes) e exclusão lógica | ❌ Pendente |
-| Portabilidade | **TODO MVP-3:** exportação de CSV com dados do cliente | ❌ Pendente |
-| Revogação de consentimento | Desativação do cadastro + anonimização (ver acima) | ❌ Pendente |
+| Eliminação / anonimização | `DELETE /v1/clientes/:id` com anonimização (nome, documento, telefone, e-mail, endereço) e preservação de registros fiscais | ✅ Implementado |
+| Portabilidade | `GET /v1/clientes/:id/exportar` — exportação estruturada dos dados do titular | ✅ Implementado |
+| Revogação de consentimento | Coluna `pessoas.consentimento_marketing`; o expurgo zera o consentimento. Falta endpoint/UI dedicado de revogação | 🟡 Parcial |
 | Oposição a tratamento automatizado | N/A — Mikella não usa decisão automatizada com impacto ao titular | ✅ N/A |
 
-> [!WARNING]
-> Os direitos de **eliminação** e **portabilidade** são obrigatórios pela LGPD. Devem ser implementados **antes de qualquer dado de cliente real ser armazenado em produção**. Enquanto o sistema está em **fase piloto com dados de teste**, o risco é controlado. **Implementar no MVP-2 é mandatório.**
+> [!NOTE]
+> Os direitos de **eliminação** e **portabilidade** foram implementados no código
+> e cobertos por teste. A **revogação de consentimento** ainda precisa de
+> endpoint/UI dedicado. A revisão jurídica e a assinatura do contrato de operador
+> continuam pendentes antes da operação com dados reais.
 
 ---
 

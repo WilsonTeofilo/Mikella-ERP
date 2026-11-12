@@ -9,15 +9,16 @@
   <link rel="stylesheet" href="../shared/ui/forms.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../features/finance/finance.css" />
+  <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body data-tema="caixa">
     <!-- Barra de Topo Unificada -->
-  <header style="background: #000; color: #FFF; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0040D8;">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <span style="font-family: var(--fonte-display); font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; color: #FFF;">MIKELLA <span style="background: #0040D8; padding: 2px 6px; font-size: 0.8rem;">FINANCEIRO</span></span>
+  <header class="u-a152f58d">
+    <div class="u-b264e9d1">
+      <span class="u-a7d0a29f">MIKELLA <span class="u-aea9ed03">FINANCEIRO</span></span>
     </div>
     <div>
-      <button id="btn-topo-voltar" type="button" class="botao" style="background: #FFF; color: #000; font-weight: 800; font-size: 0.85rem; padding: 4px 12px; height: 32px;" >
+      <button id="btn-topo-voltar" type="button" class="botao u-21f497f9" >
         [ESC] Voltar ao Menu
       </button>
     </div>
@@ -29,7 +30,7 @@
         <h1 class="titulo-pagina">Financeiro Integrado</h1>
         <p class="subtitulo-pagina">Fluxo de Caixa, Contas a Pagar, A Receber e DRE Simplificada</p>
       </div>
-      <div id="saldo-resumo" class="card-kpi" style="padding: var(--espaco-2) var(--espaco-3); font-weight: bold;">
+      <div id="saldo-resumo" class="card-kpi u-23617a7d">
         Carregando...
       </div>
     </div>
@@ -56,77 +57,77 @@
     <!-- ABA 1: VISÃO GERAL & VENDAS (INSPIRADO CHOKKO-MELT) -->
     <section id="painel-vendas" class="painel-aba" role="tabpanel" aria-labelledby="tab-vendas">
       <!-- Filtros de Período Inspirados no Chokko-Melt -->
-      <div class="barra-filtros" style="justify-content: space-between; align-items: center; background: #F8F9FC; border: 2px solid #000; padding: 10px 14px; margin-bottom: var(--espaco-4);">
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <span style="font-weight: 800; font-size: 0.85rem; text-transform: uppercase;">Período:</span>
+      <div class="barra-filtros u-1cd98e6f">
+        <div class="u-0da5f422">
+          <span class="u-f20cd8a4">Período:</span>
           <button type="button" id="btn-periodo-hoje" class="btn-filtro-rapido ativo">Hoje</button>
           <button type="button" id="btn-periodo-semana" class="btn-filtro-rapido">Esta Semana</button>
           <button type="button" id="btn-periodo-mes" class="btn-filtro-rapido">Este Mês</button>
         </div>
         <div class="filtro-datas">
-          <label for="chokko-data-inicio" style="font-weight: bold; font-size: 0.85rem;">De:</label>
+          <label class="u-a8e7ce13" for="chokko-data-inicio">De:</label>
           <input type="date" id="chokko-data-inicio" />
-          <label for="chokko-data-fim" style="font-weight: bold; font-size: 0.85rem;">Até:</label>
+          <label class="u-a8e7ce13" for="chokko-data-fim">Até:</label>
           <input type="date" id="chokko-data-fim" />
-          <button type="button" id="btn-filtrar-chokko" class="botao" style="min-height: 36px; padding: 4px 12px; font-size: 0.85rem;">Filtrar</button>
+          <button type="button" id="btn-filtrar-chokko" class="botao u-4ccc2b72">Filtrar</button>
         </div>
       </div>
 
       <!-- 6 Cards de Indicadores Financeiros do Chokko-Melt -->
-      <div class="cards-kpi-grade" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-        <div class="card-kpi" style="border-left: 6px solid #000;">
+      <div class="cards-kpi-grade u-307ae4b1">
+        <div class="card-kpi u-8376609a">
           <span class="card-kpi-rotulo">Faturamento Bruto</span>
-          <div id="card-fat-bruto" class="card-kpi-valor" style="color: #000;">R$ 0,00</div>
+          <div id="card-fat-bruto" class="card-kpi-valor u-64ff02aa">R$ 0,00</div>
           <div class="card-kpi-detalhe">Vendas finalizadas</div>
         </div>
-        <div class="card-kpi" style="border-left: 6px solid #047857;">
+        <div class="card-kpi u-74cd3c21">
           <span class="card-kpi-rotulo">Lucro Bruto (Margem)</span>
-          <div id="card-lucro-liquido" class="card-kpi-valor" style="color: #047857;">R$ 0,00</div>
+          <div id="card-lucro-liquido" class="card-kpi-valor u-868f5c54">R$ 0,00</div>
           <div id="card-margem-detalhe" class="card-kpi-detalhe">Margem: 0%</div>
         </div>
-        <div class="card-kpi" style="border-left: 6px solid #047857;">
+        <div class="card-kpi u-74cd3c21">
           <span class="card-kpi-rotulo">Total Pix</span>
-          <div id="card-total-pix" class="card-kpi-valor" style="color: #047857;">R$ 0,00</div>
+          <div id="card-total-pix" class="card-kpi-valor u-868f5c54">R$ 0,00</div>
           <div class="card-kpi-detalhe">Recebido via Pix</div>
         </div>
-        <div class="card-kpi" style="border-left: 6px solid #0040D8;">
+        <div class="card-kpi u-333234d4">
           <span class="card-kpi-rotulo">Total Cartão</span>
-          <div id="card-total-cartao" class="card-kpi-valor" style="color: #0040D8;">R$ 0,00</div>
+          <div id="card-total-cartao" class="card-kpi-valor u-0ec7fd2a">R$ 0,00</div>
           <div class="card-kpi-detalhe">Débito e Crédito</div>
         </div>
-        <div class="card-kpi" style="border-left: 6px solid #334155;">
+        <div class="card-kpi u-7b4958dd">
           <span class="card-kpi-rotulo">Total Dinheiro</span>
-          <div id="card-total-dinheiro" class="card-kpi-valor" style="color: #334155;">R$ 0,00</div>
+          <div id="card-total-dinheiro" class="card-kpi-valor u-4501cb41">R$ 0,00</div>
           <div class="card-kpi-detalhe">Em espécie no caixa</div>
         </div>
-        <div class="card-kpi" style="border-left: 6px solid #6B21A8;">
+        <div class="card-kpi u-3f8d8b31">
           <span class="card-kpi-rotulo">Total de Vendas</span>
-          <div id="card-qtd-vendas" class="card-kpi-valor" style="color: #6B21A8;">0</div>
+          <div id="card-qtd-vendas" class="card-kpi-valor u-ecaa2fc1">0</div>
           <div id="card-ticket-medio" class="card-kpi-detalhe">Ticket Médio: R$ 0,00</div>
         </div>
       </div>
 
       <!-- Tabela de Detalhamento de Entradas (Vendas) -->
-      <div style="background: #FFF; border: 2px solid #000; padding: var(--espaco-4); margin-top: var(--espaco-4);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--espaco-3); border-bottom: 2px solid #000; padding-bottom: 8px;">
-          <h2 class="titulo-secao" style="margin: 0;">Detalhamento de Entradas por Venda</h2>
-          <span style="font-size: 0.82rem; font-weight: bold; color: #555;">Hora oficial: Brasília (UTC-3)</span>
+      <div class="u-06c7f603">
+        <div class="u-716b7314">
+          <h2 class="titulo-secao u-2a0ca835">Detalhamento de Entradas por Venda</h2>
+          <span class="u-949b03b7">Hora oficial: Brasília (UTC-3)</span>
         </div>
-        <div style="overflow-x: auto;">
+        <div class="u-987eb2a7">
           <table>
             <thead>
               <tr>
-                <th style="width: 100px;">Venda / COO</th>
+                <th class="u-da190a81">Venda / COO</th>
                 <th>Data / Hora</th>
                 <th>Cliente</th>
                 <th>Forma de Pagamento</th>
-                <th style="text-align: right;">Valor Bruto</th>
-                <th style="text-align: right;">Lucro Bruto</th>
+                <th class="u-30489cbd">Valor Bruto</th>
+                <th class="u-30489cbd">Lucro Bruto</th>
               </tr>
             </thead>
             <tbody id="tabela-entradas-chokko">
               <tr>
-                <td colspan="6" style="text-align: center; color: #666; padding: 24px;">Carregando vendas do período...</td>
+                <td class="u-1936e7a6" colspan="6">Carregando vendas do período...</td>
               </tr>
             </tbody>
           </table>
@@ -172,7 +173,7 @@
       <!-- Curva de Saldo Acumulado em SVG -->
       <div class="area-grafico-fluxo">
         <h2 class="titulo-secao">Evolução do Saldo Acumulado</h2>
-        <div id="container-svg-fluxo" style="min-height: 120px; width: 100%;"></div>
+        <div class="u-2dc1934f" id="container-svg-fluxo"></div>
       </div>
 
       <h2 class="titulo-secao">Extrato Diário de Caixa</h2>
@@ -187,7 +188,7 @@
           </tr>
         </thead>
         <tbody id="tabela-fc-corpo">
-          <tr><td colspan="5" style="text-align:center;">Carregando fluxo de caixa...</td></tr>
+          <tr><td class="u-65f9d5a3" colspan="5">Carregando fluxo de caixa...</td></tr>
         </tbody>
       </table>
     </section>
@@ -202,7 +203,7 @@
         </div>
         <div class="card-kpi">
           <span class="card-kpi-rotulo">Próximos 7 Dias</span>
-          <div id="pagar-kpi-7dias" class="card-kpi-valor" style="color: #D97706;">R$ 0,00</div>
+          <div id="pagar-kpi-7dias" class="card-kpi-valor u-b6569f66">R$ 0,00</div>
           <div class="card-kpi-detalhe">Atenção ao fluxo</div>
         </div>
         <div class="card-kpi">
@@ -229,7 +230,7 @@
           </tr>
         </thead>
         <tbody id="tabela-pagar-corpo">
-          <tr><td colspan="5" style="text-align:center;">Carregando contas a pagar...</td></tr>
+          <tr><td class="u-65f9d5a3" colspan="5">Carregando contas a pagar...</td></tr>
         </tbody>
       </table>
     </section>
@@ -244,7 +245,7 @@
         </div>
         <div class="card-kpi">
           <span class="card-kpi-rotulo">Vence Hoje</span>
-          <div id="receber-kpi-hoje" class="card-kpi-valor" style="color: #0040D8;">R$ 0,00</div>
+          <div id="receber-kpi-hoje" class="card-kpi-valor u-0ec7fd2a">R$ 0,00</div>
           <div class="card-kpi-detalhe">Previsão para hoje</div>
         </div>
         <div class="card-kpi">
@@ -261,11 +262,11 @@
         </div>
         <div class="card-aging">
           <div class="card-aging-titulo">1 a 30 dias</div>
-          <div id="aging-1-30" class="card-aging-valor" style="color: #D97706;">R$ 0,00</div>
+          <div id="aging-1-30" class="card-aging-valor u-b6569f66">R$ 0,00</div>
         </div>
         <div class="card-aging">
           <div class="card-aging-titulo">31 a 60 dias</div>
-          <div id="aging-31-60" class="card-aging-valor" style="color: #E11D48;">R$ 0,00</div>
+          <div id="aging-31-60" class="card-aging-valor u-41cf9498">R$ 0,00</div>
         </div>
         <div class="card-aging">
           <div class="card-aging-titulo">&gt; 60 dias</div>
@@ -290,7 +291,7 @@
           </tr>
         </thead>
         <tbody id="tabela-receber-corpo">
-          <tr><td colspan="5" style="text-align:center;">Carregando contas a receber...</td></tr>
+          <tr><td class="u-65f9d5a3" colspan="5">Carregando contas a receber...</td></tr>
         </tbody>
       </table>
     </section>
@@ -340,7 +341,7 @@
           </tbody>
         </table>
 
-        <div class="cards-kpi-grade" style="margin-top: var(--espaco-4); margin-bottom: 0;">
+        <div class="cards-kpi-grade u-a37575c8">
           <div class="card-kpi">
             <span class="card-kpi-rotulo">Margem Bruta</span>
             <div id="dre-margem-bruta" class="card-kpi-valor">0,0%</div>
@@ -353,7 +354,7 @@
           </div>
           <div class="card-kpi">
             <span class="card-kpi-rotulo">Diagnóstico Operacional</span>
-            <div id="dre-diagnostico" class="card-kpi-valor" style="font-size: 1.1rem;">-</div>
+            <div id="dre-diagnostico" class="card-kpi-valor u-7463f717">-</div>
             <div class="card-kpi-detalhe">Eficiência da loja</div>
           </div>
         </div>
@@ -372,7 +373,7 @@
   <div id="toast" class="toast"></div>
 
   <!-- Modal: Nova Conta -->
-  <div id="modal-conta" class="modal" style="display:none;">
+  <div id="modal-conta" class="modal u-5790ffba">
     <div class="modal-conteudo">
       <h2 class="modal-titulo">Lançar Nova Conta</h2>
       <form id="form-conta">
@@ -387,12 +388,12 @@
           <label for="conta-desc">Descrição / Fornecedor / Cliente *</label>
           <input id="conta-desc" type="text" required placeholder="Ex: Fornecedor Café Torrado" autocomplete="off" />
         </div>
-        <div style="display:flex; gap:var(--espaco-2);">
-          <div class="campo-grupo" style="flex:1;">
+        <div class="u-4a76da36">
+          <div class="campo-grupo u-634a28be">
             <label for="conta-valor">Valor Total (R$) *</label>
-            <input id="conta-valor" type="text" required placeholder="0,00" style="text-align:right;" />
+            <input class="u-30489cbd" id="conta-valor" type="text" required placeholder="0,00" />
           </div>
-          <div class="campo-grupo" style="flex:1;">
+          <div class="campo-grupo u-634a28be">
             <label for="conta-parcelas">Nº Parcelas</label>
             <input id="conta-parcelas" type="number" value="1" min="1" max="60" />
           </div>
@@ -401,19 +402,19 @@
           <label for="conta-vencimento">Primeiro Vencimento *</label>
           <input id="conta-vencimento" type="date" required />
         </div>
-        <div style="margin-top:var(--espaco-4); display:flex; gap:var(--espaco-2);">
-          <button type="submit" class="botao primario" style="flex:1;">Registrar Conta</button>
-          <button type="button" id="btn-cancelar-conta" class="botao" style="flex:1;">Cancelar</button>
+        <div class="u-a8d69778">
+          <button type="submit" class="botao primario u-634a28be">Registrar Conta</button>
+          <button type="button" id="btn-cancelar-conta" class="botao u-634a28be">Cancelar</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Modal: Liquidar Parcela -->
-  <div id="modal-liquidar" class="modal" style="display:none;">
+  <div id="modal-liquidar" class="modal u-5790ffba">
     <div class="modal-conteudo">
       <h2 class="modal-titulo">Liquidar Parcela</h2>
-      <p id="liquidar-info" style="font-weight:bold; margin-bottom:var(--espaco-3);"></p>
+      <p class="u-ec04d0d0" id="liquidar-info"></p>
       <form id="form-liquidar">
         <input type="hidden" id="liq-id" />
         <input type="hidden" id="liq-tipo" />
@@ -430,11 +431,11 @@
         </div>
         <div class="campo-grupo">
           <label for="liq-valor">Valor a Liquidar (R$) *</label>
-          <input id="liq-valor" type="text" required style="text-align:right;" />
+          <input class="u-30489cbd" id="liq-valor" type="text" required />
         </div>
-        <div style="margin-top:var(--espaco-4); display:flex; gap:var(--espaco-2);">
-          <button type="submit" class="botao primario" style="flex:1;">Confirmar Liquidação</button>
-          <button type="button" id="btn-cancelar-liq" class="botao" style="flex:1;">Cancelar</button>
+        <div class="u-a8d69778">
+          <button type="submit" class="botao primario u-634a28be">Confirmar Liquidação</button>
+          <button type="button" id="btn-cancelar-liq" class="botao u-634a28be">Cancelar</button>
         </div>
       </form>
     </div>

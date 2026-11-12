@@ -68,8 +68,10 @@
 > **[DECISÃO PENDENTE V9]**: Adaptar um conjunto livre (Lucide MIT ou Phosphor MIT)
 > com pontas retas e junções em ângulo, ou desenhar do zero.
 
-Status atual: **nenhum ícone implementado ainda**. A tela de caixa usa apenas
-caracteres Unicode (como `▶`) como marcadores temporários no spike.
+Status atual: **ícones de formas de pagamento implementados** em
+`shared/ui/payment-icons.js` (SVG inline, seis formas, pastel + contorno preto).
+Os demais ícones de interface ainda usam caracteres Unicode ou formas SVG
+simples; o conjunto completo continua **[DECISÃO PENDENTE V9]**.
 
 ---
 

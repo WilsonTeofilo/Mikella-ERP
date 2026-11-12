@@ -28,15 +28,15 @@ cada função em um arquivo ou trocar de tecnologia sem necessidade.
 frontend/src/
 ├── app/                         # somente HTML de entrada das telas
 ├── features/
-│   ├── auth/login.{js,css}
+│   ├── auth/login.{js,css}, onboarding.{js,css}
 │   ├── navigation/main-menu.{js,css}
-│   ├── pos/pos-menu.{js,css}
-│   ├── pos/pos-sale.{js,css}
+│   ├── pos/pos-menu.{js,css}, pos-sale.{js,css}
 │   ├── products/products.{js,css}
-│   ├── finance/finance.{js,css}
+│   ├── finance/ e financeiro/    # dashboard, contas e DRE
+│   ├── estoque/, comissoes/, equipe/, ajustes/
 │   └── caixa/ui/cash-spike.{html,css}
 ├── shared/
-│   ├── design/{tokens.css,fontes.css,fontes/*.woff2}
+│   ├── design/{tokens.css,fontes.css,utilitarios.css,fontes/*.woff2}
 │   ├── services/api.js        # HTTP + token + base URL
 │   └── ui/
 │       ├── window-controls.{js,css}
@@ -112,8 +112,10 @@ crates/desktop-shell/
 - Frontend não é fronteira confiável: valide no backend.
 - Não versionar `.env`, banco, token, certificado ou dado de cliente.
 - Não logar CPF, pagamento, credencial ou conteúdo sensível.
-- CSP restritiva é pendência conhecida (ver auditoria); ao habilitar, testar o
-  WebView2 antes.
+- CSP restritiva está habilitada (`style-src 'self'`): não use `<style>`,
+  `style=`, `cssText` nem `innerHTML` com dado dinâmico. O gate
+  `scripts/verificar-frontend.ps1` reprova esses padrões. Teste no WebView2
+  antes de produção.
 - Dependência nova exige justificativa e lockfile atualizado.
 
 ---

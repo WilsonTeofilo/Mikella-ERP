@@ -64,6 +64,7 @@ pub const CAPACIDADES_CONHECIDAS: &[&str] = &[
     // Sistema
     "sistema.backup",
     "sistema.diagnostico",
+    "sistema.configurar",
 ];
 
 /// Retorna `true` se a capacidade pertence ao catálogo fechado.

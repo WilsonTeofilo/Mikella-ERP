@@ -10,25 +10,26 @@
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../shared/ui/payment-icons.css" />
   <link rel="stylesheet" href="../features/pos/pos-sale.css" />
+  <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body data-tema="caixa">
 
   <!-- Barra de status superior (§9.3) -->
   <div class="barra-status-caixa">
     <span class="item"><span class="marca-estado marca-modo" id="badge-modo">VENDA BALCÃO</span></span>
-    <span class="item"><span class="marca-estado" id="badge-comanda" style="display:none;">COMANDA</span></span>
+    <span class="item"><span class="marca-estado u-5790ffba" id="badge-comanda">COMANDA</span></span>
     <span class="item"><span class="marca-estado marca-cli" id="badge-cliente">CONSUMIDOR FINAL (SEM CPF)</span></span>
-    <span class="item" style="margin-left: auto;"><span class="marca-estado" id="badge-sessao-status">VERIFICANDO CAIXA...</span></span>
+    <span class="item u-7fd7ef73"><span class="marca-estado" id="badge-sessao-status">VERIFICANDO CAIXA...</span></span>
   </div>
 
   <main class="caixa-layout">
     <!-- Coluna esquerda: Operador (Busca + Fita de Itens) -->
     <div class="caixa-operador">
       <div class="busca-container">
-        <div class="campo-grupo" style="flex: 1; position: relative;">
+        <div class="campo-grupo u-97272214">
           <label for="produto-input">Bipe o código de barras ou digite o produto / SKU (Enter)</label>
           <input id="produto-input" class="busca-campo" type="text" placeholder="Código de barras, nome ou SKU..." autocomplete="off" autofocus />
-          <div id="sugestoes-produtos" class="dropdown-sugestoes" style="display: none;"></div>
+          <div id="sugestoes-produtos" class="dropdown-sugestoes u-5790ffba"></div>
         </div>
       </div>
 
@@ -36,12 +37,12 @@
         <table class="fita-tabela">
           <thead>
             <tr>
-              <th style="width: 36px;">#</th>
+              <th class="u-74336b70">#</th>
               <th>Produto</th>
-              <th class="direita" style="width: 60px;">Qtd</th>
-              <th class="direita" style="width: 100px;">Unitário</th>
-              <th class="direita" style="width: 80px;">Desc.</th>
-              <th class="direita" style="width: 120px;">Subtotal</th>
+              <th class="direita u-b6542040">Qtd</th>
+              <th class="direita u-da190a81">Unitário</th>
+              <th class="direita u-dabaad57">Desc.</th>
+              <th class="direita u-5187b6fd">Subtotal</th>
             </tr>
           </thead>
           <tbody id="itens-lista">
@@ -65,21 +66,21 @@
       </div>
 
       <!-- Fita de Pagamentos Lançados na Lateral -->
-      <div id="painel-pagamentos-lateral" style="display: none; background: #FFFFFF; border: 2px solid #000; padding: var(--espaco-2); margin-bottom: var(--espaco-2);">
-        <div style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #555;">Pagamentos lançados:</div>
-        <div id="fita-pagamentos-lista" style="display: flex; flex-direction: column; gap: 4px;"></div>
-        <div style="margin-top: 6px; border-top: 1px dashed #000; padding-top: 4px; display: flex; justify-content: space-between; font-weight: bold; font-size: 0.88rem;">
+      <div class="u-138f5d42" id="painel-pagamentos-lateral">
+        <div class="u-48fadef1">Pagamentos lançados:</div>
+        <div class="u-bc0172c7" id="fita-pagamentos-lista"></div>
+        <div class="u-00b8fde7">
           <span>Falta pagar:</span>
-          <span id="fita-falta-valor" style="color: var(--vermelho, #C81E16);">R$ 0,00</span>
+          <span class="u-d5983b5b" id="fita-falta-valor">R$ 0,00</span>
         </div>
       </div>
 
       <div class="area-pagamento">
-        <div id="info-metodo-pre" style="font-size: 0.9rem; font-weight: bold; background: #FFF9D2; padding: 6px; border: 2px solid #000; display: none;">
+        <div class="u-6b91c299" id="info-metodo-pre">
           Forma escolhida: <span id="lbl-metodo-pre">DINHEIRO</span>
         </div>
         <button id="btn-f1-pagar" class="btn-finalizar" type="button">
-          <span class="tecla-atalho" style="background:#FFF; color:#000;">F1</span> PAGAR COMPRA
+          <span class="tecla-atalho u-64df0af3">F1</span> PAGAR COMPRA
         </button>
       </div>
     </div>
@@ -92,119 +93,119 @@
     <div class="item" id="btn-atalho-f3"><span class="tecla-atalho">F3</span> Método Pagamento</div>
     <div class="item" id="btn-atalho-f4"><span class="tecla-atalho">F4</span> Cancelar Item</div>
     <div class="item" id="btn-atalho-f5"><span class="tecla-atalho">F5</span> Cancelar Compra</div>
-    <div class="item" id="btn-atalho-sair" style="margin-left: auto;"><span class="tecla-atalho">Esc</span> Voltar ao Menu PDV</div>
+    <div class="item u-7fd7ef73" id="btn-atalho-sair"><span class="tecla-atalho">Esc</span> Voltar ao Menu PDV</div>
   </div>
 
   <div id="toast" class="toast"></div>
 
   <!-- MODAL: Buscar / Identificar Cliente (F2 ou início) -->
-  <div id="modal-cliente-busca" class="modal" style="display:none;">
+  <div id="modal-cliente-busca" class="modal u-5790ffba">
     <div class="modal-conteudo">
       <h2 class="modal-titulo">Identificar Cliente na Venda</h2>
-      <p style="font-size: 0.9rem; margin-bottom: var(--espaco-3);">Digite o <strong>CPF</strong>, <strong>Número de Celular</strong> ou <strong>Nome</strong> do cliente:</p>
+      <p class="u-dd0fd264">Digite o <strong>CPF</strong>, <strong>Número de Celular</strong> ou <strong>Nome</strong> do cliente:</p>
       
-      <input id="input-busca-cli-termo" class="busca-campo" style="width: 100%; margin-bottom: var(--espaco-2);" type="text" placeholder="CPF, Celular ou Nome..." autocomplete="off" autofocus />
+      <input id="input-busca-cli-termo" class="busca-campo u-cb987b52" type="text" placeholder="CPF, Celular ou Nome..." autocomplete="off" autofocus />
       
-      <div id="cli-resultados-lista" style="display: flex; flex-direction: column; gap: var(--espaco-1); max-height: 200px; overflow-y: auto; margin-bottom: var(--espaco-3);"></div>
+      <div class="u-4013de39" id="cli-resultados-lista"></div>
 
-      <div style="background: #F9FAFB; border: 1px dashed #000; padding: var(--espaco-2); margin-bottom: var(--espaco-3); font-size: 0.85rem;">
-        * O CPF do cliente identificado será impresso como <strong>CPF NA NOTA</strong>.
+      <div class="u-9fde990d">
+        * O CPF do cliente identificado será vinculado à venda (PDV não fiscal).
       </div>
 
-      <div style="display: flex; gap: var(--espaco-2);">
-        <button id="btn-confirmar-cli" class="botao primario" style="flex: 1;">Confirmar Cliente</button>
-        <button id="btn-consumidor-final" class="botao" style="flex: 1;">Consumidor Final (Sem CPF)</button>
-        <button id="btn-cancelar-cli-modal" class="botao" style="flex: 0.6;">Voltar (Esc)</button>
+      <div class="u-4a76da36">
+        <button id="btn-confirmar-cli" class="botao primario u-634a28be">Confirmar Cliente</button>
+        <button id="btn-consumidor-final" class="botao u-634a28be">Consumidor Final (Sem CPF)</button>
+        <button id="btn-cancelar-cli-modal" class="botao u-8ff71a17">Voltar (Esc)</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL: F3 - Escolher Forma de Pagamento -->
-  <div id="modal-metodos-pre" class="modal" style="display:none;">
-    <div class="modal-conteudo" style="max-width: 580px;">
+  <div id="modal-metodos-pre" class="modal u-5790ffba">
+    <div class="modal-conteudo u-672a0f7b">
       <h2 class="modal-titulo">Escolher forma de pagamento</h2>
       
-      <div style="background: #F8F9FC; border: 2px solid #000; padding: var(--espaco-2) var(--espaco-3); margin-bottom: var(--espaco-3); display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.9rem;">Total: <strong id="f3-total-valor">R$ 0,00</strong></span>
-        <span style="font-size: 0.95rem;">Falta pagar: <strong id="f3-falta-valor" style="color: var(--vermelho, #C81E16);">R$ 0,00</strong></span>
+      <div class="u-255fef9d">
+        <span class="u-5c908598">Total: <strong id="f3-total-valor">R$ 0,00</strong></span>
+        <span class="u-000a3510">Falta pagar: <strong class="u-d5983b5b" id="f3-falta-valor">R$ 0,00</strong></span>
       </div>
 
-      <p id="f3-instrucao" style="font-size: 0.88rem; margin-bottom: var(--espaco-3); font-weight: bold;">
+      <p class="u-ab1bce40" id="f3-instrucao">
         Selecione no teclado [F1 a F6] ou clique na forma desejada:
       </p>
 
       <!-- Grade gerada pelo payment-icons.js (ícones SVG + badge de tecla) -->
       <div id="grade-metodos-pre" class="grade-pagamentos-icones" aria-label="Formas de pagamento"></div>
 
-      <button id="btn-fecha-metodo-pre" type="button" class="botao" style="width: 100%; margin-top: var(--espaco-3);">Voltar à venda (Esc)</button>
+      <button id="btn-fecha-metodo-pre" type="button" class="botao u-e4d0cd6b">Voltar à venda (Esc)</button>
     </div>
   </div>
 
   <!-- MODAL: F4 - Cancelar Item Específico -->
-  <div id="modal-cancelar-item" class="modal" style="display:none;">
+  <div id="modal-cancelar-item" class="modal u-5790ffba">
     <div class="modal-conteudo">
       <h2 class="modal-titulo">Cancelar Item da Compra</h2>
-      <p style="font-size: 0.9rem; margin-bottom: var(--espaco-3);">Informe o número do item (#) na lista para estornar:</p>
+      <p class="u-dd0fd264">Informe o número do item (#) na lista para estornar:</p>
       
       <form id="form-cancelar-item">
-        <div style="margin-bottom: var(--espaco-3);">
-          <label style="font-size:0.85rem; font-weight:bold;">Número do Item (# na fita)</label>
-          <input id="canc-item-num" class="busca-campo" type="number" min="1" required style="width: 100%;" autofocus />
+        <div class="u-003d41e5">
+          <label class="u-e20a18a5">Número do Item (# na fita)</label>
+          <input id="canc-item-num" class="busca-campo u-16000cc0" type="number" min="1" required autofocus />
         </div>
-        <div id="canc-item-qtd-box" style="margin-bottom: var(--espaco-3);">
-          <label style="font-size:0.85rem; font-weight:bold;">Quantidade a Cancelar</label>
-          <input id="canc-item-qtd" class="busca-campo" type="number" min="1" value="1" required style="width: 100%;" />
+        <div class="u-003d41e5" id="canc-item-qtd-box">
+          <label class="u-e20a18a5">Quantidade a Cancelar</label>
+          <input id="canc-item-qtd" class="busca-campo u-16000cc0" type="number" min="1" value="1" required />
         </div>
-        <div style="display: flex; gap: var(--espaco-2);">
-          <button type="submit" class="botao danger" style="flex: 1;">Confirmar Cancelamento (Enter)</button>
-          <button type="button" class="botao" style="flex: 1;" data-acao="fechar-modais">Voltar (Esc)</button>
+        <div class="u-4a76da36">
+          <button type="submit" class="botao danger u-634a28be">Confirmar Cancelamento (Enter)</button>
+          <button type="button" class="botao u-634a28be" data-acao="fechar-modais">Voltar (Esc)</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- MODAL: F5 - Cancelar Compra Inteira com Autorização -->
-  <div id="modal-cancelar-compra" class="modal" style="display:none;">
+  <div id="modal-cancelar-compra" class="modal u-5790ffba">
     <div class="modal-conteudo">
-      <h2 class="modal-titulo" style="color: var(--vermelho, #C81E16);">Cancelar Compra Inteira</h2>
-      <p style="font-size: 0.9rem; margin-bottom: var(--espaco-3);">
+      <h2 class="modal-titulo u-d5983b5b">Cancelar Compra Inteira</h2>
+      <p class="u-dd0fd264">
         Digite o <strong>usuário e senha</strong> para autorizar o cancelamento.<br>
-        <span style="font-size: 0.8rem; color: #666;">* Dono e Gerente cancelam em qualquer caixa. Operador só cancela no seu próprio caixa.</span>
+        <span class="u-4b69c1a7">* Dono e Gerente cancelam em qualquer caixa. Operador só cancela no seu próprio caixa.</span>
       </p>
       
       <form id="form-canc-compra-auth">
-        <div style="margin-bottom: var(--espaco-3);">
-          <label style="font-size:0.85rem; font-weight:bold;">Usuário Autorizador</label>
-          <input id="canc-auth-user" class="busca-campo" type="text" autocomplete="off" required style="width: 100%;" autofocus />
+        <div class="u-003d41e5">
+          <label class="u-e20a18a5">Usuário Autorizador</label>
+          <input id="canc-auth-user" class="busca-campo u-16000cc0" type="text" autocomplete="off" required autofocus />
         </div>
-        <div style="margin-bottom: var(--espaco-4);">
-          <label style="font-size:0.85rem; font-weight:bold;">Senha</label>
-          <input id="canc-auth-senha" class="busca-campo" type="password" autocomplete="off" required style="width: 100%;" />
+        <div class="u-e64e54d0">
+          <label class="u-e20a18a5">Senha</label>
+          <input id="canc-auth-senha" class="busca-campo u-16000cc0" type="password" autocomplete="off" required />
         </div>
-        <div style="display: flex; gap: var(--espaco-2);">
-          <button type="submit" class="botao danger" style="flex: 1;">Autorizar e Cancelar Venda</button>
-          <button type="button" class="botao" style="flex: 1;" data-acao="fechar-modais">Voltar (Esc)</button>
+        <div class="u-4a76da36">
+          <button type="submit" class="botao danger u-634a28be">Autorizar e Cancelar Venda</button>
+          <button type="button" class="botao u-634a28be" data-acao="fechar-modais">Voltar (Esc)</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- MODAL: Confirmar Saída / Descarte de Itens (Sem confirm() bloqueante) -->
-  <div id="modal-confirmar-sair" class="modal" style="display:none;">
-    <div class="modal-conteudo" style="max-width: 480px; text-align: center;">
-      <h2 class="modal-titulo" style="color: var(--vermelho, #C81E16);">Descartar Venda Atual?</h2>
-      <p style="font-size: 0.95rem; margin-bottom: var(--espaco-4); line-height: 1.4;">
+  <div id="modal-confirmar-sair" class="modal u-5790ffba">
+    <div class="modal-conteudo u-818639f3">
+      <h2 class="modal-titulo u-d5983b5b">Descartar Venda Atual?</h2>
+      <p class="u-5b3bb2c9">
         Há itens adicionados à venda atual. Se você sair agora, todos os itens serão cancelados e descartados.
       </p>
-      <div style="display: flex; gap: var(--espaco-2);">
-        <button id="btn-confirmar-descarte-sair" type="button" class="botao danger" style="flex: 1; height: 46px;">Sim, Descartar e Sair</button>
-        <button type="button" class="botao" style="flex: 1; height: 46px;" data-acao="fechar-modais">Não, Continuar Venda (Esc)</button>
+      <div class="u-4a76da36">
+        <button id="btn-confirmar-descarte-sair" type="button" class="botao danger u-e39887f2">Sim, Descartar e Sair</button>
+        <button type="button" class="botao u-e39887f2" data-acao="fechar-modais">Não, Continuar Venda (Esc)</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL: F1 - Tela de Pagamento Direta e Descomplicada -->
-  <div id="modal-pagamento-final" class="modal" style="display:none;">
+  <div id="modal-pagamento-final" class="modal u-5790ffba">
     <div class="modal-conteudo modal-pagamento-conteudo">
       <h2 class="modal-titulo">Pagamento</h2>
       
@@ -214,11 +215,11 @@
           <span class="pg-resumo-rotulo">Total da venda</span>
           <div id="pg-total-devido" class="pg-resumo-valor">R$ 0,00</div>
         </div>
-        <div id="box-ja-pago-wrapper" style="display: none; text-align: center;">
+        <div class="u-be2bc359" id="box-ja-pago-wrapper">
           <span class="pg-resumo-rotulo">Já pago</span>
-          <div id="pg-ja-pago-valor" class="pg-resumo-valor" style="color: #047857;">R$ 0,00</div>
+          <div id="pg-ja-pago-valor" class="pg-resumo-valor u-868f5c54">R$ 0,00</div>
         </div>
-        <div style="text-align: right;">
+        <div class="u-30489cbd">
           <span class="pg-resumo-rotulo">Falta pagar</span>
           <div id="pg-restante-valor" class="pg-resumo-valor">R$ 0,00</div>
         </div>
@@ -236,8 +237,8 @@
               <strong id="pg-forma-nome" class="pg-forma-nome">DINHEIRO</strong>
             </div>
           </div>
-          <button id="btn-pg-mudar-forma" type="button" class="botao" style="font-size: 0.85rem; padding: 4px 12px; height: 38px;">
-            <span class="tecla-atalho" style="background: #0040D8; color: #FFF; margin-right: 4px;">F3</span> Mudar forma
+          <button id="btn-pg-mudar-forma" type="button" class="botao u-6119779a">
+            <span class="tecla-atalho u-a8156980">F3</span> Mudar forma
           </button>
         </div>
 
@@ -250,14 +251,14 @@
         <!-- Campo 'Quando será debitado' (específico por forma) -->
         <div id="pg-box-prazo" class="pg-prazo-card">
           <!-- Débito: À vista -->
-          <div id="pg-prazo-debito" style="display: none; font-size: 0.95rem; font-weight: bold; color: #111;">
+          <div class="u-30795669" id="pg-prazo-debito">
             Cobrança: À vista (Débito em conta)
           </div>
 
           <!-- Crédito: Parcelas com preview e aviso -->
-          <div id="pg-prazo-credito" style="display: none;">
+          <div class="u-5790ffba" id="pg-prazo-credito">
             <div class="pg-parcelas-linha">
-              <label for="pg-input-parcelas" style="font-weight: 800; font-size: 0.95rem; text-transform: uppercase;">Parcelas:</label>
+              <label class="u-9b2e5565" for="pg-input-parcelas">Parcelas:</label>
               <input id="pg-input-parcelas" class="pg-parcelas-input" type="number" min="1" max="12" value="1" />
               <div id="pg-parcelas-preview" class="pg-parcelas-preview">1x de R$ 0,00 (à vista)</div>
             </div>
@@ -267,54 +268,54 @@
           </div>
 
           <!-- Pix: Aviso app bancário -->
-          <div id="pg-prazo-pix" style="display: none; font-size: 0.9rem; color: #047857; font-weight: bold;">
+          <div class="u-b9f92e66" id="pg-prazo-pix">
             ✓ Confira a notificação de confirmação no aplicativo do banco antes de liberar a venda.
           </div>
 
           <!-- Crediário: Cliente e Vencimento -->
-          <div id="pg-prazo-crediario" style="display: none; font-size: 0.88rem;">
-            <div id="pg-crediario-cliente-info" style="font-weight: bold; margin-bottom: 2px;">Cliente: Identificado</div>
-            <div style="color: #666;">Prazo da loja: 30 dias para quitação.</div>
+          <div class="u-50c808dc" id="pg-prazo-crediario">
+            <div class="u-67dff998" id="pg-crediario-cliente-info">Cliente: Identificado</div>
+            <div class="u-0ce45ac7" id="pg-crediario-prazo">Prazo da loja: 30 dias para quitação.</div>
           </div>
 
           <!-- Dinheiro: Rótulo informativo -->
-          <div id="pg-prazo-dinheiro" style="display: none; font-size: 0.85rem; color: #333; font-weight: 600;">
+          <div class="u-f1885411" id="pg-prazo-dinheiro">
             Recebimento em dinheiro físico na gaveta do caixa.
           </div>
         </div>
 
         <!-- Troco se Dinheiro Excedente -->
-        <div id="pg-troco-box" style="display:none; background: #D1FAE5; border: 3px solid #065F46; padding: var(--espaco-2) var(--espaco-3); margin-bottom: var(--espaco-3); text-align: center;">
-          <span style="font-size: 0.85rem; text-transform: uppercase; font-weight: bold; color: #065F46;">Troco a devolver</span>
-          <div id="pg-troco-valor" style="font-size: 2rem; font-weight: 900; color: #065F46;">R$ 0,00</div>
+        <div class="u-9dc630f4" id="pg-troco-box">
+          <span class="u-683b66bb">Troco a devolver</span>
+          <div class="u-75aa03ba" id="pg-troco-valor">R$ 0,00</div>
         </div>
 
         <!-- Lista de Pagamentos já Lançados nesta Venda -->
-        <div id="pg-box-pagamentos-fita" style="display: none; margin-bottom: var(--espaco-3);">
-          <span style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; color: #555; display: block; margin-bottom: 4px;">Pagamentos já registrados nesta venda:</span>
-          <div id="pg-lancamentos-lista" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;"></div>
+        <div class="u-2f3efcfb" id="pg-box-pagamentos-fita">
+          <span class="u-52e71175">Pagamentos já registrados nesta venda:</span>
+          <div class="u-0fa726e8" id="pg-lancamentos-lista"></div>
         </div>
 
         <!-- Botões de Ação -->
-        <div style="display: flex; gap: var(--espaco-2);">
-          <button id="btn-concluir-pg" type="submit" class="btn-finalizar" style="flex: 1.5; height: 50px; font-size: 1.05rem;">Finalizar venda (Enter)</button>
-          <button id="btn-pg-voltar" type="button" class="botao" style="flex: 0.7; height: 50px;">Voltar (Esc)</button>
+        <div class="u-4a76da36">
+          <button id="btn-concluir-pg" type="submit" class="btn-finalizar u-77997122">Finalizar venda (Enter)</button>
+          <button id="btn-pg-voltar" type="button" class="botao u-2a39aa3f">Voltar (Esc)</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- MODAL: Venda Finalizada com Sucesso -->
-  <div id="modal-concluida" class="modal" style="display:none;">
-    <div class="modal-conteudo" style="text-align: center; max-width: 480px;">
-      <h2 class="modal-titulo" style="color: var(--azul-600, #0040D8);">Venda Finalizada!</h2>
-      <div id="box-troco-final" style="background: var(--papel); padding: var(--espaco-4); border: 2px solid var(--preto); margin-bottom: var(--espaco-4); display: none;">
-        <div style="font-size: 0.9rem; text-transform: uppercase; font-weight: 700;">Troco a Devolver</div>
-        <div id="concluida-troco-valor" style="font-size: 2.5rem; font-weight: 900; color: var(--preto);">R$ 0,00</div>
+  <div id="modal-concluida" class="modal u-5790ffba">
+    <div class="modal-conteudo u-456b4bc9">
+      <h2 class="modal-titulo u-f91507c9">Venda Finalizada!</h2>
+      <div class="u-da632718" id="box-troco-final">
+        <div class="u-21b21ca2">Troco a Devolver</div>
+        <div class="u-a6852471" id="concluida-troco-valor">R$ 0,00</div>
       </div>
-      <div style="display: flex; flex-direction: column; gap: var(--espaco-2);">
-        <button id="btn-imprimir-cupom" class="btn-finalizar" style="height: 50px; font-size: 1.1rem;">Imprimir Cupom Térmico (Enter)</button>
-        <button id="btn-retornar-pdv" class="botao" style="height: 50px;">Voltar ao Menu PDV (Esc)</button>
+      <div class="u-d5611f7f">
+        <button id="btn-imprimir-cupom" class="btn-finalizar u-eb047495">Imprimir Cupom Térmico (Enter)</button>
+        <button id="btn-retornar-pdv" class="botao u-9a88def6">Voltar ao Menu PDV (Esc)</button>
       </div>
     </div>
   </div>

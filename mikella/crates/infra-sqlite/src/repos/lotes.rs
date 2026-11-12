@@ -15,6 +15,7 @@ use super::{
     sql, ParaDominio,
 };
 use crate::error::InfraResult;
+use crate::tempo::{data_local_iso, data_local_mais_dias};
 
 pub struct LoteRepo<'a> {
     conn: &'a Connection,
@@ -108,15 +109,18 @@ impl LoteRepository for LoteRepo<'_> {
     }
 
     fn lotes_proximos_vencimento(&self, dias: u32) -> DomainResult<Vec<Lote>> {
+        let fuso = crate::repos::sistema::DiagnosticoRepo::novo(self.conn).fuso_horario();
+        let hoje = data_local_iso(&fuso);
+        let limite = data_local_mais_dias(&fuso, i64::from(dias));
         self.listar(
             "SELECT id, produto_id, numero_lote, validade, custo_centavos, ativo, created_at
              FROM lotes
              WHERE ativo = 1
                AND validade IS NOT NULL
-               AND validade <= date('now','localtime', ?1)
-               AND validade >= date('now','localtime')
+               AND validade <= ?2
+               AND validade >= ?1
              ORDER BY validade ASC",
-            &[&format!("+{dias} days")],
+            &[&hoje, &limite],
         )
     }
 

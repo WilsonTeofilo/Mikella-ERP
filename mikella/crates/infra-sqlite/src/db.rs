@@ -113,12 +113,16 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn abre_em_memoria_com_integridade() {
         let db = Database::em_memoria().unwrap();
         db.verificar_integridade().unwrap();
-        assert_eq!(db.versao_schema().unwrap(), "0010_pagamentos_e_loja_config");
+        assert_eq!(
+            db.versao_schema().unwrap(),
+            crate::migrate::versao_mais_recente()
+        );
     }
 
     #[test]
@@ -178,6 +182,98 @@ mod tests {
         assert_eq!(total, 1);
 
         drop(db);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn modo_wal_com_synchronous_full_esta_ativo() {
+        let dir = std::env::temp_dir().join(format!("mikella-teste-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let caminho = dir.join("loja.db");
+        let db = Database::abrir(&caminho).unwrap();
+
+        let journal: String = db
+            .conn()
+            .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+            .unwrap();
+        let sync: i64 = db
+            .conn()
+            .query_row("PRAGMA synchronous", [], |r| r.get(0))
+            .unwrap();
+
+        assert_eq!(journal.to_ascii_lowercase(), "wal");
+        // 2 = FULL: o commit só retorna depois de gravar no disco.
+        assert_eq!(sync, 2);
+
+        drop(db);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn imagem_de_queda_descarta_transacao_nao_commitada() {
+        // Simula o estado dos arquivos no instante de uma queda de energia:
+        // uma transação commited (u1) e outra em andamento (u2) convivem no
+        // WAL. Ao reabrir, o SQLite precisa manter u1 e descartar u2.
+        let dir = std::env::temp_dir().join(format!("mikella-teste-{}", uuid::Uuid::new_v4()));
+        let origens = dir.join("origem");
+        let snapshot = dir.join("snapshot");
+        std::fs::create_dir_all(&origens).unwrap();
+        std::fs::create_dir_all(&snapshot).unwrap();
+
+        let caminho = origens.join("loja.db");
+        let db = Database::abrir(&caminho).unwrap();
+        db.conn()
+            .execute(
+                "INSERT INTO usuarios (id, nome, username, senha_hash, papel)
+                 VALUES ('u1', 'Commitado', 'u1', 'hash', 'DONO')",
+                [],
+            )
+            .unwrap();
+
+        {
+            let conn = rusqlite::Connection::open(&caminho).unwrap();
+            conn.pragma_update(None, "journal_mode", "WAL").unwrap();
+            conn.pragma_update(None, "synchronous", "FULL").unwrap();
+            conn.execute("BEGIN IMMEDIATE", []).unwrap();
+            conn.execute(
+                "INSERT INTO usuarios (id, nome, username, senha_hash, papel)
+                 VALUES ('u2', 'NaoCommitado', 'u2', 'hash', 'DONO')",
+                [],
+            )
+            .unwrap();
+
+            // Copia o "disco" sem passar pelo fechamento limpo da conexão.
+            // O `-shm` é descartável; o SQLite o reconstrói na abertura.
+            for sufixo in ["", "-wal"] {
+                let de = PathBuf::from(format!("{}{sufixo}", caminho.display()));
+                if de.exists() {
+                    std::fs::copy(&de, snapshot.join(format!("loja.db{sufixo}"))).unwrap();
+                }
+            }
+
+            // Deixa a transação aberta de propósito; o snapshot acima é o que
+            // um desligamento abrupto teria deixado no disco.
+            conn.execute("ROLLBACK", []).unwrap();
+        }
+        drop(db);
+
+        let recuperado = Database::abrir(snapshot.join("loja.db")).unwrap();
+        let total: i64 = recuperado
+            .conn()
+            .query_row("SELECT COUNT(*) FROM usuarios", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(total, 1, "só a transação commitada sobrevive à queda");
+
+        let existe_u1: i64 = recuperado
+            .conn()
+            .query_row("SELECT COUNT(*) FROM usuarios WHERE id = 'u1'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(existe_u1, 1);
+        recuperado.verificar_integridade().unwrap();
+
+        drop(recuperado);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

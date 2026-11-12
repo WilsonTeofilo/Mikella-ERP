@@ -16,6 +16,8 @@
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../features/navigation/main-menu.css" />
+  <link rel="stylesheet" href="../shared/ui/forms.css" />
+  <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body>
   <div class="p3-faixa-sombra"></div>
@@ -60,7 +62,7 @@
   <div id="toast"></div>
 
   <!-- Modal Genérico de Confirmação de Ação (Backup / Diagnóstico) -->
-  <div id="modal-acao" class="modal-dialogo" style="display: none;">
+  <div id="modal-acao" class="modal-dialogo u-5790ffba">
     <div class="modal-box">
       <h2 id="modal-titulo">CONFIRMAÇÃO</h2>
       <p id="modal-descricao">Deseja executar esta ação?</p>
@@ -69,6 +71,26 @@
         <button id="modal-btn-cancelar" class="modal-btn modal-btn-cancel">VOLTAR (ESC)</button>
       </div>
     </div>
+  </div>
+
+  <!-- Modal de Configuração de Pagamento (parcelas e crediário) -->
+  <div id="modal-config" class="modal-dialogo u-5790ffba">
+    <form id="form-config-pagamento" class="modal-box">
+      <h2>CONFIGURAÇÕES DA LOJA</h2>
+      <p>Limites aplicados ao PDV. Toda venda é revalidada pelo servidor.</p>
+      <div class="campo-grupo">
+        <label for="cfg-max-parcelas">Máximo de parcelas no cartão</label>
+        <input id="cfg-max-parcelas" class="campo" type="number" min="1" step="1" required />
+      </div>
+      <div class="campo-grupo">
+        <label for="cfg-prazo-crediario">Prazo do crediário (dias)</label>
+        <input id="cfg-prazo-crediario" class="campo" type="number" min="1" step="1" required />
+      </div>
+      <div class="modal-botoes">
+        <button type="submit" class="modal-btn modal-btn-confirm">SALVAR</button>
+        <button type="button" id="modal-config-cancelar" class="modal-btn modal-btn-cancel">VOLTAR (ESC)</button>
+      </div>
+    </form>
   </div>
 
 <script type="module" src="../features/navigation/main-menu.js"></script>

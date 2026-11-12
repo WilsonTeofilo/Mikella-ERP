@@ -71,9 +71,7 @@ function renderTabela(lista) {
     tdAcoes.className = "direita";
     const btnArquivar = document.createElement("button");
     btnArquivar.type = "button";
-    btnArquivar.className = "botao";
-    btnArquivar.style.cssText =
-      "min-height:36px; min-width:64px; padding:var(--espaco-1) var(--espaco-2);";
+    btnArquivar.className = "botao botao-acao-tabela";
     btnArquivar.textContent = "Arquivar";
     btnArquivar.addEventListener("click", () => arquivarProduto(p.id));
     tdAcoes.appendChild(btnArquivar);
@@ -133,7 +131,7 @@ function atualizarMargem() {
 
   if (preco <= 0) {
     lblMargem.textContent = "Margem: --";
-    lblMargem.style.color = "#0040D8";
+    lblMargem.style.color = "var(--azul-600)";
     return;
   }
 
@@ -143,10 +141,10 @@ function atualizarMargem() {
 
   if (lucro >= 0) {
     lblMargem.textContent = `Margem: +${percMargem}% (Lucro: ${lucroFmt})`;
-    lblMargem.style.color = "#047857";
+    lblMargem.style.color = "var(--verde)";
   } else {
     lblMargem.textContent = `Margem: ${percMargem}% (Prejuízo: ${lucroFmt})`;
-    lblMargem.style.color = "#DC2626";
+    lblMargem.style.color = "var(--vermelho)";
   }
 }
 

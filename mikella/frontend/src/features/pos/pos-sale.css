@@ -84,7 +84,6 @@
   font-size: var(--tamanho-auxiliar);
   font-weight: var(--peso-subtitulo);
   color: var(--cinza-500);
-  text-transform: uppercase;
 }
 .busca-campo {
   height: 48px;
@@ -120,7 +119,6 @@
   font-size: var(--tamanho-auxiliar);
   font-weight: var(--peso-subtitulo);
   color: var(--cinza-500);
-  text-transform: uppercase;
 }
 .fita-tabela td {
   border-bottom: 1px solid var(--linha, #c9ccd8);
@@ -217,7 +215,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--espaco-2);
-  box-shadow: 4px 4px 0px var(--amarelo, #ffd21f);
+  box-shadow: 4px 4px 0px #000000;
   transition: background 0.1s ease;
 }
 .btn-finalizar:hover {
@@ -304,7 +302,6 @@
   cursor: pointer;
   text-decoration: none;
   box-shadow: 3px 3px 0px #000000;
-  text-transform: uppercase;
 }
 .botao:hover {
   background: #eeeeee;
@@ -328,7 +325,9 @@
 .toast {
   position: fixed;
   bottom: var(--espaco-6);
-  right: var(--espaco-6);
+  left: var(--espaco-6);
+  right: auto;
+  max-width: min(420px, calc(100vw - var(--espaco-6) * 2));
   background: var(--preto);
   color: var(--branco);
   padding: var(--espaco-3) var(--espaco-5);
@@ -337,6 +336,7 @@
   border: 3px solid var(--branco);
   display: none;
   z-index: 300;
+  pointer-events: none;
   box-shadow: 4px 4px 0px #000000;
 }
 .toast.visivel {
@@ -440,7 +440,6 @@
 
 .pg-resumo-rotulo {
   font-size: 0.75rem;
-  text-transform: uppercase;
   font-weight: 800;
   color: #555555;
   display: block;
@@ -497,7 +496,6 @@
   font-family: var(--fonte-display);
   font-weight: 900;
   font-size: 0.95rem;
-  text-transform: uppercase;
   color: #000000;
 }
 
@@ -564,4 +562,17 @@
   font-size: 0.8rem;
   color: #555555;
   font-weight: 600;
+}
+
+.pg-botao-remover {
+  padding: 0 8px;
+  min-height: 24px;
+  font-size: 0.72rem;
+  margin-left: 6px;
+}
+
+.pg-botao-remover-lista {
+  padding: 2px 6px;
+  font-size: 0.78rem;
+  min-height: 24px;
 }

@@ -102,6 +102,24 @@ pub fn aplicar(conn: &mut Connection) -> InfraResult<()> {
         match aplicado {
             Some(checksum_aplicado) => {
                 if checksum_aplicado != checksum_atual {
+                    // O arquivo é embutido com `include_str!`, então os bytes
+                    // dependem do checkout: no Windows com `core.autocrlf=true`
+                    // o mesmo SQL chega com CRLF; em CI/Linux, com LF. Se o
+                    // banco foi criado no outro formato, o conteúdo é idêntico
+                    // e o hash antigo só difere por `\r`. Aceita, mas regrava o
+                    // checksum canônico para que a próxima abertura não passe
+                    // pelo caminho de compatibilidade.
+                    if checksum_aplicado == checksum_legado(migracao.sql) {
+                        tracing::warn!(
+                            versao = migracao.versao,
+                            "checksum difere apenas no fim de linha; adotando o checksum canônico"
+                        );
+                        conn.execute(
+                            "UPDATE schema_migrations SET checksum = ?1 WHERE versao = ?2",
+                            params![checksum_atual, migracao.versao],
+                        )?;
+                        continue;
+                    }
                     // DAT-001: a 0004 antiga apagava as tabelas financeiras.
                     // Bancos que já a aplicaram têm exatamente o schema novo
                     // (planos_conta + parcelas.conta_tipo). Nesse caso o
@@ -147,7 +165,19 @@ pub fn aplicar(conn: &mut Connection) -> InfraResult<()> {
 }
 
 fn checksum(sql: &str) -> String {
-    blake3::hash(sql.as_bytes()).to_hex().to_string()
+    blake3::hash(sql.replace("\r\n", "\n").as_bytes())
+        .to_hex()
+        .to_string()
+}
+
+/// Hash que um banco criado por um checkout CRLF teria gravado.
+///
+/// Usa a versão CRLF do mesmo SQL: como o checksum canônico normaliza para LF,
+/// comparar com os bytes crus do build atual nunca reconheceria o outro
+/// formato de checkout. Nunca é gravado em `schema_migrations`.
+fn checksum_legado(sql: &str) -> String {
+    let crlf = sql.replace("\r\n", "\n").replace('\n', "\r\n");
+    blake3::hash(crlf.as_bytes()).to_hex().to_string()
 }
 
 /// Reconhece o schema financeiro unificado criado pela 0004.
@@ -199,6 +229,39 @@ mod tests {
         // Deriva de MIGRACOES: adicionar uma migração não deve exigir editar o
         // teste, mas também não deve deixar a contagem silenciosamente errada.
         assert_eq!(total as usize, MIGRACOES.len());
+    }
+
+    #[test]
+    fn checksum_aceita_banco_criado_com_outro_fim_de_linha() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        aplicar(&mut conn).unwrap();
+
+        // Simula um banco criado por um checkout CRLF: o checksum gravado é o
+        // dos bytes crus (`\r\n`), enquanto este build grava o canônico (LF).
+        for migracao in MIGRACOES {
+            let crlf = migracao.sql.replace("\r\n", "\n").replace('\n', "\r\n");
+            conn.execute(
+                "UPDATE schema_migrations SET checksum = ?1 WHERE versao = ?2",
+                params![checksum_legado(&crlf), migracao.versao],
+            )
+            .unwrap();
+        }
+
+        aplicar(&mut conn).expect("fim de linha diferente não pode impedir o boot");
+
+        let gravado: String = conn
+            .query_row(
+                "SELECT checksum FROM schema_migrations WHERE versao = '0005_pessoas_endereco_doc'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let esperado = MIGRACOES
+            .iter()
+            .find(|m| m.versao == "0005_pessoas_endereco_doc")
+            .map(|m| checksum(m.sql))
+            .unwrap();
+        assert_eq!(gravado, esperado, "checksum canônico deve ser regravado");
     }
 
     #[test]

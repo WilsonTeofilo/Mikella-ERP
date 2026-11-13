@@ -130,6 +130,18 @@ export function aplicarMascaraCEP(input, onCompleto) {
 }
 
 /**
+ * Normaliza texto para busca: minúsculas, sem acentos e sem espaços nas pontas.
+ * Use apenas em comparações; nunca para exibir valor ao operador.
+ */
+export function normalizarBusca(texto) {
+  return String(texto ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+/**
  * Valida CPF brasileiro com verificação de dígitos verificadores (módulo 11)
  * e rejeição estrita de sequências repetidas (FRM-024, CLI-001).
  */

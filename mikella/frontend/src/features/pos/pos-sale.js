@@ -5,17 +5,20 @@ import {
   parsearCentavos,
   formatarCPF,
   formatarTelefone,
+  normalizarBusca,
 } from "../../shared/ui/formatadores.js";
 import {
   obterIconePagamento,
   montarGradePagamentos,
 } from "../../shared/ui/payment-icons.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
+import { inicializarConsultaPreco } from "./consulta-preco.js";
 
 inicializarControlesJanela();
 garantirSessao();
 
 const avisar = mostrarToast;
+const consultaPreco = inicializarConsultaPreco();
 
 const urlParams = new URLSearchParams(window.location.search);
 const modoVenda = urlParams.get("modo") || "balcao";
@@ -122,14 +125,6 @@ let indiceSugestaoSelecionada = 0;
 let sugestoesAtuais = [];
 let debounceBuscaTimer = null;
 
-function removerAcentos(txt) {
-  return (txt || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
 function fecharSugestoesProdutos() {
   if (sugestoesBox) {
     sugestoesBox.style.display = "none";
@@ -235,7 +230,7 @@ produtoInput.addEventListener("input", () => {
   clearTimeout(debounceBuscaTimer);
   debounceBuscaTimer = setTimeout(() => {
     const termoOriginal = produtoInput.value.trim();
-    const termoNorm = removerAcentos(termoOriginal);
+    const termoNorm = normalizarBusca(termoOriginal);
 
     if (termoNorm.length < 2) {
       fecharSugestoesProdutos();
@@ -256,7 +251,7 @@ produtoInput.addEventListener("input", () => {
       // BUS-011: Busca por qualquer palavra do nome (ex: "cola 2l" acha "Coca-Cola 2L")
       const palavras = termoNorm.split(/\s+/).filter((w) => w.length > 0);
       filtrados = PRODUTOS_CACHE.filter((p) => {
-        const nomeNorm = removerAcentos(p.nome);
+        const nomeNorm = normalizarBusca(p.nome);
         return palavras.every((w) => nomeNorm.includes(w));
       });
     }
@@ -316,7 +311,7 @@ function biparProduto() {
   const termo = produtoInput.value.trim();
   if (!termo) return;
 
-  const termoNorm = removerAcentos(termo);
+  const termoNorm = normalizarBusca(termo);
 
   // BUS-012: Código de barras exato adiciona direto
   const p =
@@ -324,9 +319,9 @@ function biparProduto() {
       (prod) =>
         (prod.codigo_barras && prod.codigo_barras === termo) ||
         (prod.sku && prod.sku.toLowerCase() === termoNorm) ||
-        removerAcentos(prod.nome) === termoNorm,
+        normalizarBusca(prod.nome) === termoNorm,
     ) ||
-    PRODUTOS_CACHE.find((prod) => removerAcentos(prod.nome).includes(termoNorm));
+    PRODUTOS_CACHE.find((prod) => normalizarBusca(prod.nome).includes(termoNorm));
 
   if (p) {
     adicionarItemVenda(p);
@@ -1211,6 +1206,10 @@ function tentarSairDoCaixa() {
 
 // Teclas de atalho na tela do caixa (F1-F6, Esc, Enter)
 window.addEventListener("keydown", (e) => {
+  // O módulo de consulta captura o próprio Esc; enquanto ele estiver aberto,
+  // F1-F6 não podem agir por baixo do modal.
+  if (consultaPreco.estaAberta()) return;
+
   const modalConcluidaAberta =
     document.getElementById("modal-concluida").style.display === "flex";
   if (modalConcluidaAberta) {
@@ -1319,6 +1318,9 @@ window.addEventListener("keydown", (e) => {
   } else if (e.key === "F5") {
     e.preventDefault();
     abrirModalCancelarCompra();
+  } else if (e.key === "F6") {
+    e.preventDefault();
+    consultaPreco.abrir(produtoInput.value);
   }
 });
 
@@ -1329,6 +1331,8 @@ document.getElementById("btn-atalho-f2").onclick = abrirModalCliente;
 document.getElementById("btn-atalho-f3").onclick = abrirModalMetodoPre;
 document.getElementById("btn-atalho-f4").onclick = abrirModalCancelarItem;
 document.getElementById("btn-atalho-f5").onclick = abrirModalCancelarCompra;
+document.getElementById("btn-atalho-f6").onclick = () =>
+  consultaPreco.abrir(produtoInput.value);
 
 const btnConfirmarDescarte = document.getElementById("btn-confirmar-descarte-sair");
 if (btnConfirmarDescarte) {

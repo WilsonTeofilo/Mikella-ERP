@@ -60,6 +60,7 @@
 | **Confirmação de Logout no ESC (Menu Principal)** | ✅ Funciona | Teclar ESC no menu principal abre modal de confirmação [Enter confirma / Esc cancela], prevenindo logout acidental |
 | **Abertura & Fechamento de Caixa** | ✅ Funciona | Status consultado em `/v1/caixa/status`. Fechamento cego nativo, conferência física e bobina com linha de assinatura |
 | **Venda de Balcão (Direta / Comanda)** | ✅ Funciona | Bipagem de código de barras ou SKU, fita de itens atualizada dinamicamente com cálculo server-side |
+| **Consulta Rápida de Preço (F9 / F6)** | ✅ Funciona | Menu do PDV (F9) e tela de venda (F6) abrem a mesma consulta somente leitura por código de barras, nome ou SKU; mostra preço e estoque sem adicionar item à venda |
 | **Saída Limpa da Venda Vazia (ESC)** | ✅ Funciona | Carrinho vazio sai direto sem pergunta; carrinho com itens pede confirmação; venda com pagamentos parciais bloqueia saída até estorno/conclusão |
 | **Pagamento Múltiplo e Parcelamento Padrão** | ✅ Funciona | Pagamento parcial reabre seleção F3 com saldo restante; parcelamento exibido no padrão comercial brasileiro (`11x de R$ 0,41 sem juros`) sem sobreposição CSS |
 | **Bloqueio de Venda sem Caixa Aberto** | ✅ Funciona | Sistema recusa venda e bloqueia finalização caso o caixa esteja fechado (`UI-002`), exibindo badge dinâmico (`UI-004`) |

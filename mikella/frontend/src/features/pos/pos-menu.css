@@ -219,8 +219,59 @@ body {
   }
 }
 
-/* Tecla / Cartão de Ação do PDV */
-.tecla-card {
+/* F9: consulta rápida de preço, fora do grid F1-F8. */
+.barra-consulta-preco {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-4);
+  padding: var(--espaco-3) var(--espaco-4);
+  background: var(--amarelo, #ffd21f);
+  color: #000000;
+  border: 3px solid #000000;
+  box-shadow: 5px 5px 0 #000000;
+  font-family: var(--fonte-texto);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.06s ease,
+    box-shadow 0.06s ease;
+}
+
+.barra-consulta-preco:hover,
+.barra-consulta-preco:focus {
+  transform: translate(-3px, -3px);
+  box-shadow: 8px 8px 0 #000000;
+  outline: none;
+}
+
+.barra-consulta-preco .badge-tecla {
+  background: #000000;
+  color: var(--amarelo, #ffd21f);
+  border-color: #000000;
+  flex: 0 0 auto;
+}
+
+.barra-consulta-preco-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.barra-consulta-preco-texto strong {
+  font-family: var(--fonte-display);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.barra-consulta-preco-texto small {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #333333;
+}
+
+/* Tecla / Cartão de Ação do PDV */.tecla-card {
   background: #ffffff;
   color: #000000;
   border: 3px solid #000000;

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../features/pos/pos-menu.css" />
+  <link rel="stylesheet" href="../features/pos/consulta-preco.css" />
   <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body data-tema="balcao">
@@ -54,9 +55,9 @@
       <div class="cabecalho-bloco">
         <div>
           <h1 class="titulo-principal">PAINEL OPERACIONAL DO CAIXA</h1>
-          <p class="subtitulo-texto">Selecione no teclado [F1 a F8] ou clique diretamente na operação desejada.</p>
+          <p class="subtitulo-texto">Selecione no teclado [F1 a F9] ou clique diretamente na operação desejada.</p>
         </div>
-        <div class="indicador-atalhos">TECLADO [F1 - F8]</div>
+        <div class="indicador-atalhos">TECLADO [F1 - F9]</div>
       </div>
 
       <!-- Grid 4x2 Ortogonal de Teclas do PDV -->
@@ -151,6 +152,15 @@
         </div>
 
       </div>
+
+      <!-- F9: Consulta rápida de preço (não abre venda) -->
+      <button id="btn-consulta-preco" class="barra-consulta-preco" type="button">
+        <span class="badge-tecla">F9</span>
+        <span class="barra-consulta-preco-texto">
+          <strong>CONSULTAR PREÇO</strong>
+          <small>Bipe o código ou digite nome/SKU sem iniciar uma venda.</small>
+        </span>
+      </button>
 
       <!-- Rodapé do Painel -->
       <div class="painel-rodape">

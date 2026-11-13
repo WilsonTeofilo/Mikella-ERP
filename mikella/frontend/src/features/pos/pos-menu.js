@@ -17,6 +17,7 @@ import {
   validarTelefone,
 } from "../../shared/ui/formatadores.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
+import { inicializarConsultaPreco } from "./consulta-preco.js";
 
 inicializarControlesJanela();
 garantirSessao();
@@ -25,6 +26,7 @@ let usuarioAtual = obterUsuario();
 let sessaoAtual = null;
 
 const avisar = mostrarToast;
+const consultaPreco = inicializarConsultaPreco();
 
 // Inicialização da Tela
 async function inicializar() {
@@ -1316,8 +1318,12 @@ document.querySelectorAll("[data-acao]").forEach((botao) => {
     );
 });
 
-// Teclas de Atalho [F1 a F8] e [ESC]
+// Teclas de Atalho [F1 a F9] e [ESC]
 window.addEventListener("keydown", (e) => {
+  // A consulta de preço captura o próprio Esc; enquanto aberta, F1-F8 não
+  // devem disparar navegação por baixo do modal.
+  if (consultaPreco.estaAberta()) return;
+
   if (document.querySelector(".modal-overlay[style*='display: flex']")) {
     if (e.key === "Escape") {
       // O estorno fica empilhado sobre o histórico: Esc fecha só o topo.
@@ -1365,6 +1371,10 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       acaoF8();
       break;
+    case "F9":
+      e.preventDefault();
+      consultaPreco.abrir();
+      break;
     case "Escape":
       e.preventDefault();
       window.location.href = "main-menu.html";
@@ -1381,6 +1391,7 @@ document.getElementById("card-f5").onclick = acaoF5;
 document.getElementById("card-f6").onclick = acaoF6;
 document.getElementById("card-f7").onclick = acaoF7;
 document.getElementById("card-f8").onclick = acaoF8;
+document.getElementById("btn-consulta-preco").onclick = () => consultaPreco.abrir();
 document.getElementById("btn-esc-voltar").onclick = () =>
   (window.location.href = "main-menu.html");
 

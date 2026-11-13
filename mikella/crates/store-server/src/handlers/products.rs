@@ -224,7 +224,11 @@ pub async fn criar_produto_handler(
                 Some(&ator.id().to_string()),
                 None,
                 None,
-                Some(&format!("nome: {}, preco_centavos: {}", produto.nome, produto.preco_centavos.centavos())),
+                Some(&format!(
+                    "nome: {}, preco_centavos: {}",
+                    produto.nome,
+                    produto.preco_centavos.centavos()
+                )),
             );
 
             if tx.commit().is_err() {
@@ -374,7 +378,11 @@ pub async fn atualizar_produto_handler(
                 Some(&ator.id().to_string()),
                 None,
                 None,
-                Some(&format!("nome: {}, preco_centavos: {}", produto.nome, produto.preco_centavos.centavos())),
+                Some(&format!(
+                    "nome: {}, preco_centavos: {}",
+                    produto.nome,
+                    produto.preco_centavos.centavos()
+                )),
             );
 
             if tx.commit().is_err() {

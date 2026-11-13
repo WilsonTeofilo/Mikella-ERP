@@ -197,10 +197,7 @@ mod tests {
     fn mascaramento_cpf_e_cnpj() {
         assert_eq!(mascarar_documento("52998224725"), "529.***.***-25");
         assert_eq!(mascarar_documento("529.982.247-25"), "529.***.***-25");
-        assert_eq!(
-            mascarar_documento("11222333000181"),
-            "11.***.***/****-81"
-        );
+        assert_eq!(mascarar_documento("11222333000181"), "11.***.***/****-81");
         assert_eq!(mascarar_documento("12345"), "12***45");
         assert_eq!(mascarar_documento("12"), "***");
     }

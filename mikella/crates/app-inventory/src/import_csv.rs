@@ -25,8 +25,8 @@ use mikella_domain_inventory::produto::Unidade;
 use mikella_shared_kernel::ids::ProdutoId;
 use mikella_shared_kernel::money::Money;
 
-use super::produto::{CriarProdutoCmd, ProdutoRepos};
 use super::criar_produto;
+use super::produto::{CriarProdutoCmd, ProdutoRepos};
 
 /// Uma linha CSV mapeada para `CriarProdutoCmd`.
 #[derive(Debug, serde::Deserialize)]
@@ -48,8 +48,16 @@ struct CsvRow {
 /// Resultado de uma linha importada.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ResultadoLinha {
-    Sucesso { indice: usize, nome: String, produto_id: String },
-    Erro { indice: usize, nome: Option<String>, erro: String },
+    Sucesso {
+        indice: usize,
+        nome: String,
+        produto_id: String,
+    },
+    Erro {
+        indice: usize,
+        nome: Option<String>,
+        erro: String,
+    },
 }
 
 /// Resultado do lote completo.
@@ -82,19 +90,31 @@ fn parse_decimal_para_centavos(valor: &str) -> Result<i64, String> {
             // vírgula é última → decimal é vírgula; remove pontos (milhar)
             let sem_milhar = limpo.replace('.', "");
             let parts: Vec<&str> = sem_milhar.split(',').collect();
-            (parts[0].to_string(), parts.get(1).unwrap_or(&"0").to_string())
+            (
+                parts[0].to_string(),
+                parts.get(1).unwrap_or(&"0").to_string(),
+            )
         } else {
             // ponto é última → decimal é ponto; remove vírgulas (milhar)
             let sem_milhar = limpo.replace(',', "");
             let parts: Vec<&str> = sem_milhar.split('.').collect();
-            (parts[0].to_string(), parts.get(1).unwrap_or(&"0").to_string())
+            (
+                parts[0].to_string(),
+                parts.get(1).unwrap_or(&"0").to_string(),
+            )
         }
     } else if limpo.contains(',') {
         let parts: Vec<&str> = limpo.split(',').collect();
-        (parts[0].to_string(), parts.get(1).unwrap_or(&"0").to_string())
+        (
+            parts[0].to_string(),
+            parts.get(1).unwrap_or(&"0").to_string(),
+        )
     } else if limpo.contains('.') {
         let parts: Vec<&str> = limpo.split('.').collect();
-        (parts[0].to_string(), parts.get(1).unwrap_or(&"0").to_string())
+        (
+            parts[0].to_string(),
+            parts.get(1).unwrap_or(&"0").to_string(),
+        )
     } else {
         (limpo, "0".to_string())
     };
@@ -108,21 +128,20 @@ fn parse_decimal_para_centavos(valor: &str) -> Result<i64, String> {
     let centavos_parte: u8 = if centavos_str.is_empty() {
         0
     } else if centavos_str.len() == 1 {
-        centavos_str.parse::<u8>()
-            .map_err(|_| format!("centavos inválidos: {}", valor))? * 10
+        centavos_str
+            .parse::<u8>()
+            .map_err(|_| format!("centavos inválidos: {}", valor))?
+            * 10
     } else if centavos_str.len() == 2 {
         centavos_str
             .parse()
             .map_err(|_| format!("centavos inválidos: {}", valor))?
     } else {
-        return Err(format!(
-            "valor com mais de duas casas decimais: {}",
-            valor
-        ));
+        return Err(format!("valor com mais de duas casas decimais: {}", valor));
     };
 
-    let total = Money::from_reais(reais, centavos_parte)
-        .map_err(|e| format!("valor inválido: {}", e))?;
+    let total =
+        Money::from_reais(reais, centavos_parte).map_err(|e| format!("valor inválido: {}", e))?;
     Ok(total.centavos())
 }
 
@@ -248,14 +267,13 @@ pub fn importar_produtos_csv(
         .from_reader(csv_text.as_bytes());
 
     // Valida header
-    let headers = reader.headers()
+    let headers = reader
+        .headers()
         .map_err(|e| format!("erro ler header CSV: {}", e))?
         .clone();
 
     // Verifica se temos pelo menos 'nome' e 'preco'
-    let header_lower: Vec<String> = headers.iter()
-        .map(|h| h.trim().to_lowercase())
-        .collect();
+    let header_lower: Vec<String> = headers.iter().map(|h| h.trim().to_lowercase()).collect();
 
     if !header_lower.contains(&"nome".to_string()) {
         return Err("coluna 'nome' é obrigatória".to_string());
@@ -280,9 +298,7 @@ pub fn importar_produtos_csv(
 
     for (i, record_result) in reader.into_records().enumerate() {
         if resultado.total >= MAX_LINHAS_CSV {
-            return Err(format!(
-                "CSV excede o limite de {MAX_LINHAS_CSV} linhas"
-            ));
+            return Err(format!("CSV excede o limite de {MAX_LINHAS_CSV} linhas"));
         }
 
         let indice = i + 2; // +2: linha 1 = header, índice começa em 0
@@ -406,7 +422,9 @@ mod tests {
 
     impl MockProdutoRepo {
         fn new() -> Self {
-            Self { produtos: std::sync::Mutex::new(Vec::new()) }
+            Self {
+                produtos: std::sync::Mutex::new(Vec::new()),
+            }
         }
     }
 
@@ -424,23 +442,57 @@ mod tests {
             }
             Ok(())
         }
-        fn buscar_por_id(&self, id: ProdutoId) -> mikella_shared_kernel::error::DomainResult<Option<Produto>> {
-            Ok(self.produtos.lock().unwrap().iter().find(|p| p.id == id).cloned())
+        fn buscar_por_id(
+            &self,
+            id: ProdutoId,
+        ) -> mikella_shared_kernel::error::DomainResult<Option<Produto>> {
+            Ok(self
+                .produtos
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|p| p.id == id)
+                .cloned())
         }
-        fn buscar_por_codigo_barras(&self, cb: &str) -> mikella_shared_kernel::error::DomainResult<Option<Produto>> {
-            Ok(self.produtos.lock().unwrap().iter()
+        fn buscar_por_codigo_barras(
+            &self,
+            cb: &str,
+        ) -> mikella_shared_kernel::error::DomainResult<Option<Produto>> {
+            Ok(self
+                .produtos
+                .lock()
+                .unwrap()
+                .iter()
                 .find(|p| p.codigo_barras.as_deref() == Some(cb))
                 .cloned())
         }
-        fn buscar_por_sku(&self, sku: &str) -> mikella_shared_kernel::error::DomainResult<Option<Produto>> {
-            Ok(self.produtos.lock().unwrap().iter()
+        fn buscar_por_sku(
+            &self,
+            sku: &str,
+        ) -> mikella_shared_kernel::error::DomainResult<Option<Produto>> {
+            Ok(self
+                .produtos
+                .lock()
+                .unwrap()
+                .iter()
                 .find(|p| p.sku.as_deref() == Some(sku))
                 .cloned())
         }
-        fn pesquisar(&self, _query: &str, _params: mikella_shared_kernel::pagination::PageParams) -> mikella_shared_kernel::error::DomainResult<mikella_shared_kernel::pagination::Page<Produto>> {
+        fn pesquisar(
+            &self,
+            _query: &str,
+            _params: mikella_shared_kernel::pagination::PageParams,
+        ) -> mikella_shared_kernel::error::DomainResult<
+            mikella_shared_kernel::pagination::Page<Produto>,
+        > {
             Ok(mikella_shared_kernel::pagination::Page::empty())
         }
-        fn listar_ativos(&self, _params: mikella_shared_kernel::pagination::PageParams) -> mikella_shared_kernel::error::DomainResult<mikella_shared_kernel::pagination::Page<Produto>> {
+        fn listar_ativos(
+            &self,
+            _params: mikella_shared_kernel::pagination::PageParams,
+        ) -> mikella_shared_kernel::error::DomainResult<
+            mikella_shared_kernel::pagination::Page<Produto>,
+        > {
             Ok(mikella_shared_kernel::pagination::Page::empty())
         }
         fn estoque_atual(&self, _id: ProdutoId) -> mikella_shared_kernel::error::DomainResult<i32> {

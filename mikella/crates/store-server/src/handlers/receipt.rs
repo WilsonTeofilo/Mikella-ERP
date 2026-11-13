@@ -9,7 +9,9 @@ use mikella_infra_hardware::{
     ComprovanteEstorno, ComprovanteFechamentoCaixa, ComprovanteVenda, DispositivoLocalPrinter,
     EscPosGerador, ItemComprovante, LarguraPapel, PagamentoComprovante, PrinterPort,
 };
-use mikella_infra_sqlite::{carregar_estorno, carregar_fechamento, carregar_venda, DiagnosticoRepo, ReciboEstorno};
+use mikella_infra_sqlite::{
+    carregar_estorno, carregar_fechamento, carregar_venda, DiagnosticoRepo, ReciboEstorno,
+};
 use mikella_shared_kernel::money::Money;
 
 use crate::exigir;
@@ -173,8 +175,10 @@ pub async fn obter_comprovante(
 
     let texto_58mm = EscPosGerador::gerar_texto_puro(&comprovante, LarguraPapel::Colunas32, &fuso);
     let texto_80mm = EscPosGerador::gerar_texto_puro(&comprovante, LarguraPapel::Colunas48, &fuso);
-    let bytes_58mm = EscPosGerador::gerar_bytes(&comprovante, LarguraPapel::Colunas32, true, false, &fuso);
-    let bytes_80mm = EscPosGerador::gerar_bytes(&comprovante, LarguraPapel::Colunas48, true, false, &fuso);
+    let bytes_58mm =
+        EscPosGerador::gerar_bytes(&comprovante, LarguraPapel::Colunas32, true, false, &fuso);
+    let bytes_80mm =
+        EscPosGerador::gerar_bytes(&comprovante, LarguraPapel::Colunas48, true, false, &fuso);
 
     let hex_58mm: String = bytes_58mm.iter().map(|b| format!("{:02x}", b)).collect();
     let hex_80mm: String = bytes_80mm.iter().map(|b| format!("{:02x}", b)).collect();
@@ -209,7 +213,8 @@ pub async fn imprimir_comprovante(
     let fuso = DiagnosticoRepo::novo(db.conn()).fuso_horario();
     drop(db);
 
-    let raw_bytes = EscPosGerador::gerar_bytes(&comprovante, LarguraPapel::Colunas48, true, false, &fuso);
+    let raw_bytes =
+        EscPosGerador::gerar_bytes(&comprovante, LarguraPapel::Colunas48, true, false, &fuso);
 
     // Imprime via dispositivo padrão
     let impressora = DispositivoLocalPrinter::novo("padrao");

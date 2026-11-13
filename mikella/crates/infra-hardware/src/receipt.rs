@@ -131,7 +131,13 @@ impl EscPosGerador {
     /// Gera o buffer de bytes binários ESC/POS pronto para impressora térmica.
     ///
     /// `fuso` é o nome IANA da loja (`loja_config.fuso_horario`).
-    pub fn gerar_bytes(c: &ComprovanteVenda, largura: LarguraPapel, cortar: bool, abrir_gaveta: bool, fuso: &str) -> Vec<u8> {
+    pub fn gerar_bytes(
+        c: &ComprovanteVenda,
+        largura: LarguraPapel,
+        cortar: bool,
+        abrir_gaveta: bool,
+        fuso: &str,
+    ) -> Vec<u8> {
         let cols = largura.colunas();
         let sep = "-".repeat(cols);
         let mut buf = Vec::with_capacity(1024);
@@ -155,8 +161,16 @@ impl EscPosGerador {
             buf.extend_from_slice(format!("CNPJ/CPF: {}\n", doc).as_bytes());
         }
         buf.extend_from_slice(b"COMPROVANTE DE VENDA\n");
-        buf.extend_from_slice(format!("Data: {}\n", formatar_data_no_fuso(&c.data_hora, fuso, "%d/%m/%Y %H:%M:%S")).as_bytes());
-        buf.extend_from_slice(format!("Venda: {}\n", &c.venda_id[..c.venda_id.len().min(18)]).as_bytes());
+        buf.extend_from_slice(
+            format!(
+                "Data: {}\n",
+                formatar_data_no_fuso(&c.data_hora, fuso, "%d/%m/%Y %H:%M:%S")
+            )
+            .as_bytes(),
+        );
+        buf.extend_from_slice(
+            format!("Venda: {}\n", &c.venda_id[..c.venda_id.len().min(18)]).as_bytes(),
+        );
         buf.extend_from_slice(format!("Operador: {}\n", c.operador_nome).as_bytes());
 
         // Linha divisória
@@ -191,16 +205,23 @@ impl EscPosGerador {
         buf.push(b'\n');
 
         // Totais
-        buf.extend_from_slice(Self::formatar_linha_colunas("Subtotal:", &format!("{}", c.subtotal), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas("Subtotal:", &format!("{}", c.subtotal), cols).as_bytes(),
+        );
         buf.push(b'\n');
 
         if c.desconto.centavos() > 0 {
-            buf.extend_from_slice(Self::formatar_linha_colunas("Desconto:", &format!("-{}", c.desconto), cols).as_bytes());
+            buf.extend_from_slice(
+                Self::formatar_linha_colunas("Desconto:", &format!("-{}", c.desconto), cols)
+                    .as_bytes(),
+            );
             buf.push(b'\n');
         }
 
         buf.extend_from_slice(Self::ESC_BOLD_ON);
-        buf.extend_from_slice(Self::formatar_linha_colunas("TOTAL:", &format!("{}", c.total), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas("TOTAL:", &format!("{}", c.total), cols).as_bytes(),
+        );
         buf.push(b'\n');
         buf.extend_from_slice(Self::ESC_BOLD_OFF);
 
@@ -213,13 +234,17 @@ impl EscPosGerador {
         buf.extend_from_slice(Self::ESC_BOLD_OFF);
 
         for p in &c.pagamentos {
-            buf.extend_from_slice(Self::formatar_linha_colunas(&p.forma, &format!("{}", p.valor), cols).as_bytes());
+            buf.extend_from_slice(
+                Self::formatar_linha_colunas(&p.forma, &format!("{}", p.valor), cols).as_bytes(),
+            );
             buf.push(b'\n');
         }
 
         if let Some(troco) = c.troco {
             if troco.centavos() > 0 {
-                buf.extend_from_slice(Self::formatar_linha_colunas("Troco:", &format!("{}", troco), cols).as_bytes());
+                buf.extend_from_slice(
+                    Self::formatar_linha_colunas("Troco:", &format!("{}", troco), cols).as_bytes(),
+                );
                 buf.push(b'\n');
             }
         }
@@ -257,13 +282,23 @@ impl EscPosGerador {
         }
         out.push_str(&Self::centralizar("COMPROVANTE DE VENDA", cols));
         out.push('\n');
-        out.push_str(&format!("Data: {}\n", formatar_data_no_fuso(&c.data_hora, fuso, "%d/%m/%Y %H:%M:%S")));
-        out.push_str(&format!("Venda: {}\n", &c.venda_id[..c.venda_id.len().min(18)]));
+        out.push_str(&format!(
+            "Data: {}\n",
+            formatar_data_no_fuso(&c.data_hora, fuso, "%d/%m/%Y %H:%M:%S")
+        ));
+        out.push_str(&format!(
+            "Venda: {}\n",
+            &c.venda_id[..c.venda_id.len().min(18)]
+        ));
         out.push_str(&format!("Operador: {}\n", c.operador_nome));
         out.push_str(&sep);
         out.push('\n');
 
-        out.push_str(&Self::formatar_linha_colunas("ITEM / QTD x UN", "SUBTOTAL", cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "ITEM / QTD x UN",
+            "SUBTOTAL",
+            cols,
+        ));
         out.push('\n');
         out.push_str(&sep);
         out.push('\n');
@@ -281,25 +316,45 @@ impl EscPosGerador {
 
         out.push_str(&sep);
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("Subtotal:", &format!("{}", c.subtotal), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "Subtotal:",
+            &format!("{}", c.subtotal),
+            cols,
+        ));
         out.push('\n');
         if c.desconto.centavos() > 0 {
-            out.push_str(&Self::formatar_linha_colunas("Desconto:", &format!("-{}", c.desconto), cols));
+            out.push_str(&Self::formatar_linha_colunas(
+                "Desconto:",
+                &format!("-{}", c.desconto),
+                cols,
+            ));
             out.push('\n');
         }
-        out.push_str(&Self::formatar_linha_colunas("TOTAL:", &format!("{}", c.total), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "TOTAL:",
+            &format!("{}", c.total),
+            cols,
+        ));
         out.push('\n');
         out.push_str(&sep);
         out.push('\n');
 
         out.push_str("FORMA DE PAGAMENTO\n");
         for p in &c.pagamentos {
-            out.push_str(&Self::formatar_linha_colunas(&p.forma, &format!("{}", p.valor), cols));
+            out.push_str(&Self::formatar_linha_colunas(
+                &p.forma,
+                &format!("{}", p.valor),
+                cols,
+            ));
             out.push('\n');
         }
         if let Some(troco) = c.troco {
             if troco.centavos() > 0 {
-                out.push_str(&Self::formatar_linha_colunas("Troco:", &format!("{}", troco), cols));
+                out.push_str(&Self::formatar_linha_colunas(
+                    "Troco:",
+                    &format!("{}", troco),
+                    cols,
+                ));
                 out.push('\n');
             }
         }
@@ -320,7 +375,11 @@ impl EscPosGerador {
     }
 
     /// Texto do comprovante de estorno (pré-visualização e reimpressão).
-    pub fn gerar_texto_estorno(c: &ComprovanteEstorno, largura: LarguraPapel, fuso: &str) -> String {
+    pub fn gerar_texto_estorno(
+        c: &ComprovanteEstorno,
+        largura: LarguraPapel,
+        fuso: &str,
+    ) -> String {
         let cols = largura.colunas();
         let sep = "-".repeat(cols);
         let mut out = String::with_capacity(640);
@@ -348,7 +407,11 @@ impl EscPosGerador {
             cols,
         ));
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("Operador:", &c.operador_nome, cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "Operador:",
+            &c.operador_nome,
+            cols,
+        ));
         out.push('\n');
         out.push_str(&Self::formatar_linha_colunas(
             "Total da venda:",
@@ -391,7 +454,10 @@ impl EscPosGerador {
         out.push_str("Assinatura: ____________________________\n");
         if let Some(hash) = &c.hash_verificacao {
             let hash_curto = &hash[..hash.len().min(16)];
-            out.push_str(&Self::centralizar(&format!("Verificação: {}", hash_curto), cols));
+            out.push_str(&Self::centralizar(
+                &format!("Verificação: {}", hash_curto),
+                cols,
+            ));
             out.push('\n');
         }
         out
@@ -415,7 +481,12 @@ impl EscPosGerador {
     }
 
     /// Gera o buffer de bytes binários ESC/POS para o Comprovante de Fechamento de Caixa.
-    pub fn gerar_bytes_fechamento(c: &ComprovanteFechamentoCaixa, largura: LarguraPapel, cortar: bool, fuso: &str) -> Vec<u8> {
+    pub fn gerar_bytes_fechamento(
+        c: &ComprovanteFechamentoCaixa,
+        largura: LarguraPapel,
+        cortar: bool,
+        fuso: &str,
+    ) -> Vec<u8> {
         let cols = largura.colunas();
         let sep = "=".repeat(cols);
         let sep_fina = "-".repeat(cols);
@@ -438,28 +509,74 @@ impl EscPosGerador {
         buf.extend_from_slice(Self::ESC_BOLD_OFF);
         buf.extend_from_slice(format!("Caixa Nº: {:02}\n", c.numero_caixa).as_bytes());
         buf.extend_from_slice(format!("Operador: {}\n", c.operador_nome).as_bytes());
-        buf.extend_from_slice(format!("Abertura: {}\n", formatar_data_no_fuso(&c.aberta_em, fuso, "%d/%m/%Y %H:%M")).as_bytes());
-        buf.extend_from_slice(format!("Fechamento: {}\n", formatar_data_no_fuso(&c.fechada_em, fuso, "%d/%m/%Y %H:%M")).as_bytes());
+        buf.extend_from_slice(
+            format!(
+                "Abertura: {}\n",
+                formatar_data_no_fuso(&c.aberta_em, fuso, "%d/%m/%Y %H:%M")
+            )
+            .as_bytes(),
+        );
+        buf.extend_from_slice(
+            format!(
+                "Fechamento: {}\n",
+                formatar_data_no_fuso(&c.fechada_em, fuso, "%d/%m/%Y %H:%M")
+            )
+            .as_bytes(),
+        );
 
         buf.extend_from_slice(Self::ESC_ALIGN_LEFT);
         buf.extend_from_slice(sep.as_bytes());
         buf.push(b'\n');
 
-        buf.extend_from_slice(Self::formatar_linha_colunas("Saldo Inicial:", &format!("{}", c.saldo_inicial), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas("Saldo Inicial:", &format!("{}", c.saldo_inicial), cols)
+                .as_bytes(),
+        );
         buf.push(b'\n');
-        buf.extend_from_slice(Self::formatar_linha_colunas("(+) Vendas Dinheiro:", &format!("{}", c.total_vendas_dinheiro), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas(
+                "(+) Vendas Dinheiro:",
+                &format!("{}", c.total_vendas_dinheiro),
+                cols,
+            )
+            .as_bytes(),
+        );
         buf.push(b'\n');
-        buf.extend_from_slice(Self::formatar_linha_colunas("(+) Suprimentos:", &format!("{}", c.total_suprimentos), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas(
+                "(+) Suprimentos:",
+                &format!("{}", c.total_suprimentos),
+                cols,
+            )
+            .as_bytes(),
+        );
         buf.push(b'\n');
-        buf.extend_from_slice(Self::formatar_linha_colunas("(-) Sangrias:", &format!("-{}", c.total_sangrias), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas("(-) Sangrias:", &format!("-{}", c.total_sangrias), cols)
+                .as_bytes(),
+        );
         buf.push(b'\n');
 
         buf.extend_from_slice(sep_fina.as_bytes());
         buf.push(b'\n');
         buf.extend_from_slice(Self::ESC_BOLD_ON);
-        buf.extend_from_slice(Self::formatar_linha_colunas("SALDO ESPERADO:", &format!("{}", c.saldo_esperado_dinheiro), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas(
+                "SALDO ESPERADO:",
+                &format!("{}", c.saldo_esperado_dinheiro),
+                cols,
+            )
+            .as_bytes(),
+        );
         buf.push(b'\n');
-        buf.extend_from_slice(Self::formatar_linha_colunas("SALDO CONTADO:", &format!("{}", c.saldo_informado_dinheiro), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas(
+                "SALDO CONTADO:",
+                &format!("{}", c.saldo_informado_dinheiro),
+                cols,
+            )
+            .as_bytes(),
+        );
         buf.push(b'\n');
 
         let dif_str = if c.diferenca.centavos() == 0 {
@@ -469,13 +586,22 @@ impl EscPosGerador {
         } else {
             format!("{} (FALTA)", c.diferenca)
         };
-        buf.extend_from_slice(Self::formatar_linha_colunas("DIFERENÇA:", &dif_str, cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas("DIFERENÇA:", &dif_str, cols).as_bytes(),
+        );
         buf.push(b'\n');
         buf.extend_from_slice(Self::ESC_BOLD_OFF);
 
         buf.extend_from_slice(sep_fina.as_bytes());
         buf.push(b'\n');
-        buf.extend_from_slice(Self::formatar_linha_colunas("Vendas Cartão/Pix:", &format!("{}", c.total_vendas_eletronico), cols).as_bytes());
+        buf.extend_from_slice(
+            Self::formatar_linha_colunas(
+                "Vendas Cartão/Pix:",
+                &format!("{}", c.total_vendas_eletronico),
+                cols,
+            )
+            .as_bytes(),
+        );
         buf.push(b'\n');
 
         buf.extend_from_slice(sep.as_bytes());
@@ -498,7 +624,11 @@ impl EscPosGerador {
     }
 
     /// Gera representação textual do comprovante de fechamento.
-    pub fn gerar_texto_fechamento(c: &ComprovanteFechamentoCaixa, largura: LarguraPapel, fuso: &str) -> String {
+    pub fn gerar_texto_fechamento(
+        c: &ComprovanteFechamentoCaixa,
+        largura: LarguraPapel,
+        fuso: &str,
+    ) -> String {
         let cols = largura.colunas();
         let sep = "=".repeat(cols);
         let sep_fina = "-".repeat(cols);
@@ -512,35 +642,80 @@ impl EscPosGerador {
         }
         out.push_str(&Self::centralizar("FECHAMENTO DE CAIXA", cols));
         out.push('\n');
-        out.push_str(&format!("Caixa: {:02} | Operador: {}\n", c.numero_caixa, c.operador_nome));
-        out.push_str(&format!("Abertura: {}\n", formatar_data_no_fuso(&c.aberta_em, fuso, "%d/%m/%Y %H:%M")));
-        out.push_str(&format!("Fechamento: {}\n", formatar_data_no_fuso(&c.fechada_em, fuso, "%d/%m/%Y %H:%M")));
+        out.push_str(&format!(
+            "Caixa: {:02} | Operador: {}\n",
+            c.numero_caixa, c.operador_nome
+        ));
+        out.push_str(&format!(
+            "Abertura: {}\n",
+            formatar_data_no_fuso(&c.aberta_em, fuso, "%d/%m/%Y %H:%M")
+        ));
+        out.push_str(&format!(
+            "Fechamento: {}\n",
+            formatar_data_no_fuso(&c.fechada_em, fuso, "%d/%m/%Y %H:%M")
+        ));
         out.push_str(&sep);
         out.push('\n');
 
-        out.push_str(&Self::formatar_linha_colunas("Vendas:", &c.quantidade_vendas.to_string(), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "Vendas:",
+            &c.quantidade_vendas.to_string(),
+            cols,
+        ));
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("Cancelamentos:", &c.quantidade_cancelamentos.to_string(), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "Cancelamentos:",
+            &c.quantidade_cancelamentos.to_string(),
+            cols,
+        ));
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("Estornos:", &c.quantidade_estornos.to_string(), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "Estornos:",
+            &c.quantidade_estornos.to_string(),
+            cols,
+        ));
         out.push('\n');
         out.push_str(&sep_fina);
         out.push('\n');
 
-        out.push_str(&Self::formatar_linha_colunas("Saldo Inicial:", &format!("{}", c.saldo_inicial), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "Saldo Inicial:",
+            &format!("{}", c.saldo_inicial),
+            cols,
+        ));
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("(+) Vendas Dinheiro:", &format!("{}", c.total_vendas_dinheiro), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "(+) Vendas Dinheiro:",
+            &format!("{}", c.total_vendas_dinheiro),
+            cols,
+        ));
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("(+) Suprimentos:", &format!("{}", c.total_suprimentos), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "(+) Suprimentos:",
+            &format!("{}", c.total_suprimentos),
+            cols,
+        ));
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("(-) Sangrias:", &format!("-{}", c.total_sangrias), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "(-) Sangrias:",
+            &format!("-{}", c.total_sangrias),
+            cols,
+        ));
         out.push('\n');
         out.push_str(&sep_fina);
         out.push('\n');
 
-        out.push_str(&Self::formatar_linha_colunas("SALDO ESPERADO:", &format!("{}", c.saldo_esperado_dinheiro), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "SALDO ESPERADO:",
+            &format!("{}", c.saldo_esperado_dinheiro),
+            cols,
+        ));
         out.push('\n');
-        out.push_str(&Self::formatar_linha_colunas("SALDO CONTADO:", &format!("{}", c.saldo_informado_dinheiro), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "SALDO CONTADO:",
+            &format!("{}", c.saldo_informado_dinheiro),
+            cols,
+        ));
         out.push('\n');
 
         let dif_str = if c.diferenca.centavos() == 0 {
@@ -555,12 +730,21 @@ impl EscPosGerador {
         out.push_str(&sep_fina);
         out.push('\n');
 
-        out.push_str(&Self::formatar_linha_colunas("Vendas Cartão/Pix:", &format!("{}", c.total_vendas_eletronico), cols));
+        out.push_str(&Self::formatar_linha_colunas(
+            "Vendas Cartão/Pix:",
+            &format!("{}", c.total_vendas_eletronico),
+            cols,
+        ));
         out.push('\n');
         out.push_str(&sep);
         out.push('\n');
 
-        if let Some(obs) = c.observacao.as_deref().map(str::trim).filter(|o| !o.is_empty()) {
+        if let Some(obs) = c
+            .observacao
+            .as_deref()
+            .map(str::trim)
+            .filter(|o| !o.is_empty())
+        {
             out.push_str("Observacao:\n");
             for linha in Self::quebrar_texto(obs, cols) {
                 out.push_str(&linha);
@@ -577,7 +761,10 @@ impl EscPosGerador {
         out.push_str("Gerente / Responsavel\n\n");
 
         let hash_curto = &c.ultimo_hash[..c.ultimo_hash.len().min(16)];
-        out.push_str(&Self::centralizar(&format!("Integridade: {}", hash_curto), cols));
+        out.push_str(&Self::centralizar(
+            &format!("Integridade: {}", hash_curto),
+            cols,
+        ));
         out.push('\n');
         out.push_str(&Self::centralizar("Mikella ERP", cols));
         out.push('\n');
@@ -592,7 +779,9 @@ impl EscPosGerador {
         let mut atual = String::new();
         for palavra in texto.split_whitespace() {
             let extra = if atual.is_empty() { 0 } else { 1 };
-            if atual.chars().count() + extra + palavra.chars().count() > largura && !atual.is_empty() {
+            if atual.chars().count() + extra + palavra.chars().count() > largura
+                && !atual.is_empty()
+            {
                 linhas.push(atual);
                 atual = String::new();
             }
@@ -660,7 +849,9 @@ mod tests {
     fn parcelamento_credito_distribui_centavos_exatos() {
         // Testa a função real de domínio Money::dividir_em_parcelas para 1..12 parcelas
         let total = Money::from_centavos(455); // R$ 4,55
-        let parcelas_11 = total.dividir_em_parcelas(11).expect("divisão válida em 11x");
+        let parcelas_11 = total
+            .dividir_em_parcelas(11)
+            .expect("divisão válida em 11x");
         assert_eq!(parcelas_11.len(), 11);
         // Primeiras 10 parcelas são de 41 centavos
         for p in &parcelas_11[..10] {
@@ -709,23 +900,28 @@ mod tests {
             subtotal: Money::from_centavos(3450),
             desconto: Money::from_centavos(200),
             total: Money::from_centavos(3250),
-            pagamentos: vec![
-                PagamentoComprovante {
-                    forma: "PIX".into(),
-                    valor: Money::from_centavos(3250),
-                }
-            ],
+            pagamentos: vec![PagamentoComprovante {
+                forma: "PIX".into(),
+                valor: Money::from_centavos(3250),
+            }],
             troco: None,
             hash_verificacao: Some("b1a4e8f9901234567890".into()),
         };
 
-        let texto = EscPosGerador::gerar_texto_puro(&comp, LarguraPapel::Colunas32, "America/Sao_Paulo");
+        let texto =
+            EscPosGerador::gerar_texto_puro(&comp, LarguraPapel::Colunas32, "America/Sao_Paulo");
         assert!(texto.contains("Mercadinho São José"));
         assert!(texto.contains("Cafe Torrado"));
         assert!(texto.contains("TOTAL:"));
         assert!(texto.contains("PIX"));
 
-        let bytes = EscPosGerador::gerar_bytes(&comp, LarguraPapel::Colunas32, true, false, "America/Sao_Paulo");
+        let bytes = EscPosGerador::gerar_bytes(
+            &comp,
+            LarguraPapel::Colunas32,
+            true,
+            false,
+            "America/Sao_Paulo",
+        );
         assert!(!bytes.is_empty());
         assert!(bytes.starts_with(EscPosGerador::ESC_INIT));
         assert!(bytes.ends_with(EscPosGerador::ESC_CUT_FULL));
@@ -756,7 +952,11 @@ mod tests {
             ultimo_hash: "blake3_hash_genesis_abc123".into(),
         };
 
-        let texto = EscPosGerador::gerar_texto_fechamento(&fechamento, LarguraPapel::Colunas48, "America/Sao_Paulo");
+        let texto = EscPosGerador::gerar_texto_fechamento(
+            &fechamento,
+            LarguraPapel::Colunas48,
+            "America/Sao_Paulo",
+        );
         assert!(texto.contains("FECHAMENTO DE CAIXA"));
         assert!(texto.contains("SALDO ESPERADO:"));
         assert!(texto.contains("SALDO CONTADO:"));
@@ -766,7 +966,12 @@ mod tests {
         assert!(texto.contains("Operador"));
         assert!(texto.contains("Gerente"));
 
-        let bytes = EscPosGerador::gerar_bytes_fechamento(&fechamento, LarguraPapel::Colunas48, true, "America/Sao_Paulo");
+        let bytes = EscPosGerador::gerar_bytes_fechamento(
+            &fechamento,
+            LarguraPapel::Colunas48,
+            true,
+            "America/Sao_Paulo",
+        );
         assert!(!bytes.is_empty());
         assert!(bytes.starts_with(EscPosGerador::ESC_INIT));
         assert!(bytes.ends_with(EscPosGerador::ESC_CUT_FULL));

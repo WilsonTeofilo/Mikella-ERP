@@ -21,10 +21,10 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use mikella_app_people::usuario::{
-    atualizar_senha as atualizar_senha_uc, atualizar_usuario as atualizar_usuario_uc, criar_usuario,
-    desativar_usuario as desativar_usuario_uc, gerenciar_capacidades as gerenciar_capacidades_uc,
-    listar_usuarios, AtualizarUsuarioCmd, CriarUsuarioCmd, DesativarUsuarioCmd, ListaUsuarioQuery,
-    UsuarioRepos,
+    atualizar_senha as atualizar_senha_uc, atualizar_usuario as atualizar_usuario_uc,
+    criar_usuario, desativar_usuario as desativar_usuario_uc,
+    gerenciar_capacidades as gerenciar_capacidades_uc, listar_usuarios, AtualizarUsuarioCmd,
+    CriarUsuarioCmd, DesativarUsuarioCmd, ListaUsuarioQuery, UsuarioRepos,
 };
 use mikella_domain_people::Usuario;
 use mikella_infra_sqlite::UsuarioRepo;
@@ -32,9 +32,7 @@ use mikella_shared_kernel::clock::{Clock, SystemClock};
 use mikella_shared_kernel::ids::UsuarioId;
 use uuid::Uuid;
 
-use crate::dto::{
-    AtualizarSenhaForm, AtualizarUsuarioForm, CapacidadesForm, CriarUsuarioForm,
-};
+use crate::dto::{AtualizarSenhaForm, AtualizarUsuarioForm, CapacidadesForm, CriarUsuarioForm};
 use crate::exigir;
 use crate::middleware::Ator;
 use crate::state::AppState;
@@ -95,12 +93,12 @@ pub async fn criar_usuario_handler(
                 Some(&ator.id().to_string()),
                 None,
                 None,
-                Some(&format!("username: {}, papel: {:?}", usuario.username, usuario.papel)),
+                Some(&format!(
+                    "username: {}, papel: {:?}",
+                    usuario.username, usuario.papel
+                )),
             );
-            (
-                StatusCode::CREATED,
-                Json(usuario_para_response(&usuario)),
-            )
+            (StatusCode::CREATED, Json(usuario_para_response(&usuario)))
         }
         Err(e) => {
             tracing::warn!(erro = %e, "criação de usuário rejeitada pelo domínio");
@@ -237,7 +235,10 @@ pub async fn atualizar_usuario_handler(
                     Some(&ator.id().to_string()),
                     None,
                     None,
-                    Some(&format!("username: {}, papel: {:?}", usuario.username, usuario.papel)),
+                    Some(&format!(
+                        "username: {}, papel: {:?}",
+                        usuario.username, usuario.papel
+                    )),
                 );
             }
             if revogar {
@@ -271,11 +272,7 @@ pub async fn desativar_usuario_handler(
         let repos = UsuarioRepos {
             usuarios: &usuarios_repo,
         };
-        desativar_usuario_uc(
-            &repos,
-            DesativarUsuarioCmd { usuario_id },
-            &ator.0,
-        )
+        desativar_usuario_uc(&repos, DesativarUsuarioCmd { usuario_id }, &ator.0)
     };
 
     match resultado {

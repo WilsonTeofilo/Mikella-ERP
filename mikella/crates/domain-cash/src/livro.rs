@@ -144,8 +144,11 @@ impl LivroCaixa {
         self.entradas
             .iter()
             .filter(|e| e.tipo.afeta_saldo_fisico())
-            .try_fold(Money::ZERO, |acc, e| acc.somar(e.valor_centavos).and_then(|s| s.subtrair(e.troco_centavos)))
-        .map_err(|e| DomainError::InvarianteViolada(e.to_string()))
+            .try_fold(Money::ZERO, |acc, e| {
+                acc.somar(e.valor_centavos)
+                    .and_then(|s| s.subtrair(e.troco_centavos))
+            })
+            .map_err(|e| DomainError::InvarianteViolada(e.to_string()))
     }
 
     /// Retorna o hash da última entrada (necessário para encadear a próxima).

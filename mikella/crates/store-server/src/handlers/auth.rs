@@ -30,10 +30,7 @@ use crate::util::{
 pub async fn onboarding_status(State(state): State<AppState>) -> impl IntoResponse {
     let db = state.db.lock().await;
     match InstanceRepo::novo(db.conn()).esta_onboarded() {
-        Ok(onboarded) => (
-            StatusCode::OK,
-            Json(OnboardingStatus { onboarded }),
-        ),
+        Ok(onboarded) => (StatusCode::OK, Json(OnboardingStatus { onboarded })),
         Err(erro) => {
             tracing::error!(%erro, "falha ao consultar onboarding");
             (
@@ -194,15 +191,8 @@ pub async fn logout(
                     tracing::info!(usuario = %s.username, "sessão encerrada via logout");
                     let db = state.db.lock().await;
                     let audit = AuditoriaRepo::novo(db.conn());
-                    let _ = audit.registrar(
-                        "usuario",
-                        &s.username,
-                        "LOGOUT",
-                        None,
-                        None,
-                        None,
-                        None,
-                    );
+                    let _ =
+                        audit.registrar("usuario", &s.username, "LOGOUT", None, None, None, None);
                 }
             }
         }
@@ -502,11 +492,7 @@ async fn enviar_codigo_2fa(
     let mostrar_corpo = std::env::var("MIKELLA_EMAIL_CONSOLE_CORPO")
         .map(|v| v == "1")
         .unwrap_or(false);
-    let codigo_dev = if mostrar_corpo {
-        Some(codigo)
-    } else {
-        None
-    };
+    let codigo_dev = if mostrar_corpo { Some(codigo) } else { None };
 
     Ok(codigo_dev)
 }
@@ -528,10 +514,7 @@ async fn emitir_token(state: &AppState, usuario: &Usuario) -> String {
     token
 }
 
-fn erro(
-    status: StatusCode,
-    mensagem: &str,
-) -> (StatusCode, Json<serde_json::Value>) {
+fn erro(status: StatusCode, mensagem: &str) -> (StatusCode, Json<serde_json::Value>) {
     (status, Json(serde_json::json!({ "erro": mensagem })))
 }
 
@@ -610,7 +593,10 @@ mod tests {
         use std::time::Instant;
 
         let db = mikella_infra_sqlite::Database::em_memoria().expect("db em memoria");
-        let state = AppState::new(db, std::sync::Arc::new(crate::state::ConsoleEmailBackend::default()));
+        let state = AppState::new(
+            db,
+            std::sync::Arc::new(crate::state::ConsoleEmailBackend::default()),
+        );
 
         let token = "mikella-tok-teste-logout";
         {
@@ -634,6 +620,9 @@ mod tests {
         let _ = logout(axum::extract::State(state.clone()), headers).await;
 
         let sessoes = state.sessoes.lock().await;
-        assert!(!sessoes.contains_key(token), "token deveria ter sido revogado");
+        assert!(
+            !sessoes.contains_key(token),
+            "token deveria ter sido revogado"
+        );
     }
 }

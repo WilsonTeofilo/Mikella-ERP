@@ -52,7 +52,9 @@ impl Ator {
     /// Exige uma capacidade do catálogo (SEG-020).
     /// O papel DONO (Host / Administrador Mestre) tem acesso total irrestrito a tudo (RF-001).
     pub fn exigir(&self, capacidade: &str) -> Result<(), ErroHttp> {
-        if matches!(self.0.papel, mikella_domain_people::Papel::Dono) || self.0.tem_capacidade(capacidade) {
+        if matches!(self.0.papel, mikella_domain_people::Papel::Dono)
+            || self.0.tem_capacidade(capacidade)
+        {
             Ok(())
         } else {
             tracing::warn!(
@@ -105,8 +107,9 @@ pub async fn exigir_token(State(state): State<AppState>, mut req: Request, next:
         let mut sessoes = state.sessoes.lock().await;
         let sessao = sessoes.get_mut(&token);
         match sessao {
-            Some(s) if agora.duration_since(s.criada_em) <= SESSAO_TTL
-                && agora.duration_since(s.ultimo_uso) <= SESSAO_IDLE =>
+            Some(s)
+                if agora.duration_since(s.criada_em) <= SESSAO_TTL
+                    && agora.duration_since(s.ultimo_uso) <= SESSAO_IDLE =>
             {
                 s.ultimo_uso = agora;
                 s.username.clone()

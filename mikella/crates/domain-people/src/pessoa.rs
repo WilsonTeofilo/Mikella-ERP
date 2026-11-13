@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use mikella_shared_kernel::{
-    documento::{Cpf, Cnpj},
+    documento::{Cnpj, Cpf},
     error::{DomainError, DomainResult},
 };
 
@@ -29,7 +29,9 @@ impl TipoPessoa {
             "CLIENTE" => Ok(Self::Cliente),
             "FORNECEDOR" => Ok(Self::Fornecedor),
             "TRANSPORTADORA" => Ok(Self::Transportadora),
-            outro => Err(DomainError::Invalido(format!("Tipo de pessoa inválido: {outro}"))),
+            outro => Err(DomainError::Invalido(format!(
+                "Tipo de pessoa inválido: {outro}"
+            ))),
         }
     }
 }
@@ -60,7 +62,9 @@ impl Pessoa {
     ) -> DomainResult<Self> {
         let nome_limpo = nome.trim().to_string();
         if nome_limpo.is_empty() {
-            return Err(DomainError::Invalido("Nome do cliente é obrigatório".into()));
+            return Err(DomainError::Invalido(
+                "Nome do cliente é obrigatório".into(),
+            ));
         }
 
         // Se documento foi preenchido, valida se é CPF ou CNPJ
@@ -111,7 +115,9 @@ impl Pessoa {
             telefone: tel_limpo,
             email: email_limpo,
             documento: doc_limpo,
-            endereco: endereco.map(|e| e.trim().to_string()).filter(|e| !e.is_empty()),
+            endereco: endereco
+                .map(|e| e.trim().to_string())
+                .filter(|e| !e.is_empty()),
             ativo: true,
             criado_em: agora,
             atualizado_em: agora,

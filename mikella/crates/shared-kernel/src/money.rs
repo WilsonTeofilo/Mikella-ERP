@@ -417,7 +417,11 @@ mod tests {
             let total = Money::from_centavos(centavos);
             for n in 1..=12 {
                 let parcelas = total.dividir_em_parcelas(n).expect("divisão válida");
-                assert_eq!(parcelas.len(), n as usize, "Total {centavos} em {n} parcelas");
+                assert_eq!(
+                    parcelas.len(),
+                    n as usize,
+                    "Total {centavos} em {n} parcelas"
+                );
 
                 // 1. Invariante fundamental: A soma de todas as parcelas é EXATAMENTE igual ao total
                 let soma: i64 = parcelas.iter().map(|p| p.centavos()).sum();
@@ -435,7 +439,10 @@ mod tests {
                         p.centavos(),
                         base,
                         "Parcela {} de {}x de total {} deveria ser a base {}",
-                        i + 1, n, centavos, base
+                        i + 1,
+                        n,
+                        centavos,
+                        base
                     );
                 }
 
@@ -445,7 +452,11 @@ mod tests {
                     ultima,
                     base + resto,
                     "Última parcela de {}x de total {} deveria ter base ({}) + resto ({}) = {}",
-                    n, centavos, base, resto, base + resto
+                    n,
+                    centavos,
+                    base,
+                    resto,
+                    base + resto
                 );
             }
         }
@@ -454,10 +465,19 @@ mod tests {
     #[test]
     fn dividir_em_parcelas_limites_e_erros() {
         let valor = Money::from_centavos(1000);
-        assert_eq!(valor.dividir_em_parcelas(0), Err(MoneyError::ParcelasInvalidas(0)));
-        assert_eq!(valor.dividir_em_parcelas(121), Err(MoneyError::ParcelasInvalidas(121)));
+        assert_eq!(
+            valor.dividir_em_parcelas(0),
+            Err(MoneyError::ParcelasInvalidas(0))
+        );
+        assert_eq!(
+            valor.dividir_em_parcelas(121),
+            Err(MoneyError::ParcelasInvalidas(121))
+        );
 
         let negativo = Money::from_centavos(-100);
-        assert_eq!(negativo.dividir_em_parcelas(3), Err(MoneyError::ValorNegativo(-100)));
+        assert_eq!(
+            negativo.dividir_em_parcelas(3),
+            Err(MoneyError::ValorNegativo(-100))
+        );
     }
 }

@@ -15,12 +15,12 @@
 //! - Uma parcela só pode ser paga uma vez (idempotência).
 
 use chrono::{DateTime, Datelike, Utc, Weekday};
-use serde::{Deserialize, Serialize};
 use mikella_shared_kernel::{
     error::{DomainError, DomainResult},
     ids::{ContaPagarId, ContaReceberId, ParcelaId, UsuarioId},
     money::Money,
 };
+use serde::{Deserialize, Serialize};
 
 /// Soma valores com aritmética verificada — overflow vira erro de domínio.
 fn total(mut parcelas: impl Iterator<Item = Money>) -> DomainResult<Money> {
@@ -51,9 +51,10 @@ impl TipoConta {
         match valor {
             "PAGAMENTO" => Ok(Self::Pagamento),
             "RECEBIMENTO" => Ok(Self::Recebimento),
-            outro => Err(DomainError::Invalido(
-                format!("TipoConta desconhecido: {}", outro),
-            )),
+            outro => Err(DomainError::Invalido(format!(
+                "TipoConta desconhecido: {}",
+                outro
+            ))),
         }
     }
 }
@@ -108,9 +109,10 @@ impl StatusParcela {
             "ABERTA" => Ok(Self::Aberta),
             "PAGA" => Ok(Self::Paga),
             "CANCELADA" => Ok(Self::Cancelada),
-            outro => Err(DomainError::Invalido(
-                format!("Status de parcela desconhecido: {}", outro),
-            )),
+            outro => Err(DomainError::Invalido(format!(
+                "Status de parcela desconhecido: {}",
+                outro
+            ))),
         }
     }
 }
@@ -162,7 +164,8 @@ impl Parcela {
     pub fn cancelar(&mut self) -> DomainResult<()> {
         if self.status != StatusParcela::Aberta {
             return Err(DomainError::EstadoInvalido(format!(
-                "parcela no status {} — não pode cancelar", self.status.as_str()
+                "parcela no status {} — não pode cancelar",
+                self.status.as_str()
             )));
         }
         self.status = StatusParcela::Cancelada;
@@ -222,7 +225,11 @@ impl ContaPagar {
         })
     }
 
-    pub fn adicionar_parcela(&mut self, valor: Money, vencimento: DateTime<Utc>) -> DomainResult<()> {
+    pub fn adicionar_parcela(
+        &mut self,
+        valor: Money,
+        vencimento: DateTime<Utc>,
+    ) -> DomainResult<()> {
         if self.parcelas.len() >= 12 {
             return Err(DomainError::EstadoInvalido(
                 "máximo de 12 parcelas excedido".into(),
@@ -233,10 +240,13 @@ impl ContaPagar {
     }
 
     pub fn liquidar_parcela(&mut self, indice: usize, quando: DateTime<Utc>) -> DomainResult<()> {
-        let p = self.parcelas.get_mut(indice).ok_or_else(|| DomainError::NaoEncontrado {
-            entidade: "Parcela",
-            id: format!("índice {}", indice),
-        })?;
+        let p = self
+            .parcelas
+            .get_mut(indice)
+            .ok_or_else(|| DomainError::NaoEncontrado {
+                entidade: "Parcela",
+                id: format!("índice {}", indice),
+            })?;
         p.marcar_como_paga(quando)
     }
 
@@ -254,7 +264,10 @@ impl ContaPagar {
 
     pub fn quitada(&self) -> bool {
         !self.parcelas.is_empty()
-            && self.parcelas.iter().all(|p| p.status == StatusParcela::Paga)
+            && self
+                .parcelas
+                .iter()
+                .all(|p| p.status == StatusParcela::Paga)
     }
 
     pub fn status(&self) -> &'static str {
@@ -262,7 +275,11 @@ impl ContaPagar {
             "SEM_PARCELAS"
         } else if self.quitada() {
             "QUITADA"
-        } else if self.parcelas.iter().all(|p| p.status == StatusParcela::Cancelada) {
+        } else if self
+            .parcelas
+            .iter()
+            .all(|p| p.status == StatusParcela::Cancelada)
+        {
             "CANCELADA"
         } else {
             "ABERTA"
@@ -330,7 +347,11 @@ impl ContaReceber {
         Ok(())
     }
 
-    pub fn adicionar_parcela(&mut self, valor: Money, vencimento: DateTime<Utc>) -> DomainResult<()> {
+    pub fn adicionar_parcela(
+        &mut self,
+        valor: Money,
+        vencimento: DateTime<Utc>,
+    ) -> DomainResult<()> {
         if self.parcelas.len() >= 12 {
             return Err(DomainError::EstadoInvalido(
                 "máximo de 12 parcelas excedido".into(),
@@ -341,10 +362,13 @@ impl ContaReceber {
     }
 
     pub fn liquidar_parcela(&mut self, indice: usize, quando: DateTime<Utc>) -> DomainResult<()> {
-        let p = self.parcelas.get_mut(indice).ok_or_else(|| DomainError::NaoEncontrado {
-            entidade: "Parcela",
-            id: format!("índice {}", indice),
-        })?;
+        let p = self
+            .parcelas
+            .get_mut(indice)
+            .ok_or_else(|| DomainError::NaoEncontrado {
+                entidade: "Parcela",
+                id: format!("índice {}", indice),
+            })?;
         p.marcar_como_paga(quando)
     }
 
@@ -362,7 +386,10 @@ impl ContaReceber {
 
     pub fn quitada(&self) -> bool {
         !self.parcelas.is_empty()
-            && self.parcelas.iter().all(|p| p.status == StatusParcela::Paga)
+            && self
+                .parcelas
+                .iter()
+                .all(|p| p.status == StatusParcela::Paga)
     }
 
     pub fn status(&self) -> &'static str {
@@ -370,7 +397,11 @@ impl ContaReceber {
             "SEM_PARCELAS"
         } else if self.quitada() {
             "QUITADA"
-        } else if self.parcelas.iter().all(|p| p.status == StatusParcela::Cancelada) {
+        } else if self
+            .parcelas
+            .iter()
+            .all(|p| p.status == StatusParcela::Cancelada)
+        {
             "CANCELADA"
         } else {
             "ABERTA"
@@ -407,8 +438,10 @@ mod tests {
     fn conta_pagar_cria_e_soma_parcelas() {
         let plano = PlanoConta::novo("3.1.01".into(), "Fornecedores".into()).unwrap();
         let mut c = ContaPagar::nova("Compra".into(), plano, UsuarioId::new(), hoje()).unwrap();
-        c.adicionar_parcela(Money::from_centavos(10000), hoje()).unwrap();
-        c.adicionar_parcela(Money::from_centavos(5000), hoje()).unwrap();
+        c.adicionar_parcela(Money::from_centavos(10000), hoje())
+            .unwrap();
+        c.adicionar_parcela(Money::from_centavos(5000), hoje())
+            .unwrap();
         assert_eq!(c.valor_total().unwrap().centavos(), 15000);
         assert_eq!(c.valor_em_aberto().unwrap().centavos(), 15000);
         assert!(!c.quitada());
@@ -419,8 +452,10 @@ mod tests {
     fn conta_pagar_liquida_parcela() {
         let plano = PlanoConta::novo("3.1.01".into(), "Fornecedores".into()).unwrap();
         let mut c = ContaPagar::nova("Conta".into(), plano, UsuarioId::new(), hoje()).unwrap();
-        c.adicionar_parcela(Money::from_centavos(10000), hoje()).unwrap();
-        c.adicionar_parcela(Money::from_centavos(5000), hoje()).unwrap();
+        c.adicionar_parcela(Money::from_centavos(10000), hoje())
+            .unwrap();
+        c.adicionar_parcela(Money::from_centavos(5000), hoje())
+            .unwrap();
         c.liquidar_parcela(0, hoje()).unwrap();
         assert_eq!(c.valor_pago().unwrap().centavos(), 10000);
         assert_eq!(c.valor_em_aberto().unwrap().centavos(), 5000);
@@ -431,7 +466,8 @@ mod tests {
     fn conta_pagar_quitada() {
         let plano = PlanoConta::novo("3.1.01".into(), "Fornecedores".into()).unwrap();
         let mut c = ContaPagar::nova("Conta".into(), plano, UsuarioId::new(), hoje()).unwrap();
-        c.adicionar_parcela(Money::from_centavos(10000), hoje()).unwrap();
+        c.adicionar_parcela(Money::from_centavos(10000), hoje())
+            .unwrap();
         c.liquidar_parcela(0, hoje()).unwrap();
         assert!(c.quitada());
         assert_eq!(c.status(), "QUITADA");
@@ -449,9 +485,12 @@ mod tests {
         let plano = PlanoConta::novo("3.1.01".into(), "Fornecedores".into()).unwrap();
         let mut c = ContaPagar::nova("Teste".into(), plano, UsuarioId::new(), hoje()).unwrap();
         for _ in 0..12 {
-            c.adicionar_parcela(Money::from_centavos(100), hoje()).unwrap();
+            c.adicionar_parcela(Money::from_centavos(100), hoje())
+                .unwrap();
         }
-        assert!(c.adicionar_parcela(Money::from_centavos(100), hoje()).is_err());
+        assert!(c
+            .adicionar_parcela(Money::from_centavos(100), hoje())
+            .is_err());
     }
 
     #[test]

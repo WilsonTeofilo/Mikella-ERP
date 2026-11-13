@@ -36,8 +36,7 @@ fn parse_data(s: &str) -> DomainResult<DateTime<Utc>> {
 }
 
 fn parse_id<T: std::str::FromStr>(s: &str, campo: &str) -> DomainResult<T> {
-    s.parse::<T>()
-        .map_err(|_| infixo(campo, s))
+    s.parse::<T>().map_err(|_| infixo(campo, s))
 }
 
 fn invalid(idx: usize, e: impl std::error::Error + Send + Sync + 'static) -> rusqlite::Error {
@@ -53,8 +52,9 @@ fn parse_parcela(row: &Row) -> rusqlite::Result<Parcela> {
     let status_s: String = row.get(4)?;
 
     let id = id_s.parse::<ParcelaId>().map_err(|e| invalid(0, e))?;
-    let vencimento =
-        DateTime::parse_from_rfc3339(&venc_s).map_err(|e| invalid(2, e))?.with_timezone(&Utc);
+    let vencimento = DateTime::parse_from_rfc3339(&venc_s)
+        .map_err(|e| invalid(2, e))?
+        .with_timezone(&Utc);
     let pago_em = pago_opt
         .as_deref()
         .map(|s| {
@@ -74,11 +74,7 @@ fn parse_parcela(row: &Row) -> rusqlite::Result<Parcela> {
     })
 }
 
-fn upsert_plano(
-    conn: &Connection,
-    plano: &PlanoConta,
-    tipo: &str,
-) -> DomainResult<()> {
+fn upsert_plano(conn: &Connection, plano: &PlanoConta, tipo: &str) -> DomainResult<()> {
     conn.execute(
         "INSERT INTO planos_conta (codigo, nome, tipo) VALUES (?1, ?2, ?3)
          ON CONFLICT(codigo, tipo) DO UPDATE SET nome = excluded.nome",
@@ -108,10 +104,7 @@ impl<'a> ContaPagarRepo<'a> {
         rows.into_iter().map(|r| r.map_err(err)).collect()
     }
 
-    fn linha_para_conta(
-        &self,
-        row: &Row<'_>,
-    ) -> DomainResult<ContaPagar> {
+    fn linha_para_conta(&self, row: &Row<'_>) -> DomainResult<ContaPagar> {
         let id_s: String = row.get(0).map_err(err)?;
         let descricao: String = row.get(1).map_err(err)?;
         let plano_codigo: String = row.get(2).map_err(err)?;
@@ -287,10 +280,7 @@ impl<'a> ContaReceberRepo<'a> {
         rows.into_iter().map(|r| r.map_err(err)).collect()
     }
 
-    fn linha_para_conta(
-        &self,
-        row: &Row<'_>,
-    ) -> DomainResult<ContaReceber> {
+    fn linha_para_conta(&self, row: &Row<'_>) -> DomainResult<ContaReceber> {
         let id_s: String = row.get(0).map_err(err)?;
         let descricao: String = row.get(1).map_err(err)?;
         let plano_codigo: String = row.get(2).map_err(err)?;
@@ -486,10 +476,7 @@ impl<'a> ParcelaRepo<'a> {
 }
 
 impl ParcelaRepository for ParcelaRepo<'_> {
-    fn buscar_por_id(
-        &self,
-        id: ParcelaId,
-    ) -> DomainResult<Option<(ContaPagarId, Parcela)>> {
+    fn buscar_por_id(&self, id: ParcelaId) -> DomainResult<Option<(ContaPagarId, Parcela)>> {
         let q = "SELECT conta_id, valor_centavos, vencimento, pago_em, status FROM parcelas WHERE id = ?1";
         let opt: Option<(String, i64, String, Option<String>, String)> = self
             .conn
@@ -527,10 +514,7 @@ impl ParcelaRepository for ParcelaRepo<'_> {
         self.coletar_parcelas(q, params![data_limite.to_rfc3339(), usuario_id.to_string()])
     }
 
-    fn listar_abertas(
-        &self,
-        usuario_id: UsuarioId,
-    ) -> DomainResult<Vec<(ContaPagarId, Parcela)>> {
+    fn listar_abertas(&self, usuario_id: UsuarioId) -> DomainResult<Vec<(ContaPagarId, Parcela)>> {
         let q = "SELECT p.id, p.conta_id, p.valor_centavos, p.vencimento, p.pago_em, p.status
                  FROM parcelas p
                  JOIN contas_pagar c ON p.conta_id = c.id AND p.conta_tipo = 'PAGAMENTO'

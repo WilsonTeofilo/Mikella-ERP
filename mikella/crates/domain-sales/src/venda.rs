@@ -240,7 +240,9 @@ impl Pagamento {
             ));
         }
         if self.parcelas == 0 {
-            return Err(DomainError::Invalido("Número de parcelas deve ser pelo menos 1".into()));
+            return Err(DomainError::Invalido(
+                "Número de parcelas deve ser pelo menos 1".into(),
+            ));
         }
         if self.parcelas > 1 && self.forma != FormaPagamento::Credito {
             return Err(DomainError::Invalido(

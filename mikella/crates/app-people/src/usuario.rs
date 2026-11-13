@@ -204,7 +204,9 @@ pub fn desativar_usuario(
     exigir_hierarquia(ator, &usuario)?;
 
     if !usuario.ativo {
-        return Err(DomainError::EstadoInvalido("Usuário já está inativo".into()));
+        return Err(DomainError::EstadoInvalido(
+            "Usuário já está inativo".into(),
+        ));
     }
 
     let agora = Utc::now();

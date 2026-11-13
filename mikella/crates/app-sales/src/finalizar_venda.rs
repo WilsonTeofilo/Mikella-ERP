@@ -278,17 +278,16 @@ fn registrar_crediario(
         &venda.id.to_string()[..8.min(venda.id.to_string().len())]
     );
     let mut conta = ContaReceber::nova(descricao, plano, venda.operador_id, agora)?;
-    conta.vincular_origem(
-        cmd.cliente_id.clone(),
-        venda.id.to_string(),
-        "VENDA".into(),
-    )?;
+    conta.vincular_origem(cmd.cliente_id.clone(), venda.id.to_string(), "VENDA".into())?;
 
     let dias = i64::from(cmd.vencimento_dias.max(1));
     let vencimento = chrono::Duration::try_days(dias)
         .and_then(|d| agora.checked_add_signed(d))
         .ok_or_else(|| DomainError::InvarianteViolada("vencimento do crediário inválido".into()))?;
-    conta.adicionar_parcela(valor, mikella_domain_finance::conta::ajustar_para_dia_util(vencimento))?;
+    conta.adicionar_parcela(
+        valor,
+        mikella_domain_finance::conta::ajustar_para_dia_util(vencimento),
+    )?;
 
     repo.salvar(&conta)?;
     tracing::info!(
@@ -443,9 +442,9 @@ fn registrar_livro_da_venda(
             FormaPagamento::Debito => TipoMovimentacao::VendaDebito,
             FormaPagamento::Credito => TipoMovimentacao::VendaCredito,
             FormaPagamento::Pix => TipoMovimentacao::VendaPix,
-            FormaPagamento::Voucher
-            | FormaPagamento::Outro
-            | FormaPagamento::Misto => TipoMovimentacao::VendaOutro,
+            FormaPagamento::Voucher | FormaPagamento::Outro | FormaPagamento::Misto => {
+                TipoMovimentacao::VendaOutro
+            }
         };
         inserir_entrada(
             repos,

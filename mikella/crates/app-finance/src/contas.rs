@@ -70,7 +70,9 @@ pub fn registrar_conta_pagar(
     let mut conta = ContaPagar::nova(cmd.descricao, plano, cmd.usuario_id, agora)?;
 
     if cmd.parcelas.is_empty() {
-        return Err(DomainError::Invalido("pelo menos uma parcela é obrigatória".into()));
+        return Err(DomainError::Invalido(
+            "pelo menos uma parcela é obrigatória".into(),
+        ));
     }
 
     for (valor, vencimento) in cmd.parcelas {
@@ -100,7 +102,9 @@ pub fn registrar_conta_receber(
     let mut conta = ContaReceber::nova(cmd.descricao, plano, cmd.usuario_id, agora)?;
 
     if cmd.parcelas.is_empty() {
-        return Err(DomainError::Invalido("pelo menos uma parcela é obrigatória".into()));
+        return Err(DomainError::Invalido(
+            "pelo menos uma parcela é obrigatória".into(),
+        ));
     }
 
     for (valor, vencimento) in cmd.parcelas {
@@ -327,41 +331,80 @@ mod tests {
     }
 
     impl ContaPagarRepository for MockRepos {
-        fn salvar(&self, _c: &ContaPagar) -> DomainResult<()> { Ok(()) }
-        fn atualizar(&self, _c: &ContaPagar) -> DomainResult<()> { Ok(()) }
+        fn salvar(&self, _c: &ContaPagar) -> DomainResult<()> {
+            Ok(())
+        }
+        fn atualizar(&self, _c: &ContaPagar) -> DomainResult<()> {
+            Ok(())
+        }
         fn buscar_por_id(&self, id: ContaPagarId) -> DomainResult<Option<ContaPagar>> {
             Ok(self.pagar.iter().find(|c| c.id == id).cloned())
         }
-        fn buscar_abertas(&self) -> DomainResult<Vec<ContaPagar>> { Ok(vec![]) }
-        fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> { Ok(vec![]) }
-        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> { Ok(0) }
+        fn buscar_abertas(&self) -> DomainResult<Vec<ContaPagar>> {
+            Ok(vec![])
+        }
+        fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> {
+            Ok(vec![])
+        }
+        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> {
+            Ok(0)
+        }
     }
 
     impl ContaReceberRepository for MockRepos {
-        fn salvar(&self, _c: &ContaReceber) -> DomainResult<()> { Ok(()) }
-        fn atualizar(&self, _c: &ContaReceber) -> DomainResult<()> { Ok(()) }
+        fn salvar(&self, _c: &ContaReceber) -> DomainResult<()> {
+            Ok(())
+        }
+        fn atualizar(&self, _c: &ContaReceber) -> DomainResult<()> {
+            Ok(())
+        }
         fn buscar_por_id(&self, id: ContaReceberId) -> DomainResult<Option<ContaReceber>> {
             Ok(self.receber.iter().find(|c| c.id == id).cloned())
         }
-        fn buscar_abertas(&self) -> DomainResult<Vec<ContaReceber>> { Ok(vec![]) }
-        fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> { Ok(vec![]) }
-        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> { Ok(0) }
+        fn buscar_abertas(&self) -> DomainResult<Vec<ContaReceber>> {
+            Ok(vec![])
+        }
+        fn listar_planos(&self) -> DomainResult<Vec<PlanoConta>> {
+            Ok(vec![])
+        }
+        fn cancelar_abertas_por_referencia(&self, _referencia_id: &str) -> DomainResult<u32> {
+            Ok(0)
+        }
     }
 
     impl ParcelaRepository for MockRepos {
-        fn buscar_por_id(&self, _id: ParcelaId) -> DomainResult<Option<(ContaPagarId, Parcela)>> { Ok(None) }
-        fn buscar_vencidas_ate(&self, _dt: DateTime<Utc>, _uid: UsuarioId) -> DomainResult<Vec<(ContaPagarId, Parcela)>> { Ok(vec![]) }
-        fn listar_abertas(&self, _uid: UsuarioId) -> DomainResult<Vec<(ContaPagarId, Parcela)>> { Ok(vec![]) }
+        fn buscar_por_id(&self, _id: ParcelaId) -> DomainResult<Option<(ContaPagarId, Parcela)>> {
+            Ok(None)
+        }
+        fn buscar_vencidas_ate(
+            &self,
+            _dt: DateTime<Utc>,
+            _uid: UsuarioId,
+        ) -> DomainResult<Vec<(ContaPagarId, Parcela)>> {
+            Ok(vec![])
+        }
+        fn listar_abertas(&self, _uid: UsuarioId) -> DomainResult<Vec<(ContaPagarId, Parcela)>> {
+            Ok(vec![])
+        }
     }
 
     fn setup() -> (MockRepos, ContasRepos<'static>) {
-        let mock = Box::leak(Box::new(MockRepos { pagar: vec![], receber: vec![] }));
+        let mock = Box::leak(Box::new(MockRepos {
+            pagar: vec![],
+            receber: vec![],
+        }));
         let repos = ContasRepos {
             contas_a_pagar: mock,
             contas_a_receber: mock,
             parcelas: mock,
         };
-        (MockRepos { pagar: vec![], receber: vec![] }, repos)
+        (
+            MockRepos {
+                pagar: vec![],
+                receber: vec![],
+            },
+            repos,
+        )
     }
 
     #[test]

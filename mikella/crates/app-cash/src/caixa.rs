@@ -158,7 +158,12 @@ pub fn fechar_caixa(repos: &CaixaRepos<'_>, cmd: FecharCaixaCmd) -> DomainResult
     let diferenca = sessao.finalizar_fechamento(cmd.saldo_contado, agora)?;
 
     let posicao = repos.livro.posicao_atual(sessao.id)?;
-    let motivo = match cmd.observacao.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    let motivo = match cmd
+        .observacao
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         Some(obs) => {
             let obs_trunc: String = obs.chars().take(512).collect();
             format!(

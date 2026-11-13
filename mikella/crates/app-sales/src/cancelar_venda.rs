@@ -42,13 +42,14 @@ pub struct CancelarVendaCmd {
 }
 
 pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> DomainResult<()> {
-    let venda = repos
-        .vendas
-        .buscar_por_id(cmd.venda_id)?
-        .ok_or_else(|| DomainError::NaoEncontrado {
-            entidade: "Venda",
-            id: cmd.venda_id.to_string(),
-        })?;
+    let venda =
+        repos
+            .vendas
+            .buscar_por_id(cmd.venda_id)?
+            .ok_or_else(|| DomainError::NaoEncontrado {
+                entidade: "Venda",
+                id: cmd.venda_id.to_string(),
+            })?;
 
     if venda.estado != EstadoVenda::Finalizada {
         return Err(DomainError::EstadoInvalido(format!(
@@ -140,14 +141,12 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
                 let troco = pagamento.troco();
                 let acumulado = dinheiro_estornado.unwrap_or((Money::ZERO, Money::ZERO));
                 dinheiro_estornado = Some((
-                    acumulado
-                        .0
-                        .somar(recebido)
-                        .map_err(|_| DomainError::InvarianteViolada("overflow no estorno".into()))?,
-                    acumulado
-                        .1
-                        .somar(troco)
-                        .map_err(|_| DomainError::InvarianteViolada("overflow no estorno".into()))?,
+                    acumulado.0.somar(recebido).map_err(|_| {
+                        DomainError::InvarianteViolada("overflow no estorno".into())
+                    })?,
+                    acumulado.1.somar(troco).map_err(|_| {
+                        DomainError::InvarianteViolada("overflow no estorno".into())
+                    })?,
                 ));
             }
             FormaPagamento::Debito => {
@@ -210,9 +209,9 @@ pub fn cancelar_venda(repos: &CancelarVendaRepos<'_>, cmd: CancelarVendaCmd) -> 
     }
 
     if let Some((recebido, troco)) = dinheiro_estornado {
-        let liquido = recebido
-            .subtrair(troco)
-            .map_err(|_| DomainError::InvarianteViolada("overflow no estorno em dinheiro".into()))?;
+        let liquido = recebido.subtrair(troco).map_err(|_| {
+            DomainError::InvarianteViolada("overflow no estorno em dinheiro".into())
+        })?;
         if !liquido.is_zero() {
             inserir_estorno(
                 repos,

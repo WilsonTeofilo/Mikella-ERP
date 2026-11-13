@@ -57,4 +57,3 @@ macro_rules! log_domain_error {
         );
     };
 }
-

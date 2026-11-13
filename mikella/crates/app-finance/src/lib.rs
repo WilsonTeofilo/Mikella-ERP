@@ -9,8 +9,7 @@
 pub mod contas;
 
 pub use contas::{
-    listar_contas, liquidar_parcela_pagar, liquidar_parcela_receber,
-    registrar_conta_pagar, registrar_conta_receber, ContaFinanceira, ContasRepos,
-    ListaContasQuery, LiquidarParcelaPagarCmd, LiquidarParcelaReceberCmd,
-    RegistrarContaPagarCmd, RegistrarContaReceberCmd,
+    liquidar_parcela_pagar, liquidar_parcela_receber, listar_contas, registrar_conta_pagar,
+    registrar_conta_receber, ContaFinanceira, ContasRepos, LiquidarParcelaPagarCmd,
+    LiquidarParcelaReceberCmd, ListaContasQuery, RegistrarContaPagarCmd, RegistrarContaReceberCmd,
 };

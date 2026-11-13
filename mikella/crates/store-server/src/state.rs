@@ -226,7 +226,11 @@ impl AppState {
     }
 
     /// Cria o estado com uma chave de loja já resolvida (boot de produção).
-    pub fn com_chave_loja(db: Database, email: Arc<dyn EmailBackend>, chave_loja: [u8; 32]) -> Self {
+    pub fn com_chave_loja(
+        db: Database,
+        email: Arc<dyn EmailBackend>,
+        chave_loja: [u8; 32],
+    ) -> Self {
         let mut segredo = [0u8; 32];
         OsRng.fill_bytes(&mut segredo);
 

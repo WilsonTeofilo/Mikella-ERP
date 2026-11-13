@@ -63,8 +63,5 @@ pub trait ParcelaRepository {
     ) -> DomainResult<Vec<(ContaPagarId, Parcela)>>;
 
     /// Lista parcelas abertas pendentes.
-    fn listar_abertas(
-        &self,
-        usuario_id: UsuarioId,
-    ) -> DomainResult<Vec<(ContaPagarId, Parcela)>>;
+    fn listar_abertas(&self, usuario_id: UsuarioId) -> DomainResult<Vec<(ContaPagarId, Parcela)>>;
 }

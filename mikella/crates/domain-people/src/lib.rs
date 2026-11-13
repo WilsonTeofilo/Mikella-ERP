@@ -641,7 +641,10 @@ mod tests {
     fn catalogo_de_capacidades_nao_tem_duplicatas() {
         for (i, cap) in CAPACIDADES_CONHECIDAS.iter().enumerate() {
             assert!(!cap.is_empty());
-            assert!(!CAPACIDADES_CONHECIDAS[..i].contains(cap), "duplicata: {cap}");
+            assert!(
+                !CAPACIDADES_CONHECIDAS[..i].contains(cap),
+                "duplicata: {cap}"
+            );
         }
     }
 

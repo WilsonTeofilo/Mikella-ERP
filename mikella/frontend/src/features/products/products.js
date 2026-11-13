@@ -7,6 +7,8 @@ import { mostrarToast } from "../../shared/ui/feedback.js";
 import {
   formatarCentavos,
   parsearCentavos,
+  somenteDigitos,
+  formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
 
@@ -196,9 +198,9 @@ prodBarrasInput.addEventListener("keydown", (e) => {
 ["prod-preco", "prod-custo"].forEach((id) => {
   const el = document.getElementById(id);
   el.addEventListener("input", () => {
-    const v = el.value.replace(/\D/g, "");
+    const v = somenteDigitos(el.value);
     if (v.length > 0) {
-      el.value = (parseInt(v, 10) / 100).toFixed(2).replace(".", ",");
+      el.value = formatarCampoMoeda(v);
     }
     atualizarMargem();
   });

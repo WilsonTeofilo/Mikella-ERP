@@ -6,6 +6,8 @@ import {
   formatarCPF,
   formatarTelefone,
   normalizarBusca,
+  somenteDigitos,
+  formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
 import {
   obterIconePagamento,
@@ -444,7 +446,7 @@ inputCliTermo.addEventListener("input", () => {
     return;
   }
 
-  const tDigitos = t.replace(/\D/g, "");
+  const tDigitos = somenteDigitos(t);
   const filtrados = CLIENTES_CACHE.filter((c) => {
     const nomeBate = c.nome.toLowerCase().includes(t);
     const cpfBate =
@@ -871,7 +873,7 @@ function abrirTelaPagamento(forma) {
   }
 
   // Preenche valor com o saldo que falta pagar
-  inputValor.value = (restante / 100).toFixed(2).replace(".", ",");
+  inputValor.value = formatarCampoMoeda(restante);
 
   // Renderiza pagamentos já lançados
   const boxFita = document.getElementById("pg-box-pagamentos-fita");

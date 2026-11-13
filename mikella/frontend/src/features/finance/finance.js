@@ -3,6 +3,8 @@ import { mostrarToast } from "../../shared/ui/feedback.js";
 import {
   formatarCentavos,
   parsearCentavos,
+  somenteDigitos,
+  formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
 
@@ -917,9 +919,9 @@ btnCancelaConta.addEventListener("click", () => {
 });
 
 document.getElementById("conta-valor").addEventListener("input", (e) => {
-  const v = e.target.value.replace(/\D/g, "");
+  const v = somenteDigitos(e.target.value);
   if (v.length > 0) {
-    e.target.value = (parseInt(v, 10) / 100).toFixed(2).replace(".", ",");
+    e.target.value = formatarCampoMoeda(v);
   }
 });
 

@@ -15,6 +15,9 @@ import {
   aplicarMascaraCEP,
   validarCPF,
   validarTelefone,
+  normalizarBusca,
+  somenteDigitos,
+  formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
 import { inicializarConsultaPreco } from "./consulta-preco.js";
@@ -28,7 +31,7 @@ let sessaoAtual = null;
 const avisar = mostrarToast;
 const consultaPreco = inicializarConsultaPreco();
 
-// Inicialização da Tela
+// InicializaÃ§Ã£o da Tela
 async function inicializar() {
   // Exibe operador e papel
   const nomeOperador = usuarioAtual.nome || usuarioAtual.username || "ADMIN";
@@ -37,7 +40,7 @@ async function inicializar() {
   const papel = (usuarioAtual.papel || "DONO").toUpperCase();
   document.getElementById("user-papel-tag").textContent = papel;
 
-  // Carrega status da sessão do caixa
+  // Carrega status da sessÃ£o do caixa
   const { ok, data } = await requisitarJSON("/v1/caixa/status");
   if (ok && data.aberta) {
     sessaoAtual = data;
@@ -57,10 +60,10 @@ async function inicializar() {
 
 // Garante que o caixa esteja aberto antes de vender ou operar
 async function garantirCaixaAberto() {
-  // 1. Se já sabemos que está aberto na memória local, prossegue
+  // 1. Se jÃ¡ sabemos que estÃ¡ aberto na memÃ³ria local, prossegue
   if (sessaoAtual && sessaoAtual.sessao_id) return true;
 
-  // 2. Consulta o backend para checar se já existe sessão aberta no banco
+  // 2. Consulta o backend para checar se jÃ¡ existe sessÃ£o aberta no banco
   const statusRes = await requisitarJSON("/v1/caixa/status");
   if (statusRes.ok && statusRes.data && statusRes.data.aberta) {
     sessaoAtual = statusRes.data;
@@ -69,8 +72,8 @@ async function garantirCaixaAberto() {
     return true;
   }
 
-  // 3. Se estiver fechado, abre a sessão 01 com suporte irrestrito
-  avisar("Abrindo sessão do Caixa 01...");
+  // 3. Se estiver fechado, abre a sessÃ£o 01 com suporte irrestrito
+  avisar("Abrindo sessÃ£o do Caixa 01...");
   const payload = {
     sessao_id: crypto.randomUUID(),
     numero_caixa: 1,
@@ -95,7 +98,7 @@ async function garantirCaixaAberto() {
     return true;
   }
 
-  // 4. Se a abertura retornou conflito/idempotência, recupera a sessão ativa
+  // 4. Se a abertura retornou conflito/idempotÃªncia, recupera a sessÃ£o ativa
   const retryStatus = await requisitarJSON("/v1/caixa/status");
   if (retryStatus.ok && retryStatus.data && retryStatus.data.aberta) {
     sessaoAtual = retryStatus.data;
@@ -104,16 +107,16 @@ async function garantirCaixaAberto() {
     return true;
   }
 
-  console.error("[garantirCaixaAberto] Erro na resposta da API:", res);
+  console.error("[garantirCaixaAberto] falha ao abrir sessão de caixa");
   const msgErro =
     res.data && res.data.erro
       ? res.data.erro
-      : "Falha ao abrir sessão de caixa.";
+      : "Falha ao abrir sessÃ£o de caixa.";
   avisar(msgErro);
   return false;
 }
 
-// Ações F1 - F8
+// AÃ§Ãµes F1 - F8
 async function acaoF1() {
   if (await garantirCaixaAberto()) {
     window.location.href = "pos.html?modo=balcao";
@@ -135,7 +138,7 @@ document.getElementById("form-comanda").onsubmit = (e) => {
   window.location.href = `pos.html?modo=comanda&comanda=${encodeURIComponent(num)}`;
 };
 
-// F3: Histórico de Vendas
+// F3: HistÃ³rico de Vendas
 let ultimaVendaIdComprovante = null;
 
 function dataHoje() {
@@ -149,8 +152,8 @@ function dataHoje() {
 function acaoF3() {
   const ini = document.getElementById("hist-data-ini");
   const fim = document.getElementById("hist-data-fim");
-  // Padrão do caixa: compras do dia. O operador pode limpar para ver outro
-  // período; a busca por COO ignora as datas.
+  // PadrÃ£o do caixa: compras do dia. O operador pode limpar para ver outro
+  // perÃ­odo; a busca por COO ignora as datas.
   if (!ini.value) ini.value = dataHoje();
   if (!fim.value) fim.value = dataHoje();
 
@@ -180,7 +183,7 @@ async function carregarHistoricoVendas() {
     td.style.textAlign = "center";
     td.style.padding = "16px";
     td.textContent = ok
-      ? "Nenhuma venda encontrada no período."
+      ? "Nenhuma venda encontrada no perÃ­odo."
       : data.erro || "Falha ao consultar vendas.";
     tr.appendChild(td);
     tbody.appendChild(tr);
@@ -201,8 +204,8 @@ async function carregarHistoricoVendas() {
     tdCod.append(strong, br, pequeno);
 
     const tdData = document.createElement("td");
-    // BUG CORRIGIDO: v.created_at é UTC RFC-3339 (ex: "2026-11-07T23:45:12.123Z").
-    // Usar .slice(0,16) mostrava a hora UTC, não a hora local — 3h a mais em São Paulo.
+    // BUG CORRIGIDO: v.created_at Ã© UTC RFC-3339 (ex: "2026-11-07T23:45:12.123Z").
+    // Usar .slice(0,16) mostrava a hora UTC, nÃ£o a hora local â€” 3h a mais em SÃ£o Paulo.
     // new Date() + toLocaleString converte corretamente para o fuso do sistema operacional.
     tdData.textContent = v.created_at
       ? new Date(v.created_at).toLocaleString("pt-BR", {
@@ -295,7 +298,7 @@ function usuarioEhGerencial() {
 function abrirEstornoVenda(venda) {
   if (!sessaoAtual || !sessaoAtual.sessao_id) {
     avisar(
-      "Sessão fechada — o estorno só pode ser feito com o caixa aberto.",
+      "SessÃ£o fechada â€” o estorno sÃ³ pode ser feito com o caixa aberto.",
     );
     return;
   }
@@ -311,9 +314,9 @@ function abrirEstornoVenda(venda) {
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "—";
-  document.getElementById("est-operador").textContent = venda.operador || "—";
-  document.getElementById("est-total").textContent = venda.total || "—";
+    : "â€”";
+  document.getElementById("est-operador").textContent = venda.operador || "â€”";
+  document.getElementById("est-total").textContent = venda.total || "â€”";
 
   document.getElementById("est-motivo").value = "";
   document.getElementById("est-motivo-outro").value = "";
@@ -334,14 +337,14 @@ function abrirEstornoVenda(venda) {
   document.getElementById("btn-estorno-continuar").disabled = false;
   document.getElementById("btn-estorno-confirmar").disabled = false;
 
-  // O histórico fica aberto por baixo: ao fechar o estorno o operador volta
+  // O histÃ³rico fica aberto por baixo: ao fechar o estorno o operador volta
   // para a lista, sem precisar apertar F3 de novo.
   const modal = document.getElementById("modal-estorno");
   if (modal) modal.style.display = "flex";
   mostrarEtapaEstorno(1);
 }
 
-// Fecha apenas o estorno; o histórico (se estiver aberto) reaparece.
+// Fecha apenas o estorno; o histÃ³rico (se estiver aberto) reaparece.
 function fecharEstorno() {
   const modal = document.getElementById("modal-estorno");
   if (modal) modal.style.display = "none";
@@ -426,7 +429,7 @@ document.getElementById("btn-estorno-confirmar").onclick = async () => {
       .value.trim();
     const senha = document.getElementById("est-aprovador-senha").value;
     if (!username || !senha) {
-      avisar("Informe usuário e senha do gerente/dono.");
+      avisar("Informe usuÃ¡rio e senha do gerente/dono.");
       document.getElementById("est-aprovador-usuario").focus();
       return;
     }
@@ -448,7 +451,7 @@ document.getElementById("btn-estorno-confirmar").onclick = async () => {
     return;
   }
 
-  // Limpa a senha de autorização assim que a operação termina.
+  // Limpa a senha de autorizaÃ§Ã£o assim que a operaÃ§Ã£o termina.
   document.getElementById("est-aprovador-senha").value = "";
 
   ultimoEstorno = { vendaId, coo: data.coo };
@@ -460,7 +463,7 @@ document.getElementById("btn-estorno-confirmar").onclick = async () => {
 
   const valor = formatarCentavos(data.valor_estornado_centavos || 0);
   document.getElementById("estorno-resultado-texto").textContent =
-    `ESTORNO CONCLUÍDO — ${valor} devolvido (COO #${String(data.coo ?? "").padStart(6, "0")})`;
+    `ESTORNO CONCLUÃDO â€” ${valor} devolvido (COO #${String(data.coo ?? "").padStart(6, "0")})`;
 
   for (let i = 1; i <= 3; i += 1) {
     document.getElementById(`estorno-passo-${i}`).style.display = "none";
@@ -472,7 +475,7 @@ document.getElementById("btn-estorno-confirmar").onclick = async () => {
     { method: "POST" },
   );
   if (!enviado.ok) {
-    avisar("Estorno registrado. Impressão indisponível — reimprima depois.");
+    avisar("Estorno registrado. ImpressÃ£o indisponÃ­vel â€” reimprima depois.");
   }
 
   await carregarHistoricoVendas();
@@ -491,7 +494,7 @@ document.getElementById("btn-estorno-reimprimir").onclick = async () => {
   );
 };
 
-// F4: Clientes & Crediário
+// F4: Clientes & CrediÃ¡rio
 function acaoF4() {
   // Reseta estado para modo busca/lista
   mostrarModoBuscaCliente();
@@ -508,7 +511,7 @@ function mostrarModoBuscaCliente() {
 }
 
 function mostrarModoNovoCliente(titulo = "Cadastrar novo cliente") {
-  // OMITIR BUSCA E TABELA (Exigência do usuário: SUMIR busca ao cadastrar)
+  // OMITIR BUSCA E TABELA (ExigÃªncia do usuÃ¡rio: SUMIR busca ao cadastrar)
   document.getElementById("box-busca-cliente").style.display = "none";
   document.getElementById("box-tabela-clientes").style.display = "none";
   document.getElementById("box-botoes-clientes-rodape").style.display = "none";
@@ -540,13 +543,13 @@ if (btnAnonimizarCli) {
 
     const confirma = window.confirm(
       `Anonimizar o titular "${nome}" nos termos do Art. 18 da LGPD?\n\n` +
-      `Os dados pessoais (nome, CPF, telefone, endereço) serão substituídos por registros anônimos no banco de dados.\n` +
-      `As notas e registros contábeis/fiscais dos últimos 5 anos serão mantidos preservados nos termos da Lei 9.430/96.\n\n` +
-      `Esta ação é irreversível. Deseja prosseguir?`
+      `Os dados pessoais (nome, CPF, telefone, endereÃ§o) serÃ£o substituÃ­dos por registros anÃ´nimos no banco de dados.\n` +
+      `As notas e registros contÃ¡beis/fiscais dos Ãºltimos 5 anos serÃ£o mantidos preservados nos termos da Lei 9.430/96.\n\n` +
+      `Esta aÃ§Ã£o Ã© irreversÃ­vel. Deseja prosseguir?`
     );
     if (!confirma) return;
 
-    avisar("Processando anonimização do titular...");
+    avisar("Processando anonimizaÃ§Ã£o do titular...");
     const { ok, data } = await requisitarJSON(`/v1/clientes/${cliId}`, {
       method: "DELETE",
     });
@@ -563,7 +566,7 @@ if (btnAnonimizarCli) {
 const btnTesteImp = document.getElementById("btn-teste-impressora");
 if (btnTesteImp) {
   btnTesteImp.onclick = async () => {
-    avisar("Enviando teste de impressão...");
+    avisar("Enviando teste de impressÃ£o...");
     const { ok, data } = await requisitarJSON("/v1/sistema/teste-impressora", {
       method: "POST",
     });
@@ -625,7 +628,7 @@ async function carregarClientes() {
     } else {
       status.style.color = "green";
       status.style.fontWeight = "700";
-      status.textContent = "Sem dívidas";
+      status.textContent = "Sem dÃ­vidas";
     }
     tdStatus.appendChild(status);
 
@@ -642,18 +645,6 @@ async function carregarClientes() {
     tr.append(tdNome, tdCpf, tdTelefone, tdStatus, tdAcoes);
     tbody.appendChild(tr);
   });
-}
-
-function normalizarTexto(txt) {
-  return (txt || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function apenasDigitos(txt) {
-  return (txt || "").replace(/\D/g, "");
 }
 
 function desmembrarEndereco(endStr) {
@@ -687,7 +678,7 @@ function desmembrarEndereco(endStr) {
     }
   }
 
-  // Caso 2: Formato texto legado concatenado (ex: "Rua X, Nº 7, casa, Bairro Centro, São Paulo/SP, CEP 01001-000")
+  // Caso 2: Formato texto legado concatenado (ex: "Rua X, NÂº 7, casa, Bairro Centro, SÃ£o Paulo/SP, CEP 01001-000")
   let textoRestante = limpo;
 
   // Extrai CEP se presente
@@ -697,7 +688,7 @@ function desmembrarEndereco(endStr) {
     textoRestante = textoRestante.replace(matchCep[0], "").replace(/,\s*,/g, ",");
   }
 
-  // Extrai Cidade/UF se presente (ex: "São Paulo/SP")
+  // Extrai Cidade/UF se presente (ex: "SÃ£o Paulo/SP")
   const matchCidadeUf = textoRestante.match(/,\s*([^,]+)\/([A-Za-z]{2})/);
   if (matchCidadeUf) {
     padrao.cidade = matchCidadeUf[1].trim();
@@ -712,14 +703,14 @@ function desmembrarEndereco(endStr) {
     textoRestante = textoRestante.replace(matchBairro[0], "");
   }
 
-  // Extrai Número se presente (ex: "Nº 123" ou "Nº S/N")
-  const matchNum = textoRestante.match(/,\s*N[ºo°]\s*([^,]+)/i);
+  // Extrai NÃºmero se presente (ex: "NÂº 123" ou "NÂº S/N")
+  const matchNum = textoRestante.match(/,\s*N[ÂºoÂ°]\s*([^,]+)/i);
   if (matchNum) {
     padrao.numero = matchNum[1].trim();
     textoRestante = textoRestante.replace(matchNum[0], "");
   }
 
-  // Divide as partes restantes por vírgula
+  // Divide as partes restantes por vÃ­rgula
   const partes = textoRestante
     .split(",")
     .map((p) => p.trim())
@@ -754,7 +745,7 @@ function editarCliente(cli) {
   mostrarModoNovoCliente(`Editar cliente: ${cli.nome}`);
 }
 
-// Cria uma linha de tabela com uma única célula de aviso.
+// Cria uma linha de tabela com uma Ãºnica cÃ©lula de aviso.
 function linhaVazia(colunas, mensagem) {
   const tr = document.createElement("tr");
   const td = document.createElement("td");
@@ -778,10 +769,10 @@ document.getElementById("btn-sn-num").onclick = () => {
 
 async function consultarViaCEP(cepParam) {
   const valorOriginal = typeof cepParam === "string" ? cepParam : document.getElementById("cli-cep").value;
-  const cepLimpo = apenasDigitos(valorOriginal);
+  const cepLimpo = somenteDigitos(valorOriginal);
   if (cepLimpo.length !== 8) {
     if (!cepParam) {
-      avisar("Digite um CEP válido com 8 dígitos.");
+      avisar("Digite um CEP vÃ¡lido com 8 dÃ­gitos.");
     }
     return;
   }
@@ -798,7 +789,7 @@ async function consultarViaCEP(cepParam) {
       document.getElementById("cli-numero").value = "";
       document.getElementById("cli-complemento").value = "";
       document.getElementById("cli-numero").focus();
-      avisar("Endereço preenchido pelo CEP! Preencha o número.");
+      avisar("EndereÃ§o preenchido pelo CEP! Preencha o nÃºmero.");
       return;
     }
   } catch (_e) {
@@ -813,10 +804,10 @@ async function consultarViaCEP(cepParam) {
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    if (!resp.ok) throw new Error("Falha no serviço ViaCEP");
+    if (!resp.ok) throw new Error("Falha no serviÃ§o ViaCEP");
     const dados = await resp.json();
     if (dados.erro) {
-      avisar("CEP não encontrado.");
+      avisar("CEP nÃ£o encontrado.");
       return;
     }
     if (dados.logradouro) document.getElementById("cli-logradouro").value = dados.logradouro;
@@ -826,13 +817,13 @@ async function consultarViaCEP(cepParam) {
     document.getElementById("cli-numero").value = "";
     document.getElementById("cli-complemento").value = "";
     document.getElementById("cli-numero").focus();
-    avisar("Endereço preenchido pelo CEP! Preencha o número.");
+    avisar("EndereÃ§o preenchido pelo CEP! Preencha o nÃºmero.");
   } catch (_e) {
-    avisar("Não foi possível consultar o CEP online. Preencha manualmente.");
+    avisar("NÃ£o foi possÃ­vel consultar o CEP online. Preencha manualmente.");
   }
 }
 
-// Inicialização das máscaras nos inputs de cliente
+// InicializaÃ§Ã£o das mÃ¡scaras nos inputs de cliente
 aplicarMascaraCPF(document.getElementById("cli-cpf"));
 aplicarMascaraTelefone(document.getElementById("cli-tel"));
 aplicarMascaraCEP(document.getElementById("cli-cep"), (cep8) => {
@@ -840,7 +831,7 @@ aplicarMascaraCEP(document.getElementById("cli-cep"), (cep8) => {
 });
 
 document.getElementById("cli-cep").addEventListener("blur", () => {
-  const v = apenasDigitos(document.getElementById("cli-cep").value);
+  const v = somenteDigitos(document.getElementById("cli-cep").value);
   if (v.length === 8 && !document.getElementById("cli-logradouro").value.trim()) {
     consultarViaCEP(v);
   }
@@ -859,28 +850,28 @@ document.getElementById("form-cliente-salvar").onsubmit = async (e) => {
 
   const nome = document.getElementById("cli-nome").value.trim().replace(/\s+/g, " ");
   if (!nome || nome.length < 3) {
-    avisar("Nome do cliente deve conter no mínimo 3 caracteres.");
+    avisar("Nome do cliente deve conter no mÃ­nimo 3 caracteres.");
     document.getElementById("cli-nome").focus();
     return;
   }
 
   const cpfBruto = document.getElementById("cli-cpf").value.trim();
-  const cpfDigitos = apenasDigitos(cpfBruto);
+  const cpfDigitos = somenteDigitos(cpfBruto);
   if (!cpfDigitos) {
-    avisar("CPF é obrigatório para cadastrar o cliente.");
+    avisar("CPF Ã© obrigatÃ³rio para cadastrar o cliente.");
     document.getElementById("cli-cpf").focus();
     return;
   }
   if (!validarCPF(cpfDigitos)) {
-    avisar("CPF inválido. Confira os 11 dígitos e dígitos verificadores.");
+    avisar("CPF invÃ¡lido. Confira os 11 dÃ­gitos e dÃ­gitos verificadores.");
     document.getElementById("cli-cpf").focus();
     return;
   }
 
   const telBruto = document.getElementById("cli-tel").value.trim();
-  const telDigitos = apenasDigitos(telBruto);
+  const telDigitos = somenteDigitos(telBruto);
   if (telDigitos && !validarTelefone(telDigitos)) {
-    avisar("Telefone inválido. Informe DDD válido (11 a 99) e 8 ou 9 dígitos.");
+    avisar("Telefone invÃ¡lido. Informe DDD vÃ¡lido (11 a 99) e 8 ou 9 dÃ­gitos.");
     document.getElementById("cli-tel").focus();
     return;
   }
@@ -893,43 +884,43 @@ document.getElementById("form-cliente-salvar").onsubmit = async (e) => {
   const uf = document.getElementById("cli-uf").value.trim().toUpperCase();
   const cep = document.getElementById("cli-cep").value.trim();
 
-  // Validação condicional estrita de endereço (CLI-002, AUD-02)
+  // ValidaÃ§Ã£o condicional estrita de endereÃ§o (CLI-002, AUD-02)
   const temAlgumEndereco = Boolean(
     logradouro || numero || complemento || bairro || cidade || uf || cep,
   );
   if (temAlgumEndereco) {
     if (!logradouro) {
-      avisar("Logradouro/rua é obrigatório quando há endereço informado.");
+      avisar("Logradouro/rua Ã© obrigatÃ³rio quando hÃ¡ endereÃ§o informado.");
       document.getElementById("cli-logradouro").focus();
       return;
     }
     if (/^[0-9\s.,\-_/]+$/.test(logradouro)) {
-      avisar("O logradouro/rua deve conter o nome da rua, não apenas números.");
+      avisar("O logradouro/rua deve conter o nome da rua, nÃ£o apenas nÃºmeros.");
       document.getElementById("cli-logradouro").focus();
       return;
     }
     if (!numero) {
-      avisar("Número é obrigatório quando há endereço (use S/N se não houver).");
+      avisar("NÃºmero Ã© obrigatÃ³rio quando hÃ¡ endereÃ§o (use S/N se nÃ£o houver).");
       document.getElementById("cli-numero").focus();
       return;
     }
     if (!bairro) {
-      avisar("Bairro é obrigatório quando há endereço informado.");
+      avisar("Bairro Ã© obrigatÃ³rio quando hÃ¡ endereÃ§o informado.");
       document.getElementById("cli-bairro").focus();
       return;
     }
     if (/^[0-9\s.,\-_/]+$/.test(bairro)) {
-      avisar("O bairro deve conter o nome do bairro, não apenas números.");
+      avisar("O bairro deve conter o nome do bairro, nÃ£o apenas nÃºmeros.");
       document.getElementById("cli-bairro").focus();
       return;
     }
     if (!cidade) {
-      avisar("Cidade é obrigatória quando há endereço informado.");
+      avisar("Cidade Ã© obrigatÃ³ria quando hÃ¡ endereÃ§o informado.");
       document.getElementById("cli-cidade").focus();
       return;
     }
     if (!uf) {
-      avisar("UF é obrigatória quando há endereço informado. Selecione o estado.");
+      avisar("UF Ã© obrigatÃ³ria quando hÃ¡ endereÃ§o informado. Selecione o estado.");
       document.getElementById("cli-uf").focus();
       return;
     }
@@ -995,7 +986,7 @@ function acaoF5() {
 
 document.getElementById("sangria-valor").addEventListener("input", (e) => {
   const c = parsearCentavos(e.target.value);
-  if (c > 0) e.target.value = (c / 100).toFixed(2).replace(".", ",");
+  if (c > 0) e.target.value = formatarCampoMoeda(c);
 });
 
 document.getElementById("form-sangria").onsubmit = async (e) => {
@@ -1020,7 +1011,7 @@ document.getElementById("form-sangria").onsubmit = async (e) => {
       .value.trim();
     const senha = document.getElementById("sangria-aprovador-senha").value;
     if (!username || !senha) {
-      avisar("Informe usuário e senha do gerente/dono para autorizar a sangria.");
+      avisar("Informe usuÃ¡rio e senha do gerente/dono para autorizar a sangria.");
       document.getElementById("sangria-aprovador-usuario").focus();
       return;
     }
@@ -1043,7 +1034,7 @@ document.getElementById("form-sangria").onsubmit = async (e) => {
   }
 };
 
-// F6: Pagar Dívidas (Crediário)
+// F6: Pagar DÃ­vidas (CrediÃ¡rio)
 let DEVEDORES_CACHE = [];
 function acaoF6() {
   abrirModal("modal-devedores");
@@ -1065,8 +1056,8 @@ async function carregarDevedores() {
       linhaVazia(
         5,
         ok
-          ? "Nenhum cliente com débito. Tudo em dia."
-          : data.erro || "Falha ao consultar o crediário.",
+          ? "Nenhum cliente com dÃ©bito. Tudo em dia."
+          : data.erro || "Falha ao consultar o crediÃ¡rio.",
       ),
     );
     DEVEDORES_CACHE = [];
@@ -1082,7 +1073,7 @@ function abrirRecebimentoDevedor(item) {
   document.getElementById("dev-liq-parc-num").value = item.parcela_numero;
   document.getElementById("dev-liq-valor").value = item.valor_fmt;
   document.getElementById("dev-liq-titulo").textContent =
-    `Receber Dívida de: ${item.cliente_nome}`;
+    `Receber DÃ­vida de: ${item.cliente_nome}`;
   document.getElementById("dev-submodal-pagar").style.display = "block";
 }
 
@@ -1093,7 +1084,7 @@ function renderDevedoresTabela(lista, termoBusca = "") {
   if (lista.length === 0) {
     const msg = termoBusca
       ? `Nenhum devedor encontrado para "${termoBusca}".`
-      : "Nenhum cliente com débito. Tudo em dia.";
+      : "Nenhum cliente com dÃ©bito. Tudo em dia.";
     tbody.appendChild(linhaVazia(5, msg));
     return;
   }
@@ -1120,7 +1111,7 @@ function renderDevedoresTabela(lista, termoBusca = "") {
       const atraso = document.createElement("span");
       atraso.style.color = "red";
       atraso.style.fontWeight = "900";
-      atraso.textContent = ` (${d.dias_atraso}d atrás)`;
+      atraso.textContent = ` (${d.dias_atraso}d atrÃ¡s)`;
       tdVencimento.appendChild(atraso);
     }
 
@@ -1146,8 +1137,8 @@ function renderDevedoresTabela(lista, termoBusca = "") {
 
 document.getElementById("dev-filtro").addEventListener("input", (e) => {
   const tOriginal = e.target.value.trim();
-  const tNorm = normalizarTexto(tOriginal);
-  const tDigitos = apenasDigitos(tOriginal);
+  const tNorm = normalizarBusca(tOriginal);
+  const tDigitos = somenteDigitos(tOriginal);
 
   if (!tNorm && !tDigitos) {
     renderDevedoresTabela(DEVEDORES_CACHE);
@@ -1155,9 +1146,9 @@ document.getElementById("dev-filtro").addEventListener("input", (e) => {
   }
 
   const filtrados = DEVEDORES_CACHE.filter((d) => {
-    const nomeNorm = normalizarTexto(d.cliente_nome);
-    const cpfDigitos = apenasDigitos(d.cliente_cpf);
-    const telDigitos = apenasDigitos(d.cliente_telefone);
+    const nomeNorm = normalizarBusca(d.cliente_nome);
+    const cpfDigitos = somenteDigitos(d.cliente_cpf);
+    const telDigitos = somenteDigitos(d.cliente_telefone);
 
     const bateNome = tNorm.length >= 2 && nomeNorm.includes(tNorm);
     const bateNomeInicio = tNorm.length > 0 && nomeNorm.startsWith(tNorm);
@@ -1184,11 +1175,11 @@ document.getElementById("form-dev-liquidar").onsubmit = async (e) => {
   });
 
   if (ok) {
-    avisar("Dívida quitada e recebida no caixa com sucesso!");
+    avisar("DÃ­vida quitada e recebida no caixa com sucesso!");
     document.getElementById("dev-submodal-pagar").style.display = "none";
     carregarDevedores();
   } else {
-    avisar(data.erro || "Falha ao liquidar dívida.");
+    avisar(data.erro || "Falha ao liquidar dÃ­vida.");
   }
 };
 
@@ -1202,7 +1193,7 @@ async function acaoF7() {
 // F8: Fechar Caixa
 function acaoF8() {
   if (!sessaoAtual || !sessaoAtual.sessao_id) {
-    avisar("O caixa já está fechado.");
+    avisar("O caixa jÃ¡ estÃ¡ fechado.");
     return;
   }
   document.getElementById("fech-etapa-1").style.display = "block";
@@ -1223,12 +1214,12 @@ document.getElementById("btn-fech-sim-sangria").onclick = () => {
 
 document.getElementById("btn-fech-nao-sangria").onclick = () => {
   fecharModais();
-  acaoF5(); // Redireciona para sangria prévia
+  acaoF5(); // Redireciona para sangria prÃ©via
 };
 
 document.getElementById("fech-contado").addEventListener("input", (e) => {
   const c = parsearCentavos(e.target.value);
-  if (c > 0) e.target.value = (c / 100).toFixed(2).replace(".", ",");
+  if (c > 0) e.target.value = formatarCampoMoeda(c);
 });
 
 document.getElementById("form-fechamento-exec").onsubmit = async (e) => {
@@ -1251,7 +1242,7 @@ document.getElementById("form-fechamento-exec").onsubmit = async (e) => {
   });
 
   if (res.ok) {
-    // Busca comprovante térmico do fechamento
+    // Busca comprovante tÃ©rmico do fechamento
     const resComp = await requisitarJSON(
       `/v1/caixa/fechamento/${sessaoAtual.sessao_id}/comprovante`,
     );
@@ -1269,7 +1260,7 @@ document.getElementById("form-fechamento-exec").onsubmit = async (e) => {
         `/v1/caixa/fechamento/${sessaoAtual.sessao_id}/imprimir`,
         { method: "POST" },
       );
-      avisar("Bobina enviada para impressão!");
+      avisar("Bobina enviada para impressÃ£o!");
     };
 
     // Reset estado
@@ -1313,20 +1304,20 @@ document.querySelectorAll("[data-acao]").forEach((botao) => {
   if (acao) botao.addEventListener("click", acao);
   else
     console.warn(
-      "[mikella] ação de interface desconhecida:",
+      "[mikella] aÃ§Ã£o de interface desconhecida:",
       botao.dataset.acao,
     );
 });
 
 // Teclas de Atalho [F1 a F9] e [ESC]
 window.addEventListener("keydown", (e) => {
-  // A consulta de preço captura o próprio Esc; enquanto aberta, F1-F8 não
-  // devem disparar navegação por baixo do modal.
+  // A consulta de preÃ§o captura o prÃ³prio Esc; enquanto aberta, F1-F8 nÃ£o
+  // devem disparar navegaÃ§Ã£o por baixo do modal.
   if (consultaPreco.estaAberta()) return;
 
   if (document.querySelector(".modal-overlay[style*='display: flex']")) {
     if (e.key === "Escape") {
-      // O estorno fica empilhado sobre o histórico: Esc fecha só o topo.
+      // O estorno fica empilhado sobre o histÃ³rico: Esc fecha sÃ³ o topo.
       const estorno = document.getElementById("modal-estorno");
       if (estorno && estorno.style.display === "flex") {
         fecharEstorno();

@@ -17,8 +17,21 @@ export function formatarCentavos(centavos) {
 }
 
 export function parsearCentavos(texto) {
-  const digitos = String(texto ?? "").replace(/\D/g, "");
-  return parseInt(digitos, 10) || 0;
+  return parseInt(somenteDigitos(texto), 10) || 0;
+}
+
+/** Remove tudo que não for dígito ASCII (máscaras e documentos). */
+export function somenteDigitos(texto) {
+  return String(texto ?? "").replace(/\D/g, "");
+}
+
+/**
+ * Formata centavos para um campo de moeda sem o prefixo "R$".
+ * Aceita número (centavos) ou texto com máscara (ex.: "1.299,90").
+ */
+export function formatarCampoMoeda(valor) {
+  const centavos = typeof valor === "number" ? valor : parsearCentavos(valor);
+  return (centavos / 100).toFixed(2).replace(".", ",");
 }
 
 /**

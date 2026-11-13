@@ -11,7 +11,7 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use chrono::{NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use chrono_tz::Tz;
 
 use crate::dto::VendaSummary;
@@ -28,6 +28,30 @@ use mikella_infra_sqlite::{
 use mikella_shared_kernel::ids::SessaoId;
 use mikella_shared_kernel::money::Money;
 
+/// Converte um horário local da loja para UTC.
+///
+/// Quando o horário não existe no fuso (salto de horário de verão), interpreta
+/// o mesmo valor como UTC. O fallback anterior (`Utc::now`) encolhia a janela
+/// para o instante atual e escondia as vendas do dia.
+fn resolver_local(tz: &Tz, naive: NaiveDateTime) -> DateTime<Utc> {
+    tz.from_local_datetime(&naive)
+        .earliest()
+        .map(|dt| dt.with_timezone(&Utc))
+        .unwrap_or_else(|| {
+            tracing::warn!(
+                horario = %naive,
+                "horário local inexistente no fuso da loja; usando o mesmo valor em UTC"
+            );
+            Utc.from_utc_datetime(&naive)
+        })
+}
+
+/// 23:59:59 — validado em tempo de compilação, sem `unwrap` em runtime.
+const FIM_DO_DIA: NaiveTime = match NaiveTime::from_hms_opt(23, 59, 59) {
+    Some(hora) => hora,
+    None => NaiveTime::MIN,
+};
+
 /// Calcula o início e o fim do "hoje" no fuso IANA da loja como timestamps UTC RFC-3339.
 ///
 /// Exemplo: se a loja está em `America/Sao_Paulo` (UTC-3) e agora são 23h30 UTC
@@ -38,17 +62,8 @@ fn hoje_utc_intervalo(fuso_iana: &str) -> (String, String) {
     let agora_local = Utc::now().with_timezone(&tz);
     let data_local = agora_local.date_naive();
 
-    let inicio_local = tz
-        .from_local_datetime(&data_local.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
-        .single()
-        .map(|dt| dt.with_timezone(&Utc))
-        .unwrap_or_else(Utc::now);
-
-    let fim_local = tz
-        .from_local_datetime(&data_local.and_time(NaiveTime::from_hms_opt(23, 59, 59).unwrap()))
-        .single()
-        .map(|dt| dt.with_timezone(&Utc))
-        .unwrap_or_else(Utc::now);
+    let inicio_local = resolver_local(&tz, data_local.and_time(NaiveTime::MIN));
+    let fim_local = resolver_local(&tz, data_local.and_time(FIM_DO_DIA));
 
     (
         inicio_local.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string(),

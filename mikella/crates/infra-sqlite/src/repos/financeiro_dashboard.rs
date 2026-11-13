@@ -44,8 +44,10 @@ fn intervalo_utc_da_janela(
         .single()
         .ok_or_else(|| crate::error::erro_campo("data_inicio", "horário inexistente no fuso"))?
         .with_timezone(&Utc);
+    let fim_do_dia = NaiveTime::from_hms_milli_opt(23, 59, 59, 999)
+        .ok_or_else(|| crate::error::erro_campo("data_fim", "horário inválido"))?;
     let fim_local = tz
-        .from_local_datetime(&fim.and_time(NaiveTime::from_hms_milli_opt(23, 59, 59, 999).unwrap()))
+        .from_local_datetime(&fim.and_time(fim_do_dia))
         .single()
         .ok_or_else(|| crate::error::erro_campo("data_fim", "horário inexistente no fuso"))?
         .with_timezone(&Utc);

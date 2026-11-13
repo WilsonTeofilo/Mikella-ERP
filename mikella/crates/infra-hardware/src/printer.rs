@@ -26,17 +26,20 @@ impl MockPrinter {
     }
 
     pub fn total_impressoes(&self) -> usize {
-        self.buffers.lock().unwrap().len()
+        self.buffers.lock().map(|b| b.len()).unwrap_or(0)
     }
 
     pub fn ultimos_bytes(&self) -> Option<Vec<u8>> {
-        self.buffers.lock().unwrap().last().cloned()
+        self.buffers.lock().ok()?.last().cloned()
     }
 }
 
 impl PrinterPort for MockPrinter {
     fn imprimir(&self, raw_bytes: &[u8]) -> Result<(), HardwareError> {
-        self.buffers.lock().unwrap().push(raw_bytes.to_vec());
+        // Mock de teste: um lock envenenado só perde a amostra, nunca derruba o servidor.
+        if let Ok(mut buffers) = self.buffers.lock() {
+            buffers.push(raw_bytes.to_vec());
+        }
         Ok(())
     }
 
@@ -98,10 +101,9 @@ impl PrinterPort for DispositivoLocalPrinter {
                 "/dev/usb/lp0"
             };
 
-            let mut file = OpenOptions::new()
-                .write(true)
-                .open(caminho)
-                .map_err(|e| HardwareError::ImpressoraNaoEncontrada(format!("{}: {}", caminho, e)))?;
+            let mut file = OpenOptions::new().write(true).open(caminho).map_err(|e| {
+                HardwareError::ImpressoraNaoEncontrada(format!("{}: {}", caminho, e))
+            })?;
             file.write_all(raw_bytes)?;
             file.flush()?;
             Ok(())
@@ -110,11 +112,18 @@ impl PrinterPort for DispositivoLocalPrinter {
         #[cfg(target_os = "windows")]
         {
             // No Windows, pode ser uma porta direta (COM1, LPT1) ou salva para spooler
-            if self.identificador.to_uppercase().starts_with("COM") || self.identificador.to_uppercase().starts_with("LPT") {
+            if self.identificador.to_uppercase().starts_with("COM")
+                || self.identificador.to_uppercase().starts_with("LPT")
+            {
                 let mut file = OpenOptions::new()
                     .write(true)
                     .open(&self.identificador)
-                    .map_err(|e| HardwareError::ImpressoraNaoEncontrada(format!("{}: {}", self.identificador, e)))?;
+                    .map_err(|e| {
+                        HardwareError::ImpressoraNaoEncontrada(format!(
+                            "{}: {}",
+                            self.identificador, e
+                        ))
+                    })?;
                 file.write_all(raw_bytes)?;
                 file.flush()?;
                 Ok(())

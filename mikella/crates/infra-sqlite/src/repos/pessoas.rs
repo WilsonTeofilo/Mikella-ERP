@@ -826,7 +826,8 @@ pub fn backfill_blind_index(conn: &Connection, chave_loja: &[u8; 32]) -> InfraRe
     }
 
     // Criptografia em repouso retroativa para telefones, e-mails e endereços legados (LGPD Art. 46)
-    let legados: Vec<(String, Option<String>, Option<String>, Option<String>)> = {
+    type PiiLegada = (String, Option<String>, Option<String>, Option<String>);
+    let legados: Vec<PiiLegada> = {
         let mut stmt = conn.prepare(
             "SELECT id, telefone, email, endereco FROM pessoas
              WHERE (telefone IS NOT NULL AND telefone NOT LIKE 'ENC:%')

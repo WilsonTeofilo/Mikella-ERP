@@ -101,13 +101,17 @@ pub async fn listar_clientes_handler(
                         email: c.pessoa.email,
                         endereco: c.pessoa.endereco,
                         saldo_devedor_centavos: c.saldo_devedor_centavos,
-                        saldo_devedor_fmt: Money::from_centavos(c.saldo_devedor_centavos).to_string(),
+                        saldo_devedor_fmt: Money::from_centavos(c.saldo_devedor_centavos)
+                            .to_string(),
                         tem_vencido: c.tem_vencido,
                         ativo: c.pessoa.ativo,
                     }
                 })
                 .collect();
-            (StatusCode::OK, Json(serde_json::json!({ "clientes": lista })))
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({ "clientes": lista })),
+            )
         }
         Err(e) => {
             tracing::error!(erro = %e, "falha ao listar clientes");
@@ -173,7 +177,9 @@ pub async fn salvar_cliente_handler(
             Ok(true) => {
                 return (
                     StatusCode::CONFLICT,
-                    Json(serde_json::json!({ "erro": "Telefone já cadastrado para outro cliente" })),
+                    Json(
+                        serde_json::json!({ "erro": "Telefone já cadastrado para outro cliente" }),
+                    ),
                 );
             }
             Ok(false) => {}
@@ -192,7 +198,9 @@ pub async fn salvar_cliente_handler(
             Ok(true) => {
                 return (
                     StatusCode::CONFLICT,
-                    Json(serde_json::json!({ "erro": "CPF/CNPJ já cadastrado para outro cliente" })),
+                    Json(
+                        serde_json::json!({ "erro": "CPF/CNPJ já cadastrado para outro cliente" }),
+                    ),
                 );
             }
             Ok(false) => {}
@@ -223,7 +231,9 @@ pub async fn salvar_cliente_handler(
             }
             (
                 StatusCode::OK,
-                Json(serde_json::json!({ "sucesso": true, "mensagem": "Cliente salvo com sucesso" })),
+                Json(
+                    serde_json::json!({ "sucesso": true, "mensagem": "Cliente salvo com sucesso" }),
+                ),
             )
         }
         Err(mikella_shared_kernel::error::DomainError::NaoEncontrado { .. }) => (
@@ -280,7 +290,10 @@ pub async fn listar_devedores_handler(
                     });
                 }
             }
-            (StatusCode::OK, Json(serde_json::json!({ "devedores": lista_resp })))
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({ "devedores": lista_resp })),
+            )
         }
         Err(e) => {
             tracing::error!(erro = %e, "falha ao listar devedores");
@@ -316,7 +329,8 @@ pub async fn liquidar_divida_handler(
     };
 
     let repo = PessoaRepo::com_chave(&tx, &state.chave_loja);
-    let valor_centavos = match repo.liquidar_parcela(&payload.parcela_id, &payload.forma_pagamento) {
+    let valor_centavos = match repo.liquidar_parcela(&payload.parcela_id, &payload.forma_pagamento)
+    {
         Ok(v) => v,
         Err(mikella_shared_kernel::error::DomainError::EstadoInvalido(msg)) => {
             return (
@@ -352,7 +366,12 @@ pub async fn liquidar_divida_handler(
         _ => mikella_domain_cash::livro::TipoMovimentacao::VendaOutro,
     };
 
-    if let Some(sessao_id) = payload.sessao_id.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    if let Some(sessao_id) = payload
+        .sessao_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         let Ok(suuid) = sessao_id.parse::<Uuid>() else {
             return (
                 StatusCode::BAD_REQUEST,
@@ -390,13 +409,15 @@ pub async fn liquidar_divida_handler(
             }),
             usuario_id: ator.id(),
             aprovador_id: None,
-            motivo: Some(format!("Recebimento de dívida ({})", payload.forma_pagamento)),
+            motivo: Some(format!(
+                "Recebimento de dívida ({})",
+                payload.forma_pagamento
+            )),
             prev_hash: posicao.ultimo_hash,
             hash: String::new(),
             created_at: chrono::Utc::now(),
         };
-        entrada.hash =
-            mikella_domain_cash::ports::HashChain::hash_entrada(&hash_chain, &entrada);
+        entrada.hash = mikella_domain_cash::ports::HashChain::hash_entrada(&hash_chain, &entrada);
 
         if let Err(e) =
             mikella_domain_cash::ports::LivroCaixaRepository::inserir_entrada(&livro_repo, &entrada)
@@ -446,7 +467,6 @@ pub async fn liquidar_divida_handler(
             "data_hora": chrono::Utc::now().to_rfc3339()
         })
     });
-    drop(repo);
 
     if let Err(e) = tx.commit() {
         tracing::error!(erro = %e, "falha ao confirmar liquidação");

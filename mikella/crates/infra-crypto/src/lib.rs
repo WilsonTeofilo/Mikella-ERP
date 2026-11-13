@@ -124,7 +124,7 @@ mod hex {
     }
 
     pub fn decode(hex_str: &str) -> Result<Vec<u8>, ()> {
-        if hex_str.len() % 2 != 0 {
+        if !hex_str.len().is_multiple_of(2) {
             return Err(());
         }
         let mut bytes = Vec::with_capacity(hex_str.len() / 2);
@@ -179,7 +179,10 @@ mod tests {
 
         let c1 = cifrar_pii(tel, &chave, "telefone").unwrap();
         let c2 = cifrar_pii(tel, &chave, "telefone").unwrap();
-        assert_eq!(c1, c2, "cifragem PII com mesmo contexto deve ser determinística");
+        assert_eq!(
+            c1, c2,
+            "cifragem PII com mesmo contexto deve ser determinística"
+        );
 
         // Contextos diferentes produzem ciphertexts diferentes
         let c_outro = cifrar_pii(tel, &chave, "outro").unwrap();

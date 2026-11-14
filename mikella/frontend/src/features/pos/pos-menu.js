@@ -20,9 +20,11 @@ import {
   formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
+import { inicializarDiagnostico } from "../../shared/ui/diagnostico.js";
 import { inicializarConsultaPreco } from "./consulta-preco.js";
 
 inicializarControlesJanela();
+inicializarDiagnostico();
 garantirSessao();
 
 let usuarioAtual = obterUsuario();

@@ -14,10 +14,13 @@
         "title": "Mikella POS",
         "width": 1280,
         "height": 800,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "center": true,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,
-        "transparent": false,
+        "decorations": true,
+        "theme": "Dark",
         "url": "index.html"
       }
     ],

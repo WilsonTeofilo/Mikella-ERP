@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../features/navigation/main-menu.css" />
   <link rel="stylesheet" href="../shared/ui/forms.css" />
+  <link rel="stylesheet" href="../shared/ui/diagnostico.css" />
   <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body>
@@ -56,12 +57,15 @@
     <div class="hud-cmd-item">
       <span class="hud-btn-tag">ESC</span> Desconectar
     </div>
+    <div class="hud-cmd-item">
+      <span class="hud-btn-tag">F10</span> Diagnóstico
+    </div>
   </footer>
 
   <!-- Toast de Notificação -->
   <div id="toast"></div>
 
-  <!-- Modal Genérico de Confirmação de Ação (Backup / Diagnóstico) -->
+  <!-- Modal de Confirmação de Ação (Backup) -->
   <div id="modal-acao" class="modal-dialogo u-5790ffba">
     <div class="modal-box">
       <h2 id="modal-titulo">CONFIRMAÇÃO</h2>
@@ -73,25 +77,6 @@
     </div>
   </div>
 
-  <!-- Modal de Configuração de Pagamento (parcelas e crediário) -->
-  <div id="modal-config" class="modal-dialogo u-5790ffba">
-    <form id="form-config-pagamento" class="modal-box">
-      <h2>CONFIGURAÇÕES DA LOJA</h2>
-      <p>Limites aplicados ao PDV. Toda venda é revalidada pelo servidor.</p>
-      <div class="campo-grupo">
-        <label for="cfg-max-parcelas">Máximo de parcelas no cartão</label>
-        <input id="cfg-max-parcelas" class="campo" type="number" min="1" step="1" required />
-      </div>
-      <div class="campo-grupo">
-        <label for="cfg-prazo-crediario">Prazo do crediário (dias)</label>
-        <input id="cfg-prazo-crediario" class="campo" type="number" min="1" step="1" required />
-      </div>
-      <div class="modal-botoes">
-        <button type="submit" class="modal-btn modal-btn-confirm">SALVAR</button>
-        <button type="button" id="modal-config-cancelar" class="modal-btn modal-btn-cancel">VOLTAR (ESC)</button>
-      </div>
-    </form>
-  </div>
 
 <script type="module" src="../features/navigation/main-menu.js"></script>
 </body>

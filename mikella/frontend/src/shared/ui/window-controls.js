@@ -4,9 +4,12 @@
  * Responsabilidades:
  * - injetar a barra de controles uma única vez por documento;
  * - minimizar, alternar tela cheia e fechar usando a janela real do Tauri;
- * - refletir o estado real da janela (nunca apenas uma variável local);
- * - em tela cheia, ocultar os controles e revelá-los ao aproximar o ponteiro
- *   da extremidade superior direita ou ao navegar por teclado.
+ * - refletir o estado real da janela (nunca apenas uma variável local).
+ *
+ * Em modo janela o Windows desenha a barra nativa (arrastar, encaixar nas
+ * bordas, maximizar e redimensionar), então a barra customizada só aparece em
+ * tela cheia, revelada ao aproximar o ponteiro da extremidade superior direita
+ * ou ao navegar por teclado.
  *
  * A API global (`window.__TAURI__`) exige `app.withGlobalTauri: true` e as
  * permissões `core:window:allow-close|minimize|is-fullscreen|set-fullscreen`
@@ -38,8 +41,9 @@ function criarBarra() {
   barra.id = ID_BARRA;
   barra.className = "mikella-window-bar";
   barra.setAttribute("aria-label", "Controles da janela");
-  // A janela não tem decoração nativa: a barra serve como área de arraste.
-  // O atributo é lido no próprio elemento, então os botões continuam clicáveis.
+  // Em tela cheia não existe barra nativa: a barra customizada serve de área
+  // de arraste. O atributo é lido no próprio elemento, então os botões
+  // continuam clicáveis.
   barra.setAttribute("data-tauri-drag-region", "");
   barra.innerHTML = `
     <button id="win-btn-fs" class="mikella-win-btn" type="button"

@@ -44,7 +44,7 @@ frontend/
     index.html                        # entry point → app/landing.html
     app/                              # somente HTML de entrada
       landing.html, onboarding.html, pos.html, pos-menu.html,
-      produtos.html, financeiro.html, resumo.html, main-menu.html
+      produtos.html, financeiro.html, main-menu.html
     features/                         # JS/CSS por tela
       auth/, navigation/, pos/, products/, finance/, financeiro/,
       caixa/, estoque/, comissoes/, equipe/, ajustes/

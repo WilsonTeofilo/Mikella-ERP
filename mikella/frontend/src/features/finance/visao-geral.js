@@ -1,12 +1,18 @@
-import { garantirSessao, requisitarJSON } from "../../shared/services/api.js";
+/**
+ * Visão geral do financeiro (antigo Resumo do Dono).
+ *
+ * Consolida o que o dono precisa ver de imediato — faturamento, margem, contas
+ * e riscos — dentro da tela de Financeiro, evitando duas telas com a mesma
+ * função. Os dados vêm de `/v1/finance/resumo` e `/v1/finance/fluxo-caixa`;
+ * nenhum cálculo de preço ou margem é refeito aqui (o Rust é a autoridade).
+ */
+
+import { requisitarJSON } from "../../shared/services/api.js";
 import { formatarCentavos } from "../../shared/ui/formatadores.js";
 import { mostrarToast } from "../../shared/ui/feedback.js";
-import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
-
-inicializarControlesJanela();
-garantirSessao();
 
 let periodoAtual = "hoje";
+let inicializado = false;
 
 const elBtnHoje = document.getElementById("btn-periodo-hoje");
 const elBtnSemana = document.getElementById("btn-periodo-semana");
@@ -31,10 +37,6 @@ const elColunaAtencao = document.getElementById("coluna-atencao-container");
 const elTabelaFitaCorpo = document.getElementById("tabela-fita-corpo");
 const elGraficoSvg = document.getElementById("grafico-svg-container");
 
-const elBtnIrFinanceiro = document.getElementById("btn-ir-financeiro");
-const elBtnIrCaixa = document.getElementById("btn-ir-caixa");
-const elBtnVoltar = document.getElementById("btn-voltar");
-
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Destinos internos conhecidos. Qualquer outro valor (javascript:, data:,
@@ -43,7 +45,6 @@ const PAGINAS_INTERNAS = new Set([
   "financeiro.html",
   "pos-menu.html",
   "produtos.html",
-  "resumo.html",
   "main-menu.html",
 ]);
 
@@ -53,111 +54,13 @@ function sanitizarLinkInterno(destino) {
   return PAGINAS_INTERNAS.has(pagina) ? bruto : "main-menu.html";
 }
 
-function bindEventos() {
-  elBtnHoje?.addEventListener("click", () => trocarPeriodo("hoje"));
-  elBtnSemana?.addEventListener("click", () => trocarPeriodo("semana"));
-  elBtnMes?.addEventListener("click", () => trocarPeriodo("mes"));
-
-  elBtnIrFinanceiro?.addEventListener("click", () => {
-    window.location.href = "financeiro.html";
-  });
-  elBtnIrCaixa?.addEventListener("click", () => {
-    window.location.href = "pos-menu.html";
-  });
-  elBtnVoltar?.addEventListener("click", () => {
-    window.location.href = "main-menu.html";
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      window.location.href = "main-menu.html";
-    } else if (e.key === "F1") {
-      e.preventDefault();
-      window.location.href = "financeiro.html";
-    } else if (e.key === "F2") {
-      e.preventDefault();
-      window.location.href = "pos-menu.html";
-    }
-  });
-}
-
 function trocarPeriodo(periodo) {
   periodoAtual = periodo;
   [elBtnHoje, elBtnSemana, elBtnMes].forEach((btn) => btn?.classList.remove("ativo"));
   if (periodo === "hoje") elBtnHoje?.classList.add("ativo");
   if (periodo === "semana") elBtnSemana?.classList.add("ativo");
   if (periodo === "mes") elBtnMes?.classList.add("ativo");
-  carregarResumo();
-}
-
-async function carregarResumo() {
-  try {
-    const { ok, data } = await requisitarJSON(`/v1/finance/resumo?periodo=${periodoAtual}`);
-    if (!ok || !data) {
-      mostrarToast("Não foi possível carregar o resumo executivo.");
-      return;
-    }
-    renderizarResumo(data);
-  } catch (err) {
-    mostrarToast("Erro de comunicação ao carregar resumo.");
-  }
-
-  // Carrega o histórico para o gráfico SVG
-  carregarGrafico();
-}
-
-function renderizarResumo(d) {
-  // 1. Dominante: Faturamento e margem
-  if (elFaturamento) elFaturamento.textContent = formatarCentavos(d.faturamento_centavos);
-  if (elMargemBruta) elMargemBruta.textContent = `${d.margem_bruta_pct.toFixed(1)}%`;
-  if (elNumVendas) elNumVendas.textContent = d.num_vendas;
-  if (elTicketMedio) elTicketMedio.textContent = formatarCentavos(d.ticket_medio_centavos);
-
-  if (elComparativo) {
-    if (d.comparativo_faturamento_pct !== null && d.comparativo_faturamento_pct !== undefined) {
-      const pct = d.comparativo_faturamento_pct;
-      const sinal = pct >= 0 ? "+" : "";
-      elComparativo.textContent = `${sinal}${pct.toFixed(1)}% vs anterior`;
-      elComparativo.className = `comparativo-tag ${pct >= 0 ? "positivo" : "negativo"}`;
-      elComparativo.style.display = "inline-block";
-    } else {
-      elComparativo.style.display = "none";
-    }
-  }
-
-  // Ponto de equilíbrio
-  if (elPontoEquilibrioTexto && elBarraProgresso) {
-    if (d.ponto_equilibrio_centavos > 0) {
-      const cob = Math.min(d.cobertura_ponto_equilibrio_pct, 100);
-      const faltam = Math.max(0, d.ponto_equilibrio_centavos - d.faturamento_centavos);
-      elPontoEquilibrioTexto.textContent = `${d.cobertura_ponto_equilibrio_pct.toFixed(0)}% coberto • Faltam ${formatarCentavos(faltam)} para o equilíbrio`;
-      elBarraProgresso.style.width = `${cob}%`;
-    } else {
-      elPontoEquilibrioTexto.textContent = "Cadastre suas despesas fixas para acompanhar o ponto de equilíbrio";
-      elBarraProgresso.style.width = "0%";
-    }
-  }
-
-  // 2. Faixa Dinheiro e Contas
-  if (elAPagar7d) elAPagar7d.textContent = formatarCentavos(d.a_pagar_7d_centavos);
-  if (elAPagarVencidas) {
-    elAPagarVencidas.textContent = `${d.num_contas_pagar_vencidas} vencidas (${formatarCentavos(d.a_pagar_vencidas_centavos)})`;
-    elAPagarVencidas.classList.toggle("valor-perigo", d.num_contas_pagar_vencidas > 0);
-  }
-  if (elAReceber7d) elAReceber7d.textContent = formatarCentavos(d.a_receber_7d_centavos);
-  if (elCrediarioVencido) elCrediarioVencido.textContent = formatarCentavos(d.crediario_vencido_centavos);
-  if (elSaldoCaixa) elSaldoCaixa.textContent = formatarCentavos(d.saldo_caixa_dinheiro_centavos);
-  if (elSaldoProjetado) {
-    elSaldoProjetado.textContent = formatarCentavos(d.saldo_projetado_7d_centavos);
-    elSaldoProjetado.classList.toggle("valor-positivo", d.saldo_projetado_7d_centavos >= 0);
-    elSaldoProjetado.classList.toggle("valor-perigo", d.saldo_projetado_7d_centavos < 0);
-  }
-
-  // 3. Coluna de Atenção (Máximo 3 selos)
-  renderizarAtencao(d.atencao_itens || []);
-
-  // 4. Fita do dia
-  renderizarFita(d.fita_do_dia || []);
+  carregarVisaoGeral();
 }
 
 function renderizarAtencao(itens) {
@@ -248,10 +151,12 @@ function renderizarFita(movimentos) {
 
   movimentos.forEach((m) => {
     const tr = document.createElement("tr");
-    // BUG CORRIGIDO: substring(11,16) extraía a hora UTC — 3h a mais em São Paulo.
-    // Usar new Date() converte corretamente para o fuso local do sistema operacional.
+    // new Date() converte o UTC do banco para o fuso local do sistema.
     const hora = m.created_at
-      ? new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+      ? new Date(m.created_at).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
       : "--:--";
     const sinal = m.tipo === "VENDA" ? "+" : "";
 
@@ -277,6 +182,57 @@ function renderizarFita(movimentos) {
   });
 }
 
+function renderizarResumo(d) {
+  if (elFaturamento) elFaturamento.textContent = formatarCentavos(d.faturamento_centavos);
+  if (elMargemBruta) elMargemBruta.textContent = `${d.margem_bruta_pct.toFixed(1)}%`;
+  if (elNumVendas) elNumVendas.textContent = d.num_vendas;
+  if (elTicketMedio) elTicketMedio.textContent = formatarCentavos(d.ticket_medio_centavos);
+
+  if (elComparativo) {
+    if (d.comparativo_faturamento_pct !== null && d.comparativo_faturamento_pct !== undefined) {
+      const pct = d.comparativo_faturamento_pct;
+      const sinal = pct >= 0 ? "+" : "";
+      elComparativo.textContent = `${sinal}${pct.toFixed(1)}% vs anterior`;
+      elComparativo.className = `comparativo-tag ${pct >= 0 ? "positivo" : "negativo"}`;
+      elComparativo.style.display = "inline-block";
+    } else {
+      elComparativo.style.display = "none";
+    }
+  }
+
+  // Ponto de equilíbrio
+  if (elPontoEquilibrioTexto && elBarraProgresso) {
+    if (d.ponto_equilibrio_centavos > 0) {
+      const cob = Math.min(d.cobertura_ponto_equilibrio_pct, 100);
+      const faltam = Math.max(0, d.ponto_equilibrio_centavos - d.faturamento_centavos);
+      elPontoEquilibrioTexto.textContent = `${d.cobertura_ponto_equilibrio_pct.toFixed(0)}% coberto • Faltam ${formatarCentavos(faltam)} para o equilíbrio`;
+      elBarraProgresso.style.width = `${cob}%`;
+    } else {
+      elPontoEquilibrioTexto.textContent =
+        "Cadastre suas despesas fixas para acompanhar o ponto de equilíbrio";
+      elBarraProgresso.style.width = "0%";
+    }
+  }
+
+  // Faixa dinheiro e contas
+  if (elAPagar7d) elAPagar7d.textContent = formatarCentavos(d.a_pagar_7d_centavos);
+  if (elAPagarVencidas) {
+    elAPagarVencidas.textContent = `${d.num_contas_pagar_vencidas} vencidas (${formatarCentavos(d.a_pagar_vencidas_centavos)})`;
+    elAPagarVencidas.classList.toggle("valor-negativo", d.num_contas_pagar_vencidas > 0);
+  }
+  if (elAReceber7d) elAReceber7d.textContent = formatarCentavos(d.a_receber_7d_centavos);
+  if (elCrediarioVencido) elCrediarioVencido.textContent = formatarCentavos(d.crediario_vencido_centavos);
+  if (elSaldoCaixa) elSaldoCaixa.textContent = formatarCentavos(d.saldo_caixa_dinheiro_centavos);
+  if (elSaldoProjetado) {
+    elSaldoProjetado.textContent = formatarCentavos(d.saldo_projetado_7d_centavos);
+    elSaldoProjetado.classList.toggle("valor-positivo", d.saldo_projetado_7d_centavos >= 0);
+    elSaldoProjetado.classList.toggle("valor-negativo", d.saldo_projetado_7d_centavos < 0);
+  }
+
+  renderizarAtencao(d.atencao_itens || []);
+  renderizarFita(d.fita_do_dia || []);
+}
+
 async function carregarGrafico() {
   if (!elGraficoSvg) return;
   try {
@@ -292,8 +248,7 @@ async function carregarGrafico() {
       return;
     }
 
-    // Geração de SVG Puro (VIZ-010 / VIZ-020) sem bibliotecas externas.
-    // Montado com createElementNS: dado do servidor nunca vira HTML.
+    // SVG puro montado com createElementNS: dado do servidor nunca vira HTML.
     const largura = 600;
     const altura = 160;
     const margem = { top: 20, right: 20, bottom: 30, left: 50 };
@@ -304,7 +259,6 @@ async function carregarGrafico() {
     svg.setAttribute("viewBox", `0 0 ${largura} ${altura}`);
     svg.setAttribute("class", "grafico-svg");
 
-    // Eixo base 2px preto
     const eixo = document.createElementNS(SVG_NS, "line");
     eixo.setAttribute("x1", String(margem.left));
     eixo.setAttribute("y1", String(altura - margem.bottom));
@@ -319,7 +273,6 @@ async function carregarGrafico() {
       const y = altura - margem.bottom - h;
       const diaTxt = String(d.data ?? "").substring(8, 10);
 
-      // Série principal em azul cobalto (VIZ-010).
       const barra = document.createElementNS(SVG_NS, "rect");
       barra.setAttribute("x", String(x));
       barra.setAttribute("y", String(y));
@@ -342,8 +295,40 @@ async function carregarGrafico() {
     });
 
     elGraficoSvg.replaceChildren(svg);
-  } catch (_) {}
+  } catch (_) {
+    // O gráfico é complementar: falha aqui não bloqueia os KPIs.
+  }
 }
 
-bindEventos();
-carregarResumo();
+export async function carregarVisaoGeral() {
+  try {
+    const { ok, data } = await requisitarJSON(`/v1/finance/resumo?periodo=${periodoAtual}`);
+    if (!ok || !data) {
+      mostrarToast("Não foi possível carregar a visão geral.");
+      return;
+    }
+    renderizarResumo(data);
+  } catch {
+    mostrarToast("Erro de comunicação ao carregar a visão geral.");
+  }
+
+  carregarGrafico();
+}
+
+/**
+ * Liga o seletor de período e carrega os dados. Idempotente: a aba pode ser
+ * reaberta sem duplicar listeners.
+ */
+export function inicializarVisaoGeral() {
+  if (inicializado) {
+    carregarVisaoGeral();
+    return;
+  }
+  inicializado = true;
+
+  elBtnHoje?.addEventListener("click", () => trocarPeriodo("hoje"));
+  elBtnSemana?.addEventListener("click", () => trocarPeriodo("semana"));
+  elBtnMes?.addEventListener("click", () => trocarPeriodo("mes"));
+
+  carregarVisaoGeral();
+}

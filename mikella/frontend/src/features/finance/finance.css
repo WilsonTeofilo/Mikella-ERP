@@ -53,6 +53,163 @@
   box-sizing: border-box;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Layout administrativo: submenu lateral com ícones (Financeiro / Gestão)
+   ───────────────────────────────────────────────────────────────────────── */
+.adm-layout {
+  display: flex;
+  align-items: stretch;
+  min-height: calc(100vh - 54px);
+}
+
+.adm-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+  width: 236px;
+  flex: 0 0 236px;
+  min-height: calc(100vh - 54px);
+  padding: var(--espaco-3) var(--espaco-2);
+  background: var(--preto);
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+.adm-rail-titulo {
+  font-family: var(--fonte-display);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--branco);
+  opacity: 0.6;
+  padding: 0 var(--espaco-2) var(--espaco-2);
+}
+
+.adm-rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adm-rail-item,
+.adm-rail-voltar {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  width: 100%;
+  min-height: 46px;
+  padding: 0 var(--espaco-2);
+  background: transparent;
+  color: var(--branco);
+  border: 2px solid transparent;
+  font-family: var(--fonte-texto);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.adm-rail-item:hover,
+.adm-rail-voltar:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.adm-rail-item:focus-visible,
+.adm-rail-voltar:focus-visible {
+  outline: 3px solid var(--amarelo);
+  outline-offset: -3px;
+}
+
+.adm-rail-item.ativa {
+  background: var(--branco);
+  color: var(--preto);
+  border-color: var(--branco);
+}
+
+.adm-icone {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.adm-rail-rotulo {
+  flex: 1;
+}
+
+.adm-rail-tecla {
+  font-family: var(--fonte-display);
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 2px 5px;
+  border: 1px solid currentColor;
+  opacity: 0.7;
+}
+
+.adm-rail-voltar {
+  margin-top: auto;
+}
+
+.adm-conteudo {
+  flex: 1;
+  min-width: 0;
+}
+
+.visao-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--espaco-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--espaco-3);
+}
+
+@media (max-width: 900px) {
+  .adm-layout {
+    flex-direction: column;
+  }
+
+  .adm-rail {
+    position: static;
+    width: 100%;
+    flex: none;
+    min-height: 0;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+  }
+
+  .adm-rail-titulo,
+  .adm-rail-rotulo,
+  .adm-rail-tecla {
+    display: none;
+  }
+
+  .adm-rail-nav {
+    flex-direction: row;
+  }
+
+  .adm-rail-item,
+  .adm-rail-voltar {
+    width: auto;
+  }
+
+  .adm-rail-voltar {
+    margin-top: 0;
+  }
+}
+
 .linha-topo {
   display: flex;
   justify-content: space-between;
@@ -76,48 +233,58 @@
 }
 
 /* Sistema de Abas */
-.barra-abas {
-  display: flex;
-  gap: var(--espaco-2);
-  border-bottom: 2px solid var(--preto);
-  margin-bottom: var(--espaco-4);
-  flex-wrap: wrap;
-}
-
-.aba {
-  font-family: var(--fonte-texto);
-  font-weight: var(--peso-subtitulo);
-  font-size: 1rem;
-  padding: var(--espaco-2) var(--espaco-4);
-  background: #f4f4f4;
-  color: var(--preto);
-  border: 2px solid var(--preto);
-  border-bottom: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--espaco-2);
-  margin-bottom: -2px;
-  min-height: 42px;
-}
-
-.aba:hover {
-  background: #e2e8f0;
-}
-
-.aba.ativa {
-  background: var(--branco);
-  border-bottom: 2px solid var(--branco);
-  color: var(--cobalto-600);
-  font-weight: var(--peso-titulo);
-}
-
 .painel-aba {
   display: block;
 }
 
 .painel-aba.oculto {
   display: none;
+}
+
+/* Parâmetros da loja (aba 6) */
+.form-config-loja {
+  max-width: 760px;
+  background: var(--branco);
+  border: 2px solid var(--preto);
+  padding: var(--espaco-4);
+}
+
+.form-config-loja .linha-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--espaco-3);
+  margin-bottom: var(--espaco-3);
+}
+
+.aviso-config {
+  margin: 0 0 var(--espaco-3);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--cinza-500);
+}
+
+.dica-config {
+  display: block;
+  margin-top: var(--espaco-1);
+  font-size: 0.8rem;
+  color: var(--cinza-500);
+}
+
+.acoes-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+}
+
+.atalho-diagnostico {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: var(--fonte-texto);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cinza-500);
 }
 
 /* Cards de KPIs */

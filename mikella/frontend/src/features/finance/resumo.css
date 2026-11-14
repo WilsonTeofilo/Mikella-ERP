@@ -7,7 +7,7 @@
   margin-top: var(--espaco-3);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .resumo-grid-principal {
     grid-template-columns: 1fr;
   }
@@ -268,15 +268,6 @@
   margin-bottom: var(--espaco-2);
   border-bottom: 2px solid var(--preto);
   padding-bottom: 4px;
-}
-
-/* Estados numéricos (evitam style= inline e cor fora do token) */
-.valor-positivo {
-  color: var(--verde);
-}
-
-.valor-perigo {
-  color: var(--vermelho);
 }
 
 /* Coluna de atenção — valor de risco no cabeçalho do cartão */

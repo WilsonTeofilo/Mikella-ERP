@@ -14,9 +14,11 @@ import {
   montarGradePagamentos,
 } from "../../shared/ui/payment-icons.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
+import { inicializarDiagnostico } from "../../shared/ui/diagnostico.js";
 import { inicializarConsultaPreco } from "./consulta-preco.js";
 
 inicializarControlesJanela();
+inicializarDiagnostico();
 garantirSessao();
 
 const avisar = mostrarToast;

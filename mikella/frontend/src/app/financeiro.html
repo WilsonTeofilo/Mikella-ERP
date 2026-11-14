@@ -8,7 +8,9 @@
   <link rel="stylesheet" href="../shared/design/fontes.css" />
   <link rel="stylesheet" href="../shared/ui/forms.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
+  <link rel="stylesheet" href="../shared/ui/diagnostico.css" />
   <link rel="stylesheet" href="../features/finance/finance.css" />
+  <link rel="stylesheet" href="../features/finance/resumo.css" />
   <link rel="stylesheet" href="../shared/design/utilitarios.css" />
 </head>
 <body data-tema="caixa">
@@ -24,38 +26,217 @@
     </div>
   </header>
 
-  <main class="app-container">
+  <div class="adm-layout">
+    <!-- Submenu lateral: cada ícone abre uma seção do financeiro -->
+    <aside class="adm-rail">
+      <div class="adm-rail-titulo">ADMINISTRAÇÃO</div>
+      <nav class="adm-rail-nav" role="tablist" aria-orientation="vertical" aria-label="Seções do financeiro">
+        <button type="button" id="nav-visao" class="adm-rail-item ativa" role="tab" aria-selected="true" aria-controls="painel-visao">
+          <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+          <span class="adm-rail-rotulo">Visão geral</span>
+          <span class="adm-rail-tecla">1</span>
+        </button>
+        <button type="button" id="nav-vendas" class="adm-rail-item" role="tab" aria-selected="false" aria-controls="painel-vendas">
+          <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+            <path d="M9 8h6M9 12h6" />
+          </svg>
+          <span class="adm-rail-rotulo">Vendas</span>
+          <span class="adm-rail-tecla">2</span>
+        </button>
+        <button type="button" id="nav-fluxo" class="adm-rail-item" role="tab" aria-selected="false" aria-controls="painel-fluxo">
+          <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 17l6-6 4 4 7-8" />
+            <path d="M14 7h6v6" />
+          </svg>
+          <span class="adm-rail-rotulo">Fluxo de caixa</span>
+          <span class="adm-rail-tecla">3</span>
+        </button>
+        <button type="button" id="nav-pagar" class="adm-rail-item" role="tab" aria-selected="false" aria-controls="painel-pagar">
+          <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="14" rx="2" />
+            <path d="M3 10h18" />
+            <path d="M8 15h4" />
+          </svg>
+          <span class="adm-rail-rotulo">A pagar</span>
+          <span class="adm-rail-tecla">4</span>
+        </button>
+        <button type="button" id="nav-receber" class="adm-rail-item" role="tab" aria-selected="false" aria-controls="painel-receber">
+          <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="14" rx="2" />
+            <path d="M3 10h18" />
+            <path d="M10 15h4M12 13v4" />
+          </svg>
+          <span class="adm-rail-rotulo">A receber</span>
+          <span class="adm-rail-tecla">5</span>
+        </button>
+        <button type="button" id="nav-resultado" class="adm-rail-item" role="tab" aria-selected="false" aria-controls="painel-resultado">
+          <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+          </svg>
+          <span class="adm-rail-rotulo">Resultado (DRE)</span>
+          <span class="adm-rail-tecla">6</span>
+        </button>
+        <button type="button" id="nav-config" class="adm-rail-item" role="tab" aria-selected="false" aria-controls="painel-config">
+          <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" />
+          </svg>
+          <span class="adm-rail-rotulo">Parâmetros</span>
+          <span class="adm-rail-tecla">7</span>
+        </button>
+      </nav>
+      <button type="button" id="btn-rail-voltar" class="adm-rail-voltar">
+        <svg class="adm-icone" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 18l-6-6 6-6" />
+          <path d="M3 12h18" />
+        </svg>
+        <span class="adm-rail-rotulo">Menu principal</span>
+        <span class="adm-rail-tecla">ESC</span>
+      </button>
+    </aside>
+
+    <main class="app-container adm-conteudo">
     <div class="linha-topo">
       <div>
         <h1 class="titulo-pagina">Financeiro Integrado</h1>
-        <p class="subtitulo-pagina">Fluxo de Caixa, Contas a Pagar, A Receber e DRE Simplificada</p>
-      </div>
-      <div id="saldo-resumo" class="card-kpi u-23617a7d">
-        Carregando...
+        <p class="subtitulo-pagina">Visão geral, fluxo de caixa, contas a pagar, a receber, DRE e parâmetros da loja</p>
       </div>
     </div>
 
-    <!-- Navegação por Abas -->
-    <nav class="barra-abas" role="tablist" aria-label="Abas Financeiras">
-      <button type="button" id="tab-vendas" class="aba ativa" role="tab" aria-selected="true" aria-controls="painel-vendas">
-        <span class="tecla">1</span> Visão Geral & Vendas
-      </button>
-      <button type="button" id="tab-fluxo" class="aba" role="tab" aria-selected="false" aria-controls="painel-fluxo">
-        <span class="tecla">2</span> Fluxo de Caixa
-      </button>
-      <button type="button" id="tab-pagar" class="aba" role="tab" aria-selected="false" aria-controls="painel-pagar">
-        <span class="tecla">3</span> A Pagar
-      </button>
-      <button type="button" id="tab-receber" class="aba" role="tab" aria-selected="false" aria-controls="painel-receber">
-        <span class="tecla">4</span> A Receber
-      </button>
-      <button type="button" id="tab-resultado" class="aba" role="tab" aria-selected="false" aria-controls="painel-resultado">
-        <span class="tecla">5</span> Resultado (DRE)
-      </button>
-    </nav>
+    <!-- SEÇÃO 1: VISÃO GERAL (FATURAMENTO, CONTAS E RISCOS) -->
+    <section id="painel-visao" class="painel-aba" role="tabpanel" aria-labelledby="nav-visao">
+      <div class="visao-topo">
+        <div>
+          <h2 class="titulo-secao">Visão geral da loja</h2>
+          <p class="rotulo-kpi">Faturamento, contas e riscos operacionais em uma tela</p>
+        </div>
+        <div class="seletor-periodo">
+          <button type="button" id="btn-periodo-hoje" class="btn-periodo ativo">Hoje</button>
+          <button type="button" id="btn-periodo-semana" class="btn-periodo">Semana</button>
+          <button type="button" id="btn-periodo-mes" class="btn-periodo">Mês</button>
+        </div>
+      </div>
 
-    <!-- ABA 1: VISÃO GERAL & VENDAS (INSPIRADO CHOKKO-MELT) -->
-    <section id="painel-vendas" class="painel-aba" role="tabpanel" aria-labelledby="tab-vendas">
+      <div class="resumo-grid-principal">
+        <!-- Coluna principal -->
+        <div>
+          <div class="bloco-dominante">
+            <div class="faturamento-destaque-linha">
+              <div>
+                <span class="rotulo-kpi">Faturamento Líquido</span>
+                <div id="kpi-faturamento" class="faturamento-valor-grande">R$ 0,00</div>
+              </div>
+              <div>
+                <span id="kpi-comparativo" class="comparativo-tag u-5790ffba"></span>
+              </div>
+            </div>
+
+            <div class="submetricas-trio">
+              <div class="submetrica-item">
+                <span class="rotulo-kpi">Margem Bruta</span>
+                <div id="kpi-margem-bruta" class="submetrica-valor">0.0%</div>
+              </div>
+              <div class="submetrica-item">
+                <span class="rotulo-kpi">Vendas</span>
+                <div id="kpi-num-vendas" class="submetrica-valor">0</div>
+              </div>
+              <div class="submetrica-item">
+                <span class="rotulo-kpi">Ticket Médio</span>
+                <div id="kpi-ticket-medio" class="submetrica-valor">R$ 0,00</div>
+              </div>
+            </div>
+
+            <div class="ponto-equilibrio-box">
+              <div class="u-f120801a">
+                <span class="rotulo-kpi">Ponto de Equilíbrio do Mês</span>
+                <span class="u-974821a3" id="ponto-equilibrio-texto">Carregando meta...</span>
+              </div>
+              <div class="barra-progresso-container">
+                <div id="barra-progresso-equilibrio" class="barra-progresso-preenchimento"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="faixa-dinheiro-contas">
+            <div class="card-conta-faixa">
+              <span class="rotulo-kpi">A Pagar (7 Dias)</span>
+              <div id="kpi-a-pagar-7d" class="valor u-ff4132a1">R$ 0,00</div>
+              <div class="u-0e8ba4df" id="kpi-a-pagar-vencidas">0 vencidas</div>
+            </div>
+
+            <div class="card-conta-faixa">
+              <span class="rotulo-kpi">A Receber (7 Dias)</span>
+              <div id="kpi-a-receber-7d" class="valor u-868f5c54">R$ 0,00</div>
+              <div class="u-16d6fc7c">Previsto a entrar</div>
+            </div>
+
+            <div class="card-conta-faixa">
+              <span class="rotulo-kpi">Crediário Vencido</span>
+              <div id="kpi-crediario-vencido" class="valor u-b6569f66">R$ 0,00</div>
+              <div class="u-16d6fc7c">Cobranças pendentes</div>
+            </div>
+
+            <div class="card-conta-faixa">
+              <span class="rotulo-kpi">Saldo Caixa (Físico)</span>
+              <div id="kpi-saldo-caixa" class="valor u-d76d862b">R$ 0,00</div>
+              <div class="u-16d6fc7c">Dinheiro em gaveta</div>
+            </div>
+
+            <div class="card-conta-faixa">
+              <span class="rotulo-kpi">Saldo Projetado 7d</span>
+              <div id="kpi-saldo-projetado" class="valor u-9e5ed31c">R$ 0,00</div>
+              <div class="u-16d6fc7c">(Caixa + Rec − Pag)</div>
+            </div>
+          </div>
+
+          <div class="area-grafico-svg">
+            <div class="u-c4ad4c9b">
+              <h3>Faturamento Diário (Últimos Dias)</h3>
+              <span class="u-a13e233d">Série em Azul Cobalto</span>
+            </div>
+            <div id="grafico-svg-container">
+              <div class="u-df7c6cae">Carregando gráfico...</div>
+            </div>
+          </div>
+
+          <div class="fita-do-dia-container">
+            <div class="fita-do-dia-titulo">Fita do Dia (Últimas Movimentações)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Operação</th>
+                  <th>Detalhe</th>
+                  <th class="direita">Valor</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-fita-corpo">
+                <tr><td class="u-65f9d5a3" colspan="4">Carregando movimentações...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Coluna lateral de atenção (máximo 3 selos) -->
+        <div>
+          <div class="rotulo-kpi u-261fa111">Atenção Imediata (Até 3)</div>
+          <div id="coluna-atencao-container" class="coluna-atencao">
+            <div class="card-atencao">
+              <div class="card-atencao-titulo">Verificando alertas...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO 2: VENDAS -->
+    <section id="painel-vendas" class="painel-aba oculto" role="tabpanel" aria-labelledby="nav-vendas">
       <!-- Filtros de Período Inspirados no Chokko-Melt -->
       <div class="barra-filtros u-1cd98e6f">
         <div class="u-0da5f422">
@@ -135,8 +316,8 @@
       </div>
     </section>
 
-    <!-- ABA 2: FLUXO DE CAIXA -->
-    <section id="painel-fluxo" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-fluxo">
+    <!-- SEÇÃO 3: FLUXO DE CAIXA -->
+    <section id="painel-fluxo" class="painel-aba oculto" role="tabpanel" aria-labelledby="nav-fluxo">
       <div class="cards-kpi-grade">
         <div class="card-kpi">
           <span class="card-kpi-rotulo">Saldo Inicial</span>
@@ -193,8 +374,8 @@
       </table>
     </section>
 
-    <!-- ABA 2: A PAGAR -->
-    <section id="painel-pagar" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-pagar">
+    <!-- SEÇÃO 4: A PAGAR -->
+    <section id="painel-pagar" class="painel-aba oculto" role="tabpanel" aria-labelledby="nav-pagar">
       <div class="cards-kpi-grade">
         <div class="card-kpi">
           <span class="card-kpi-rotulo">Total a Pagar</span>
@@ -235,8 +416,8 @@
       </table>
     </section>
 
-    <!-- ABA 3: A RECEBER -->
-    <section id="painel-receber" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-receber">
+    <!-- SEÇÃO 5: A RECEBER -->
+    <section id="painel-receber" class="painel-aba oculto" role="tabpanel" aria-labelledby="nav-receber">
       <div class="cards-kpi-grade">
         <div class="card-kpi">
           <span class="card-kpi-rotulo">Total a Receber</span>
@@ -296,8 +477,8 @@
       </table>
     </section>
 
-    <!-- ABA 4: RESULTADO (DRE SIMPLIFICADA) -->
-    <section id="painel-resultado" class="painel-aba oculto" role="tabpanel" aria-labelledby="tab-resultado">
+    <!-- SEÇÃO 6: RESULTADO (DRE SIMPLIFICADA) -->
+    <section id="painel-resultado" class="painel-aba oculto" role="tabpanel" aria-labelledby="nav-resultado">
       <div class="barra-filtros">
         <div class="filtro-datas">
           <label for="dre-mes-input">Competência (Mês/Ano):</label>
@@ -361,14 +542,45 @@
       </div>
     </section>
 
+    <!-- SEÇÃO 7: PARÂMETROS DA LOJA (PARCELAS & CREDIÁRIO) -->
+    <section id="painel-config" class="painel-aba oculto" role="tabpanel" aria-labelledby="nav-config">
+      <form id="form-config-pagamento" class="form-config-loja">
+        <h2 class="titulo-secao">Parcelas e Crediário</h2>
+        <p class="aviso-config">
+          Estes limites valem para o PDV desta loja. O servidor revalida cada venda,
+          então nenhuma alteração aqui muda o preço de uma venda já registrada.
+        </p>
+
+        <div class="linha-campos">
+          <div class="campo-grupo">
+            <label for="cfg-max-parcelas">Máximo de parcelas no cartão</label>
+            <input id="cfg-max-parcelas" class="campo" type="number" min="1" step="1" required />
+            <span class="dica-config">Quantas vezes o cliente pode dividir no cartão.</span>
+          </div>
+          <div class="campo-grupo">
+            <label for="cfg-prazo-crediario">Prazo do crediário (dias)</label>
+            <input id="cfg-prazo-crediario" class="campo" type="number" min="1" step="1" required />
+            <span class="dica-config">Prazo padrão para o cliente pagar o crediário da loja.</span>
+          </div>
+        </div>
+
+        <div class="acoes-config">
+          <button type="submit" class="botao primario">Salvar Parâmetros</button>
+          <button type="button" id="btn-config-recarregar" class="botao">Recarregar</button>
+        </div>
+      </form>
+    </section>
+
     <!-- Barra de Atalhos Global -->
     <div class="barra-botoes">
       <button type="button" id="btn-nova-conta" class="botao primario"><span class="tecla">F1</span> Nova Conta</button>
       <button type="button" id="btn-backup" class="botao"><span class="tecla">F2</span> Gerar Backup Local</button>
       <button type="button" id="btn-atualizar" class="botao"><span class="tecla">F5</span> Atualizar</button>
       <button type="button" id="btn-voltar" class="botao"><span class="tecla">Esc</span> Voltar ao Menu</button>
+      <span class="atalho-diagnostico"><span class="tecla">F10</span> Diagnóstico</span>
     </div>
-  </main>
+    </main>
+  </div>
 
   <div id="toast" class="toast"></div>
 

@@ -7,34 +7,41 @@ import {
   formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
+import { inicializarDiagnostico } from "../../shared/ui/diagnostico.js";
+import { inicializarVisaoGeral } from "./visao-geral.js";
 
 inicializarControlesJanela();
+inicializarDiagnostico();
 garantirSessao();
 
 const avisar = mostrarToast;
 
 // Estado global da tela
-let ABA_ATIVA = "vendas"; // "vendas" | "fluxo" | "pagar" | "receber" | "resultado"
+let ABA_ATIVA = "visao"; // "visao" | "vendas" | "fluxo" | "pagar" | "receber" | "resultado" | "config"
 let CONTAS_CACHE = [];
 let FILTRO_PAGAR = "TODAS"; // "TODAS" | "7DIAS" | "VENCIDAS"
 let FILTRO_RECEBER = "TODAS"; // "TODAS" | "HOJE" | "VENCIDAS"
 let PERIODO_CHOKKO_ATIVO = "hoje";
 
-// Elementos das Abas
+// Submenu lateral (cada botão abre uma seção)
 const tabs = {
-  vendas: document.getElementById("tab-vendas"),
-  fluxo: document.getElementById("tab-fluxo"),
-  pagar: document.getElementById("tab-pagar"),
-  receber: document.getElementById("tab-receber"),
-  resultado: document.getElementById("tab-resultado"),
+  visao: document.getElementById("nav-visao"),
+  vendas: document.getElementById("nav-vendas"),
+  fluxo: document.getElementById("nav-fluxo"),
+  pagar: document.getElementById("nav-pagar"),
+  receber: document.getElementById("nav-receber"),
+  resultado: document.getElementById("nav-resultado"),
+  config: document.getElementById("nav-config"),
 };
 
 const paineis = {
+  visao: document.getElementById("painel-visao"),
   vendas: document.getElementById("painel-vendas"),
   fluxo: document.getElementById("painel-fluxo"),
   pagar: document.getElementById("painel-pagar"),
   receber: document.getElementById("painel-receber"),
   resultado: document.getElementById("painel-resultado"),
+  config: document.getElementById("painel-config"),
 };
 
 function alternarAba(nomeAba) {
@@ -51,7 +58,9 @@ function alternarAba(nomeAba) {
     painel.classList.toggle("oculto", nome !== nomeAba);
   });
 
-  if (nomeAba === "vendas") {
+  if (nomeAba === "visao") {
+    inicializarVisaoGeral();
+  } else if (nomeAba === "vendas") {
     carregarPainelChokko(PERIODO_CHOKKO_ATIVO);
   } else if (nomeAba === "fluxo") {
     carregarFluxoCaixa();
@@ -59,14 +68,91 @@ function alternarAba(nomeAba) {
     carregarContas();
   } else if (nomeAba === "resultado") {
     carregarResultadoDRE();
+  } else if (nomeAba === "config") {
+    carregarConfigPagamento();
   }
 }
 
+if (tabs.visao) tabs.visao.addEventListener("click", () => alternarAba("visao"));
 if (tabs.vendas) tabs.vendas.addEventListener("click", () => alternarAba("vendas"));
 if (tabs.fluxo) tabs.fluxo.addEventListener("click", () => alternarAba("fluxo"));
 if (tabs.pagar) tabs.pagar.addEventListener("click", () => alternarAba("pagar"));
 if (tabs.receber) tabs.receber.addEventListener("click", () => alternarAba("receber"));
 if (tabs.resultado) tabs.resultado.addEventListener("click", () => alternarAba("resultado"));
+if (tabs.config) tabs.config.addEventListener("click", () => alternarAba("config"));
+
+// -------------------------------------------------------------
+// ABA 6: PARÂMETROS DA LOJA (PARCELAS & CREDIÁRIO)
+// -------------------------------------------------------------
+const formConfig = document.getElementById("form-config-pagamento");
+const cfgMaxParcelas = document.getElementById("cfg-max-parcelas");
+const cfgPrazoCrediario = document.getElementById("cfg-prazo-crediario");
+const btnConfigRecarregar = document.getElementById("btn-config-recarregar");
+
+async function carregarConfigPagamento() {
+  if (!formConfig) return;
+  try {
+    const { ok, status, data } = await requisitarJSON("/v1/config/pagamento");
+    if (!ok) {
+      avisar(
+        status === 403
+          ? "Seu perfil não pode ver os parâmetros da loja."
+          : data.erro || "Falha ao ler os parâmetros da loja.",
+      );
+      return;
+    }
+    cfgMaxParcelas.value = String(data.max_parcelas_cartao);
+    cfgPrazoCrediario.value = String(data.prazo_crediario_dias);
+    if (data.limites) {
+      cfgMaxParcelas.max = String(data.limites.max_parcelas_cartao);
+      cfgPrazoCrediario.max = String(data.limites.prazo_crediario_dias);
+    }
+  } catch {
+    avisar("Erro de comunicação com a API.");
+  }
+}
+
+if (formConfig) {
+  formConfig.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const maxParcelas = parseInt(cfgMaxParcelas.value, 10);
+    const prazoDias = parseInt(cfgPrazoCrediario.value, 10);
+    if (!Number.isInteger(maxParcelas) || !Number.isInteger(prazoDias)) {
+      avisar("Informe números inteiros válidos.");
+      return;
+    }
+
+    try {
+      const { ok, status, data } = await requisitarJSON(
+        "/v1/sistema/config-pagamento",
+        {
+          method: "PUT",
+          body: {
+            max_parcelas_cartao: maxParcelas,
+            prazo_crediario_dias: prazoDias,
+          },
+        },
+      );
+      if (ok) {
+        avisar(
+          `Parâmetros salvos: até ${data.max_parcelas_cartao} parcelas e ${data.prazo_crediario_dias} dias de crediário.`,
+        );
+      } else {
+        avisar(
+          status === 403
+            ? "Seu perfil não pode alterar os parâmetros da loja."
+            : data.erro || "Falha ao salvar os parâmetros.",
+        );
+      }
+    } catch {
+      avisar("Erro de comunicação com a API.");
+    }
+  });
+}
+
+if (btnConfigRecarregar) {
+  btnConfigRecarregar.addEventListener("click", carregarConfigPagamento);
+}
 
 // -------------------------------------------------------------
 // ABA 1: VISÃO GERAL & VENDAS (INSPIRADO CHOKKO-MELT)
@@ -289,8 +375,10 @@ async function carregarFluxoCaixa() {
     data.saldo_final_centavos,
   );
 
-  document.getElementById("saldo-resumo").textContent =
-    `Saldo Final: ${formatarCentavos(data.saldo_final_centavos)}`;
+  const elSaldoFluxo = document.getElementById("saldo-resumo");
+  if (elSaldoFluxo) {
+    elSaldoFluxo.textContent = `Saldo Final: ${formatarCentavos(data.saldo_final_centavos)}`;
+  }
 
   renderTabelaFluxo(data.dias || []);
   renderGraficoSvgFluxo(data.dias || []);
@@ -1045,9 +1133,12 @@ document.getElementById("btn-backup").addEventListener("click", async () => {
 
 // Botão Atualizar
 document.getElementById("btn-atualizar").addEventListener("click", () => {
-  if (ABA_ATIVA === "fluxo") carregarFluxoCaixa();
+  if (ABA_ATIVA === "visao") inicializarVisaoGeral();
+  else if (ABA_ATIVA === "vendas") carregarPainelChokko(PERIODO_CHOKKO_ATIVO);
+  else if (ABA_ATIVA === "fluxo") carregarFluxoCaixa();
   else if (ABA_ATIVA === "pagar" || ABA_ATIVA === "receber") carregarContas();
   else if (ABA_ATIVA === "resultado") carregarResultadoDRE();
+  else if (ABA_ATIVA === "config") carregarConfigPagamento();
 });
 
 // Botão Voltar
@@ -1082,15 +1173,33 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     document.getElementById("btn-voltar").click();
   } else if (!ehInput) {
-    if (e.key === "1") alternarAba("vendas");
-    else if (e.key === "2") alternarAba("fluxo");
-    else if (e.key === "3") alternarAba("pagar");
-    else if (e.key === "4") alternarAba("receber");
-    else if (e.key === "5") alternarAba("resultado");
+    if (e.key === "1") alternarAba("visao");
+    else if (e.key === "2") alternarAba("vendas");
+    else if (e.key === "3") alternarAba("fluxo");
+    else if (e.key === "4") alternarAba("pagar");
+    else if (e.key === "5") alternarAba("receber");
+    else if (e.key === "6") alternarAba("resultado");
+    else if (e.key === "7") alternarAba("config");
   }
 });
 
-// Carga inicial
-carregarPainelChokko("hoje");
+// Carga inicial: `?aba=receber` (usado pelos alertas da visão geral) abre a
+// seção pedida; sem parâmetro válido, abre a visão geral.
+const SECOES_VALIDAS = new Set([
+  "visao",
+  "vendas",
+  "fluxo",
+  "pagar",
+  "receber",
+  "resultado",
+  "config",
+]);
+const abaPedida = new URLSearchParams(window.location.search).get("aba");
+if (abaPedida && SECOES_VALIDAS.has(abaPedida)) {
+  alternarAba(abaPedida);
+} else {
+  inicializarVisaoGeral();
+}
 
 const btnTopo = document.getElementById("btn-topo-voltar"); if (btnTopo) btnTopo.addEventListener("click", () => window.location.href = "main-menu.html");
+const btnRailVoltar = document.getElementById("btn-rail-voltar"); if (btnRailVoltar) btnRailVoltar.addEventListener("click", () => window.location.href = "main-menu.html");

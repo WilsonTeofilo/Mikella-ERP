@@ -1,9 +1,10 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Controles da janela Mikella
-   - Visíveis no modo janela.
-   - Em tela cheia: ocultos por padrão (fade out) e revelados por fade in
-     quando o ponteiro entra na extremidade superior direita ou o foco de
-     teclado alcança a barra.
+   - Em modo janela o Windows desenha a barra nativa (arrastar, encaixar,
+     maximizar, redimensionar): a barra customizada fica oculta.
+   - Em tela cheia a barra nativa não existe, então a customizada aparece ao
+     aproximar o ponteiro da extremidade superior direita ou ao focar por
+     teclado.
    ───────────────────────────────────────────────────────────────────────── */
 
 .mikella-window-bar {
@@ -11,7 +12,7 @@
   top: 0;
   right: 0;
   z-index: 9999;
-  display: flex;
+  display: none;
   align-items: center;
   height: 38px;
   background: #000000;
@@ -23,6 +24,10 @@
   transition:
     opacity 180ms ease,
     transform 180ms ease;
+}
+
+body.em-tela-cheia .mikella-window-bar {
+  display: flex;
 }
 
 /* Zona sensora: só existe (e recebe ponteiro) em tela cheia. */

@@ -11,8 +11,10 @@ import {
   formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
+import { inicializarDiagnostico } from "../../shared/ui/diagnostico.js";
 
 inicializarControlesJanela();
+inicializarDiagnostico();
 garantirSessao();
 
 let PRODUTOS = [];

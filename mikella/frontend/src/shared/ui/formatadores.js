@@ -16,6 +16,51 @@ export function formatarCentavos(centavos) {
   return `${sinal}R$ ${formatadorMoeda.format(Math.abs(valor) / 100)}`;
 }
 
+const formatadoresPercentual = new Map();
+
+/**
+ * Formata percentual no padrão pt-BR (vírgula decimal).
+ * O backend entrega `94.5`; a interface mostra `94,5%`.
+ *
+ * @param {number|string} valor percentual já em pontos (ex.: 94.5)
+ * @param {{casas?: number, sinal?: boolean}} opcoes
+ */
+export function formatarPercentual(valor, { casas = 1, sinal = false } = {}) {
+  const numero = Number(valor);
+  const seguro = Number.isFinite(numero) ? numero : 0;
+  let formatador = formatadoresPercentual.get(casas);
+  if (!formatador) {
+    formatador = new Intl.NumberFormat("pt-BR", {
+      minimumFractionDigits: casas,
+      maximumFractionDigits: casas,
+    });
+    formatadoresPercentual.set(casas, formatador);
+  }
+  const prefixo = sinal && seguro >= 0 ? "+" : "";
+  return `${prefixo}${formatador.format(seguro)}%`;
+}
+
+/**
+ * Data local no formato `YYYY-MM-DD`.
+ *
+ * `toISOString()` converte para UTC: em São Paulo (UTC-3), a partir das 21h
+ * ele devolve o dia seguinte. Aqui a data é montada com componentes locais.
+ */
+export function dataLocalISO(data = new Date()) {
+  const d = data instanceof Date ? data : new Date(data);
+  if (Number.isNaN(d.getTime())) return "";
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+/** Mês local no formato `YYYY-MM` (mesma razão de `dataLocalISO`). */
+export function mesLocalISO(data = new Date()) {
+  const iso = dataLocalISO(data);
+  return iso ? iso.slice(0, 7) : "";
+}
+
 export function parsearCentavos(texto) {
   return parseInt(somenteDigitos(texto), 10) || 0;
 }

@@ -8,7 +8,10 @@
  */
 
 import { requisitarJSON } from "../../shared/services/api.js";
-import { formatarCentavos } from "../../shared/ui/formatadores.js";
+import {
+  formatarCentavos,
+  formatarPercentual,
+} from "../../shared/ui/formatadores.js";
 import { mostrarToast } from "../../shared/ui/feedback.js";
 import {
   estadoVazio,
@@ -215,15 +218,16 @@ function renderizarFita(movimentos) {
 
 function renderizarResumo(d) {
   if (elFaturamento) elFaturamento.textContent = formatarCentavos(d.faturamento_centavos);
-  if (elMargemBruta) elMargemBruta.textContent = `${d.margem_bruta_pct.toFixed(1)}%`;
+  if (elMargemBruta) {
+    elMargemBruta.textContent = formatarPercentual(d.margem_bruta_pct);
+  }
   if (elNumVendas) elNumVendas.textContent = d.num_vendas;
   if (elTicketMedio) elTicketMedio.textContent = formatarCentavos(d.ticket_medio_centavos);
 
   if (elComparativo) {
     if (d.comparativo_faturamento_pct !== null && d.comparativo_faturamento_pct !== undefined) {
       const pct = d.comparativo_faturamento_pct;
-      const sinal = pct >= 0 ? "+" : "";
-      elComparativo.textContent = `${sinal}${pct.toFixed(1)}% vs anterior`;
+      elComparativo.textContent = `${formatarPercentual(pct, { sinal: true })} vs anterior`;
       elComparativo.className = `comparativo-tag ${pct >= 0 ? "positivo" : "negativo"}`;
       elComparativo.style.display = "inline-block";
     } else {
@@ -236,7 +240,7 @@ function renderizarResumo(d) {
     if (d.ponto_equilibrio_centavos > 0) {
       const cob = Math.min(d.cobertura_ponto_equilibrio_pct, 100);
       const faltam = Math.max(0, d.ponto_equilibrio_centavos - d.faturamento_centavos);
-      elPontoEquilibrioTexto.textContent = `${d.cobertura_ponto_equilibrio_pct.toFixed(0)}% coberto • Faltam ${formatarCentavos(faltam)} para o equilíbrio`;
+      elPontoEquilibrioTexto.textContent = `${formatarPercentual(d.cobertura_ponto_equilibrio_pct, { casas: 0 })} coberto • Faltam ${formatarCentavos(faltam)} para o equilíbrio`;
       elBarraProgresso.style.width = `${cob}%`;
     } else {
       elPontoEquilibrioTexto.textContent =

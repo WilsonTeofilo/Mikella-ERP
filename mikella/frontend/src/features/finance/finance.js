@@ -2,10 +2,18 @@ import { garantirSessao, requisitarJSON } from "../../shared/services/api.js";
 import { mostrarToast } from "../../shared/ui/feedback.js";
 import {
   formatarCentavos,
+  formatarPercentual,
+  dataLocalISO,
+  mesLocalISO,
   parsearCentavos,
   somenteDigitos,
   formatarCampoMoeda,
 } from "../../shared/ui/formatadores.js";
+import {
+  abrirModal,
+  fecharModal,
+  modalEstaAberto,
+} from "../../shared/ui/modal.js";
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
 import { inicializarDiagnostico } from "../../shared/ui/diagnostico.js";
 import { inicializarVisaoGeral } from "./visao-geral.js";
@@ -56,6 +64,8 @@ function alternarAba(nomeAba) {
     const ativa = nome === nomeAba;
     btn.classList.toggle("ativa", ativa);
     btn.setAttribute("aria-selected", ativa ? "true" : "false");
+    // Roving tabindex: o Tab entra uma vez na lista; as setas navegam.
+    btn.tabIndex = ativa ? 0 : -1;
   });
 
   Object.entries(paineis).forEach(([nome, painel]) => {
@@ -85,6 +95,44 @@ if (tabs.pagar) tabs.pagar.addEventListener("click", () => alternarAba("pagar"))
 if (tabs.receber) tabs.receber.addEventListener("click", () => alternarAba("receber"));
 if (tabs.resultado) tabs.resultado.addEventListener("click", () => alternarAba("resultado"));
 if (tabs.config) tabs.config.addEventListener("click", () => alternarAba("config"));
+
+// Navegação por setas no rail (padrão ARIA de abas). Os atalhos numéricos
+// continuam funcionando, mas agora o foco acompanha a aba ativa.
+const ORDEM_ABAS = [
+  "visao",
+  "vendas",
+  "fluxo",
+  "pagar",
+  "receber",
+  "resultado",
+  "config",
+];
+const railAbas = document.querySelector(".adm-rail-nav");
+
+railAbas?.addEventListener("keydown", (e) => {
+  const passos = {
+    ArrowDown: 1,
+    ArrowRight: 1,
+    ArrowUp: -1,
+    ArrowLeft: -1,
+  };
+
+  let indice = ORDEM_ABAS.indexOf(ABA_ATIVA);
+  if (e.key === "Home") {
+    indice = 0;
+  } else if (e.key === "End") {
+    indice = ORDEM_ABAS.length - 1;
+  } else if (passos[e.key]) {
+    indice = (indice + passos[e.key] + ORDEM_ABAS.length) % ORDEM_ABAS.length;
+  } else {
+    return;
+  }
+
+  e.preventDefault();
+  const destino = ORDEM_ABAS[indice];
+  alternarAba(destino);
+  tabs[destino]?.focus();
+});
 
 // -------------------------------------------------------------
 // ABA 6: PARÂMETROS DA LOJA (PARCELAS & CREDIÁRIO)
@@ -233,7 +281,7 @@ async function carregarPainelChokko(periodo, dataInicio = null, dataFim = null) 
 
   const elMargem = document.getElementById("card-margem-detalhe");
   if (elMargem) {
-    elMargem.textContent = `Margem: ${Number(data.margem_bruta_pct || 0).toFixed(1)}%`;
+    elMargem.textContent = `Margem: ${formatarPercentual(data.margem_bruta_pct)}`;
   }
 
   const elPix = document.getElementById("card-total-pix");
@@ -351,8 +399,8 @@ const btnFiltrarFc = document.getElementById("btn-filtrar-fc");
 // Inicializa datas com os últimos 30 dias até hoje
 const dataHoje = new Date();
 const data30DiasAtras = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-inputFcFim.value = dataHoje.toISOString().slice(0, 10);
-inputFcInicio.value = data30DiasAtras.toISOString().slice(0, 10);
+inputFcFim.value = dataLocalISO(dataHoje);
+inputFcInicio.value = dataLocalISO(data30DiasAtras);
 
 btnFiltrarFc.addEventListener("click", () => carregarFluxoCaixa());
 
@@ -543,10 +591,8 @@ async function carregarContas() {
 }
 
 function atualizarAbaPagar() {
-  const hoje = new Date().toISOString().slice(0, 10);
-  const data7Dias = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const hoje = dataLocalISO();
+  const data7Dias = dataLocalISO(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
 
   let totalPagarCentavos = 0;
   let pagar7DiasCentavos = 0;
@@ -595,10 +641,8 @@ function renderTabelaPagar(contas, filtro) {
   const tbody = document.getElementById("tabela-pagar-corpo");
   tbody.replaceChildren();
 
-  const hoje = new Date().toISOString().slice(0, 10);
-  const data7Dias = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const hoje = dataLocalISO();
+  const data7Dias = dataLocalISO(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
 
   let linhas = 0;
 
@@ -720,7 +764,7 @@ btnFiltroPagarVencidas.addEventListener("click", () =>
 );
 
 function atualizarAbaReceber() {
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = dataLocalISO();
   let totalReceberCentavos = 0;
   let receberHojeCentavos = 0;
   let receberVencidoCentavos = 0;
@@ -817,7 +861,7 @@ function renderTabelaReceber(contas, filtro) {
   const tbody = document.getElementById("tabela-receber-corpo");
   tbody.replaceChildren();
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = dataLocalISO();
   let linhas = 0;
 
   contas.forEach((c) => {
@@ -948,11 +992,11 @@ const inputDreMes = document.getElementById("dre-mes-input");
 const btnAtualizarDre = document.getElementById("btn-atualizar-dre");
 
 // Inicializa com mês atual no formato YYYY-MM
-inputDreMes.value = new Date().toISOString().slice(0, 7);
+inputDreMes.value = mesLocalISO();
 btnAtualizarDre.addEventListener("click", () => carregarResultadoDRE());
 
 async function carregarResultadoDRE() {
-  const mes = inputDreMes.value || new Date().toISOString().slice(0, 7);
+  const mes = inputDreMes.value || mesLocalISO();
   const url = `/v1/finance/resultado?mes=${encodeURIComponent(mes)}`;
 
   const { ok, data } = await requisitarJSON(url);
@@ -1004,11 +1048,11 @@ async function carregarResultadoDRE() {
 
   const elMargemBruta = document.getElementById("dre-margem-bruta");
   if (elMargemBruta) {
-    elMargemBruta.textContent = `${(Number(data.margem_bruta_pct) || 0).toFixed(1)}%`;
+    elMargemBruta.textContent = formatarPercentual(data.margem_bruta_pct);
   }
   const elMargemLiquida = document.getElementById("dre-margem-liquida");
   if (elMargemLiquida) {
-    elMargemLiquida.textContent = `${(Number(data.margem_liquida_pct) || 0).toFixed(1)}%`;
+    elMargemLiquida.textContent = formatarPercentual(data.margem_liquida_pct);
   }
 
   const elDiag = document.getElementById("dre-diagnostico");
@@ -1049,20 +1093,19 @@ const formConta = document.getElementById("form-conta");
 
 btnNovaConta.addEventListener("click", () => {
   formConta.reset();
-  document.getElementById("conta-vencimento").value = new Date()
-    .toISOString()
-    .slice(0, 10);
+  document.getElementById("conta-vencimento").value = dataLocalISO();
   if (ABA_ATIVA === "pagar") {
     document.getElementById("conta-tipo").value = "PAGAR";
   } else if (ABA_ATIVA === "receber") {
     document.getElementById("conta-tipo").value = "RECEBER";
   }
-  modalConta.style.display = "flex";
-  document.getElementById("conta-desc").focus();
+  abrirModal(modalConta, {
+    focoInicial: document.getElementById("conta-desc"),
+  });
 });
 
 btnCancelaConta.addEventListener("click", () => {
-  modalConta.style.display = "none";
+  fecharModal(modalConta);
 });
 
 document.getElementById("conta-valor").addEventListener("input", (e) => {
@@ -1104,6 +1147,8 @@ formConta.addEventListener("submit", async (e) => {
     const valorParc = i === 0 ? valorBaseParcela + resto : valorBaseParcela;
     parcelas.push({
       valor_centavos: valorParc,
+      // RFC3339 exigido pelo backend; a base é meio-dia UTC, então o dia não
+      // desloca, mesmo em fusos negativos.
       vencimento: vcto.toISOString(),
     });
   }
@@ -1122,7 +1167,7 @@ formConta.addEventListener("submit", async (e) => {
 
   if (ok) {
     avisar("Conta registrada com sucesso!");
-    modalConta.style.display = "none";
+    fecharModal(modalConta);
     carregarContas();
   } else {
     avisar(data.erro || "Falha ao registrar conta.");
@@ -1144,12 +1189,13 @@ function abrirModalLiquidar(id, tipo, idx, valorCents, desc, numeroParcela) {
   document.getElementById("liq-valor").value = (valorCents / 100)
     .toFixed(2)
     .replace(".", ",");
-  modalLiq.style.display = "flex";
-  document.getElementById("liq-forma").focus();
+  abrirModal(modalLiq, {
+    focoInicial: document.getElementById("liq-forma"),
+  });
 }
 
 btnCancelaLiq.addEventListener("click", () => {
-  modalLiq.style.display = "none";
+  fecharModal(modalLiq);
 });
 
 formLiq.addEventListener("submit", async (e) => {
@@ -1169,7 +1215,7 @@ formLiq.addEventListener("submit", async (e) => {
 
   if (ok) {
     avisar("Parcela liquidada com sucesso!");
-    modalLiq.style.display = "none";
+    fecharModal(modalLiq);
     carregarContas();
   } else {
     avisar(data.erro || "Falha ao liquidar parcela.");
@@ -1207,12 +1253,9 @@ document.getElementById("btn-voltar").addEventListener("click", () => {
 
 // Atalhos globais do teclado
 document.addEventListener("keydown", (e) => {
-  if (modalConta.style.display === "flex" || modalLiq.style.display === "flex") {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      modalConta.style.display = "none";
-      modalLiq.style.display = "none";
-    }
+  // O modal trata ESC e o ciclo de foco; aqui só suspendemos os atalhos.
+  if (modalEstaAberto()) {
+    if (e.key === "F1" || e.key === "F2" || e.key === "F5") e.preventDefault();
     return;
   }
 

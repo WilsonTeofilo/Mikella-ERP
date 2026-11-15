@@ -6,6 +6,7 @@ import {
 import { mostrarToast } from "../../shared/ui/feedback.js";
 import {
   formatarCentavos,
+  formatarPercentual,
   parsearCentavos,
   somenteDigitos,
   formatarCampoMoeda,
@@ -140,14 +141,16 @@ function atualizarMargem() {
   }
 
   const lucro = preco - custo;
-  const percMargem = ((lucro / preco) * 100).toFixed(1);
+  const percentual = formatarPercentual(((lucro / preco) * 100), {
+    sinal: true,
+  });
   const lucroFmt = formatarCentavos(lucro);
 
   if (lucro >= 0) {
-    lblMargem.textContent = `Margem: +${percMargem}% (Lucro: ${lucroFmt})`;
+    lblMargem.textContent = `Margem: ${percentual} (Lucro: ${lucroFmt})`;
     lblMargem.style.color = "var(--verde)";
   } else {
-    lblMargem.textContent = `Margem: ${percMargem}% (Prejuízo: ${lucroFmt})`;
+    lblMargem.textContent = `Margem: ${percentual} (Prejuízo: ${lucroFmt})`;
     lblMargem.style.color = "var(--vermelho)";
   }
 }

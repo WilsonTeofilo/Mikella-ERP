@@ -15,6 +15,16 @@ export function mostrarToast(mensagem, { duracao = 2500 } = {}) {
     return;
   }
 
+  // Anuncia a mensagem para leitores de tela, inclusive em páginas cujo
+  // HTML ainda não declara `aria-live` no elemento.
+  if (!elemento.hasAttribute("role")) elemento.setAttribute("role", "status");
+  if (!elemento.hasAttribute("aria-live")) {
+    elemento.setAttribute("aria-live", "polite");
+  }
+  if (!elemento.hasAttribute("aria-atomic")) {
+    elemento.setAttribute("aria-atomic", "true");
+  }
+
   elemento.textContent = mensagem;
   elemento.style.display = "block";
   elemento.classList.add("visivel");

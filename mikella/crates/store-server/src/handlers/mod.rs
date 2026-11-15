@@ -6,6 +6,7 @@
 //! Handlers públicos (sem auth): onboarding, login, 2FA.
 //! Handlers protegidos: tudo sob middleware `exigir_token`.
 
+pub mod analytics;
 pub mod auth;
 pub mod cash;
 pub mod config_pagamento;
@@ -21,6 +22,7 @@ pub mod sales_write;
 pub mod system;
 pub mod users;
 
+pub use analytics::obter_analytics_vendas_handler;
 pub use auth::{
     auth_me, login, logout, onboarding_create, onboarding_status, solicitar_2fa, verificar_2fa,
 };

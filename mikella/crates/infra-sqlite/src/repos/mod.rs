@@ -6,6 +6,7 @@
 //! ou a venda inteira (cabeçalho, itens, pagamentos, estoque, caixa) entra,
 //! ou nada entra.
 
+pub mod analytics_vendas;
 pub mod auditoria;
 pub mod caixa;
 pub mod config_loja;

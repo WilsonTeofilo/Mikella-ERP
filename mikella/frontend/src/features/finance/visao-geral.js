@@ -10,6 +10,13 @@
 import { requisitarJSON } from "../../shared/services/api.js";
 import { formatarCentavos } from "../../shared/ui/formatadores.js";
 import { mostrarToast } from "../../shared/ui/feedback.js";
+import {
+  estadoVazio,
+  graficoBarras,
+  graficoBarrasComparadas,
+  graficoBarrasHorizontais,
+  graficoRosca,
+} from "../../shared/ui/grafico.js";
 
 let periodoAtual = "hoje";
 let inicializado = false;
@@ -35,9 +42,33 @@ const elSaldoProjetado = document.getElementById("kpi-saldo-projetado");
 
 const elColunaAtencao = document.getElementById("coluna-atencao-container");
 const elTabelaFitaCorpo = document.getElementById("tabela-fita-corpo");
-const elGraficoSvg = document.getElementById("grafico-svg-container");
 
-const SVG_NS = "http://www.w3.org/2000/svg";
+const elGraficoFluxo = document.getElementById("grafico-fluxo");
+const elGraficoPagamentos = document.getElementById("grafico-pagamentos");
+const elGraficoHoras = document.getElementById("grafico-horas");
+const elGraficoProdutos = document.getElementById("grafico-produtos");
+
+// Rótulos de apresentação do mix. A forma canônica vem do Rust; o fallback
+// cobre valores novos sem quebrar o gráfico.
+const ROTULOS_FORMA = {
+  DINHEIRO: "Dinheiro",
+  DEBITO: "Débito",
+  CREDITO: "Crédito",
+  PIX: "Pix",
+  VOUCHER: "Voucher",
+  CREDIARIO: "Crediário",
+  OUTRO: "Outro",
+};
+
+function rotuloForma(forma) {
+  const chave = String(forma ?? "").toUpperCase();
+  return ROTULOS_FORMA[chave] || chave || "Outro";
+}
+
+function rotuloDia(dataIso) {
+  const texto = String(dataIso ?? "");
+  return texto.length >= 10 ? `${texto.slice(8, 10)}/${texto.slice(5, 7)}` : texto;
+}
 
 // Destinos internos conhecidos. Qualquer outro valor (javascript:, data:,
 // URL absoluta ou página inexistente) cai no menu principal.
@@ -233,71 +264,102 @@ function renderizarResumo(d) {
   renderizarFita(d.fita_do_dia || []);
 }
 
-async function carregarGrafico() {
-  if (!elGraficoSvg) return;
+async function carregarFluxoCaixa() {
+  if (!elGraficoFluxo) return;
   try {
     const { ok, data } = await requisitarJSON("/v1/finance/fluxo-caixa");
-    if (!ok || !data || !Array.isArray(data.dias)) return;
-
-    const dias = data.dias.slice(0, 14).reverse();
-    if (dias.length === 0) {
-      const vazio = document.createElement("div");
-      vazio.className = "grafico-vazio";
-      vazio.textContent = "Sem dados suficientes para o gráfico no período.";
-      elGraficoSvg.replaceChildren(vazio);
+    if (!ok || !data || !Array.isArray(data.dias)) {
+      estadoVazio(elGraficoFluxo, "Não foi possível carregar o fluxo de caixa.");
       return;
     }
 
-    // SVG puro montado com createElementNS: dado do servidor nunca vira HTML.
-    const largura = 600;
-    const altura = 160;
-    const margem = { top: 20, right: 20, bottom: 30, left: 50 };
-    const maxValor = Math.max(...dias.map((d) => Number(d.entradas_centavos) || 0), 10000);
-    const barraLargura = Math.max(16, (largura - margem.left - margem.right) / dias.length - 8);
+    const itens = data.dias
+      .slice(0, 30)
+      .reverse()
+      .map((d) => ({
+        rotulo: rotuloDia(d.data),
+        a: Number(d.entradas_centavos) || 0,
+        b: Number(d.saidas_centavos) || 0,
+      }));
 
-    const svg = document.createElementNS(SVG_NS, "svg");
-    svg.setAttribute("viewBox", `0 0 ${largura} ${altura}`);
-    svg.setAttribute("class", "grafico-svg");
+    if (itens.length === 0 || itens.every((i) => i.a <= 0 && i.b <= 0)) {
+      estadoVazio(elGraficoFluxo, "Sem movimentação de caixa nos últimos 30 dias.");
+      return;
+    }
 
-    const eixo = document.createElementNS(SVG_NS, "line");
-    eixo.setAttribute("x1", String(margem.left));
-    eixo.setAttribute("y1", String(altura - margem.bottom));
-    eixo.setAttribute("x2", String(largura - margem.right));
-    eixo.setAttribute("y2", String(altura - margem.bottom));
-    eixo.setAttribute("class", "grafico-eixo");
-    svg.appendChild(eixo);
-
-    dias.forEach((d, i) => {
-      const x = margem.left + i * (barraLargura + 8);
-      const h = ((Number(d.entradas_centavos) || 0) / maxValor) * (altura - margem.top - margem.bottom);
-      const y = altura - margem.bottom - h;
-      const diaTxt = String(d.data ?? "").substring(8, 10);
-
-      const barra = document.createElementNS(SVG_NS, "rect");
-      barra.setAttribute("x", String(x));
-      barra.setAttribute("y", String(y));
-      barra.setAttribute("width", String(barraLargura));
-      barra.setAttribute("height", String(h));
-      barra.setAttribute("class", "grafico-barra");
-
-      const titulo = document.createElementNS(SVG_NS, "title");
-      titulo.textContent = `${d.data}: ${formatarCentavos(d.entradas_centavos)}`;
-      barra.appendChild(titulo);
-      svg.appendChild(barra);
-
-      const rotulo = document.createElementNS(SVG_NS, "text");
-      rotulo.setAttribute("x", String(x + barraLargura / 2));
-      rotulo.setAttribute("y", String(altura - 10));
-      rotulo.setAttribute("text-anchor", "middle");
-      rotulo.setAttribute("class", "grafico-rotulo");
-      rotulo.textContent = diaTxt;
-      svg.appendChild(rotulo);
+    graficoBarrasComparadas(elGraficoFluxo, {
+      itens,
+      descricao: "Entradas e saídas de caixa por dia nos últimos 30 dias",
+      rotuloA: "Entradas",
+      rotuloB: "Saídas",
     });
-
-    elGraficoSvg.replaceChildren(svg);
-  } catch (_) {
-    // O gráfico é complementar: falha aqui não bloqueia os KPIs.
+  } catch {
+    estadoVazio(elGraficoFluxo, "Falha ao carregar o fluxo de caixa.");
   }
+}
+
+async function carregarAnalytics() {
+  let dados = null;
+  try {
+    const { ok, data } = await requisitarJSON(
+      `/v1/analytics/vendas?periodo=${encodeURIComponent(periodoAtual)}`,
+    );
+    if (ok && data) dados = data;
+  } catch {
+    dados = null;
+  }
+
+  if (!dados) {
+    estadoVazio(elGraficoPagamentos, "Não foi possível carregar as formas de pagamento.");
+    estadoVazio(elGraficoHoras, "Não foi possível carregar as vendas por hora.");
+    estadoVazio(elGraficoProdutos, "Não foi possível carregar os produtos.");
+    return;
+  }
+
+  // Mix de pagamento: a forma já chega separada (CREDIARIO não se esconde em OUTRO).
+  const fatias = (dados.formas_pagamento || []).map((f) => ({
+    rotulo: rotuloForma(f.forma),
+    valor: Number(f.valor_centavos) || 0,
+  }));
+  graficoRosca(elGraficoPagamentos, {
+    fatias,
+    descricao: "Participação de cada forma de pagamento no faturamento do período",
+    tituloCentro: "Faturamento",
+  });
+
+  // Vendas por hora: 24 posições com zero para mostrar o horário de pico real.
+  const horas = (dados.serie_hora || []).map((h) => ({
+    rotulo: `${String(h.hora).padStart(2, "0")}h`,
+    valor: Number(h.faturamento_centavos) || 0,
+  }));
+  if (horas.length === 0 || horas.every((h) => h.valor <= 0)) {
+    estadoVazio(elGraficoHoras, "Sem vendas no período selecionado.");
+  } else {
+    graficoBarras(elGraficoHoras, {
+      itens: horas,
+      descricao: "Faturamento por hora do dia no período selecionado",
+    });
+  }
+
+  // Ranking de produtos com a margem que o Rust calculou (custo congelado).
+  const produtos = (dados.top_produtos || []).slice(0, 6).map((p) => ({
+    rotulo: p.nome,
+    valor: Number(p.faturamento_centavos) || 0,
+    detalhe: `${p.quantidade} un · ${Math.round(Number(p.margem_pct) || 0)}% margem`,
+  }));
+  if (produtos.length === 0) {
+    estadoVazio(elGraficoProdutos, "Sem produtos vendidos no período selecionado.");
+  } else {
+    graficoBarrasHorizontais(elGraficoProdutos, {
+      itens: produtos,
+      descricao: "Produtos com maior faturamento e a margem de cada um",
+    });
+  }
+}
+
+function carregarGraficos() {
+  carregarFluxoCaixa();
+  carregarAnalytics();
 }
 
 export async function carregarVisaoGeral() {
@@ -312,7 +374,7 @@ export async function carregarVisaoGeral() {
     mostrarToast("Erro de comunicação ao carregar a visão geral.");
   }
 
-  carregarGrafico();
+  carregarGraficos();
 }
 
 /**

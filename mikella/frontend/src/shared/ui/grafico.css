@@ -1,0 +1,210 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Gráficos SVG — linguagem visual do Mikella (traço preto, cor chapada,
+   zero gradiente, zero border-radius). Só tokens do design system.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.grafico {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grafico text {
+  font-family: var(--fonte-texto);
+  font-size: 11px;
+  fill: var(--cinza-500);
+}
+
+.grafico-grade {
+  stroke: var(--linha);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.grafico-eixo {
+  stroke: var(--preto);
+  stroke-width: 1.5;
+}
+
+.grafico-rotulo {
+  font-size: 10px;
+  fill: var(--cinza-500);
+}
+
+.grafico-eixo-rotulo {
+  font-size: 10px;
+  fill: var(--cinza-500);
+}
+
+.grafico-valor {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--preto);
+}
+
+/* Barras verticais */
+.grafico-barra {
+  fill: var(--azul-600);
+}
+
+.grafico-barra-entrada {
+  fill: var(--azul-600);
+}
+
+.grafico-barra-saida {
+  fill: var(--vermelho);
+}
+
+/* Barras horizontais */
+.grafico-trilho {
+  fill: var(--papel);
+}
+
+.grafico-rotulo-horizontal {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--preto);
+}
+
+.grafico-valor-horizontal {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--preto);
+}
+
+/* Cascata do DRE */
+.grafico-barra-total {
+  fill: var(--azul-600);
+}
+
+.grafico-barra-delta-negativo {
+  fill: var(--vermelho);
+}
+
+.grafico-barra-delta-positivo {
+  fill: var(--verde);
+}
+
+/* Rosca */
+.grafico-fatia {
+  fill: none;
+}
+
+.grafico-fatia-1 {
+  stroke: var(--azul-600);
+}
+
+.grafico-fatia-2 {
+  stroke: var(--preto);
+}
+
+.grafico-fatia-3 {
+  stroke: var(--verde);
+}
+
+.grafico-fatia-4 {
+  stroke: var(--amarelo);
+}
+
+.grafico-fatia-5 {
+  stroke: var(--vermelho);
+}
+
+.grafico-fatia-6 {
+  stroke: var(--cinza-500);
+}
+
+.grafico-centro-valor {
+  font-family: var(--fonte-display);
+  font-size: 17px;
+  font-weight: 900;
+  fill: var(--preto);
+}
+
+.grafico-centro-rotulo {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  fill: var(--cinza-500);
+}
+
+/* Legenda da rosca */
+.grafico-legenda {
+  list-style: none;
+  margin: var(--espaco-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grafico-legenda li {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  font-size: 0.85rem;
+}
+
+.grafico-cor {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border: 1px solid var(--preto);
+}
+
+.grafico-cor-1 {
+  background: var(--azul-600);
+}
+
+.grafico-cor-2 {
+  background: var(--preto);
+}
+
+.grafico-cor-3 {
+  background: var(--verde);
+}
+
+.grafico-cor-4 {
+  background: var(--amarelo);
+}
+
+.grafico-cor-5 {
+  background: var(--vermelho);
+}
+
+.grafico-cor-6 {
+  background: var(--cinza-500);
+}
+
+.grafico-legenda-rotulo {
+  flex: 1;
+  font-weight: 700;
+}
+
+.grafico-legenda-linha {
+  flex-direction: row;
+  gap: var(--espaco-4);
+}
+
+.grafico-legenda-linha .grafico-legenda-rotulo {
+  flex: 0 0 auto;
+}
+
+.grafico-legenda-valor {
+  color: var(--cinza-500);
+  white-space: nowrap;
+}
+
+/* Estado vazio */
+.grafico-vazio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  padding: var(--espaco-4);
+  border: 1px dashed var(--linha);
+  color: var(--cinza-500);
+  font-size: 0.9rem;
+  text-align: center;
+}

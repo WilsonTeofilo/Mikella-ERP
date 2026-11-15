@@ -157,18 +157,56 @@
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* Gráfico em SVG Puro (VIZ-010 a VIZ-024) */
-.area-grafico-svg {
-  border: 2px solid var(--preto);
-  background: var(--branco);
-  padding: var(--espaco-3);
+/* Painéis de gráfico do dashboard (SVG em shared/ui/grafico.css) */
+.grade-graficos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espaco-4);
   margin-bottom: var(--espaco-4);
 }
 
-.area-grafico-svg h3 {
-  margin: 0 0 var(--espaco-2) 0;
+.painel-grafico {
+  border: 2px solid var(--preto);
+  background: var(--branco);
+  padding: var(--espaco-3);
+  min-width: 0;
+}
+
+/* O fluxo de caixa e o ranking ocupam a linha inteira. */
+.painel-grafico.painel-largo {
+  grid-column: 1 / -1;
+}
+
+.painel-grafico-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  border-bottom: 2px solid var(--preto);
+  padding-bottom: var(--espaco-2);
+  margin-bottom: var(--espaco-3);
+}
+
+.painel-grafico-topo h3 {
+  margin: 0;
   font-size: 0.95rem;
   text-transform: uppercase;
+}
+
+.painel-grafico-topo span {
+  font-size: 0.8rem;
+  color: var(--cinza-500);
+  text-align: right;
+}
+
+.grafico-container {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .grade-graficos {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Coluna Lateral de Atenção (Pergunta 3 - Máximo 3 selos) */
@@ -295,34 +333,4 @@
 .fita-valor {
   font-weight: 900;
   font-variant-numeric: tabular-nums lining-nums;
-}
-
-/* Gráfico SVG — apresentação por classe, sem atributo style */
-.grafico-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.grafico-eixo {
-  stroke: var(--preto);
-  stroke-width: 2;
-}
-
-.grafico-barra {
-  fill: var(--azul-600);
-  stroke: var(--preto);
-  stroke-width: 1.5;
-}
-
-.grafico-rotulo {
-  fill: var(--preto);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.grafico-vazio {
-  padding: var(--espaco-3);
-  color: var(--cinza-500);
-  text-align: center;
 }

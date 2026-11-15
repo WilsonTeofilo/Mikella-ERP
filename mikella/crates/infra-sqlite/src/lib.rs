@@ -37,6 +37,10 @@ pub use db::Database;
 pub use error::{InfraError, InfraResult};
 pub use hash::{blind_index_documento, Blake3HashChain};
 pub use lgpd::{expurgar_clientes_por_retencao, RelatorioExpurgoLgpd};
+pub use repos::analytics_vendas::{
+    AnalyticsVendasRepo, AnalyticsVendasView, FormaPagamentoView, OperadorVendasView,
+    ProdutoVendidoView, SerieDiaView, SerieHoraView,
+};
 pub use repos::auditoria::AuditoriaRepo;
 pub use repos::caixa::{LivroEntradaView, LivroRepo, SessaoRepo};
 pub use repos::config_loja::{

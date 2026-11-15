@@ -379,7 +379,7 @@ fn validar_form(
 /// apontaria para o dia seguinte. Aqui a data é resolvida no fuso da loja e
 /// entregue ao repositório já como `AAAA-MM-DD` (validada, sem interpolação
 /// de entrada crua no SQL).
-fn resolver_janela_resumo(
+pub(crate) fn resolver_janela_resumo(
     fuso_iana: &str,
     periodo: &str,
     data_inicio: Option<&str>,

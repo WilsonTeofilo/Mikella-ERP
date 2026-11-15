@@ -9,6 +9,11 @@ import {
 import { inicializarControlesJanela } from "../../shared/ui/window-controls.js";
 import { inicializarDiagnostico } from "../../shared/ui/diagnostico.js";
 import { inicializarVisaoGeral } from "./visao-geral.js";
+import {
+  estadoVazio,
+  graficoBarrasHorizontais,
+  graficoCascata,
+} from "../../shared/ui/grafico.js";
 
 inicializarControlesJanela();
 inicializarDiagnostico();
@@ -716,7 +721,6 @@ btnFiltroPagarVencidas.addEventListener("click", () =>
 
 function atualizarAbaReceber() {
   const hoje = new Date().toISOString().slice(0, 10);
-
   let totalReceberCentavos = 0;
   let receberHojeCentavos = 0;
   let receberVencidoCentavos = 0;
@@ -784,6 +788,27 @@ function atualizarAbaReceber() {
     formatarCentavos(aging31a60);
   document.getElementById("aging-mais-60").textContent =
     formatarCentavos(agingMais60);
+
+  // Envelhecimento das cobranças: leitura visual imediata do risco.
+  const elGraficoAging = document.getElementById("grafico-aging");
+  const faixasAging = [
+    { rotulo: "Em dia", valor: agingEmDia },
+    { rotulo: "1 a 30 dias", valor: aging1a30 },
+    { rotulo: "31 a 60 dias", valor: aging31a60 },
+    { rotulo: "Mais de 60 dias", valor: agingMais60 },
+  ];
+  const totalAging = faixasAging.reduce(
+    (soma, faixa) => soma + (Number(faixa.valor) || 0),
+    0,
+  );
+  if (totalAging <= 0) {
+    estadoVazio(elGraficoAging, "Nenhuma cobrança em aberto no momento.");
+  } else {
+    graficoBarrasHorizontais(elGraficoAging, {
+      itens: faixasAging,
+      descricao: "Envelhecimento das contas a receber por faixa de atraso",
+    });
+  }
 
   renderTabelaReceber(contasReceber, FILTRO_RECEBER);
 }
@@ -936,48 +961,82 @@ async function carregarResultadoDRE() {
     return;
   }
 
-  document.getElementById("dre-receita-bruta").textContent = formatarCentavos(
-    data.receita_bruta_centavos,
-  );
-  document.getElementById("dre-deducoes").textContent = formatarCentavos(
-    data.deducoes_devolucoes_centavos,
-  );
-  document.getElementById("dre-receita-liquida").textContent = formatarCentavos(
-    data.receita_liquida_centavos,
-  );
-  document.getElementById("dre-cmv").textContent = formatarCentavos(
-    data.cmv_centavos,
-  );
-  document.getElementById("dre-lucro-bruto").textContent = formatarCentavos(
-    data.lucro_bruto_centavos,
-  );
-  document.getElementById("dre-despesas").textContent = formatarCentavos(
-    data.despesas_operacionais_centavos,
-  );
+  // Campos reais de `ResultadoDREView`. O Rust é a autoridade do cálculo;
+  // aqui só formatamos e desenhamos.
+  const receitaBruta = Number(data.receita_bruta_centavos) || 0;
+  const descontos = Number(data.descontos_centavos) || 0;
+  const receitaLiquida = Number(data.receita_liquida_centavos) || 0;
+  const cmv = Number(data.cmv_centavos) || 0;
+  const lucroBruto = Number(data.lucro_bruto_centavos) || 0;
+  const custosVariaveis = Number(data.custos_variaveis_centavos) || 0;
+  const margemContribuicao = Number(data.margem_contribuicao_centavos) || 0;
+  const despesasFixas = Number(data.despesas_fixas_centavos) || 0;
+  const resultadoOperacional = Number(data.resultado_operacional_centavos) || 0;
+  const impostos = Number(data.impostos_estimados_centavos) || 0;
+  const resultadoPeriodo = Number(data.resultado_periodo_centavos) || 0;
+  const retiradas = Number(data.retiradas_dono_centavos) || 0;
+
+  const escrever = (id, valor) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = formatarCentavos(valor);
+  };
+
+  escrever("dre-receita-bruta", receitaBruta);
+  escrever("dre-descontos", descontos);
+  escrever("dre-receita-liquida", receitaLiquida);
+  escrever("dre-cmv", cmv);
+  escrever("dre-lucro-bruto", lucroBruto);
+  escrever("dre-custos-variaveis", custosVariaveis);
+  escrever("dre-margem-contribuicao", margemContribuicao);
+  escrever("dre-despesas-fixas", despesasFixas);
+  escrever("dre-resultado-operacional", resultadoOperacional);
+  escrever("dre-impostos", impostos);
+  escrever("dre-retiradas", retiradas);
 
   const elResultado = document.getElementById("dre-resultado-liquido");
-  elResultado.textContent = formatarCentavos(data.resultado_liquido_centavos);
-  elResultado.className =
-    data.resultado_liquido_centavos >= 0
-      ? "direita valor-positivo"
-      : "direita valor-negativo";
+  if (elResultado) {
+    elResultado.textContent = formatarCentavos(resultadoPeriodo);
+    elResultado.className =
+      resultadoPeriodo >= 0
+        ? "direita valor-positivo"
+        : "direita valor-negativo";
+  }
 
-  document.getElementById("dre-margem-bruta").textContent =
-    `${data.margem_bruta_percentual.toFixed(1)}%`;
-  document.getElementById("dre-margem-liquida").textContent =
-    `${data.margem_liquida_percentual.toFixed(1)}%`;
+  const elMargemBruta = document.getElementById("dre-margem-bruta");
+  if (elMargemBruta) {
+    elMargemBruta.textContent = `${(Number(data.margem_bruta_pct) || 0).toFixed(1)}%`;
+  }
+  const elMargemLiquida = document.getElementById("dre-margem-liquida");
+  if (elMargemLiquida) {
+    elMargemLiquida.textContent = `${(Number(data.margem_liquida_pct) || 0).toFixed(1)}%`;
+  }
 
   const elDiag = document.getElementById("dre-diagnostico");
-  if (data.resultado_liquido_centavos > 0) {
-    elDiag.textContent = "Superávit Operacional";
-    elDiag.style.color = "var(--verde)";
-  } else if (data.resultado_liquido_centavos < 0) {
-    elDiag.textContent = "Déficit / Prejuízo";
-    elDiag.style.color = "var(--vermelho)";
-  } else {
-    elDiag.textContent = "Equilíbrio Exato";
-    elDiag.style.color = "var(--azul-600)";
+  if (elDiag) {
+    elDiag.classList.remove("valor-positivo", "valor-negativo");
+    if (resultadoPeriodo > 0) {
+      elDiag.textContent = "Superávit Operacional";
+      elDiag.classList.add("valor-positivo");
+    } else if (resultadoPeriodo < 0) {
+      elDiag.textContent = "Déficit / Prejuízo";
+      elDiag.classList.add("valor-negativo");
+    } else {
+      elDiag.textContent = "Equilíbrio Exato";
+    }
   }
+
+  graficoCascata(document.getElementById("dre-cascata"), {
+    descricao: "Cascata do resultado: da receita bruta ao resultado do período",
+    etapas: [
+      { rotulo: "Receita bruta", delta: receitaBruta, tipo: "inicio" },
+      { rotulo: "Descontos", delta: -descontos, tipo: "delta" },
+      { rotulo: "CMV", delta: -cmv, tipo: "delta" },
+      { rotulo: "Custos variáveis", delta: -custosVariaveis, tipo: "delta" },
+      { rotulo: "Despesas fixas", delta: -despesasFixas, tipo: "delta" },
+      { rotulo: "Impostos", delta: -impostos, tipo: "delta" },
+      { rotulo: "Resultado", delta: resultadoPeriodo, tipo: "total" },
+    ],
+  });
 }
 
 // -------------------------------------------------------------

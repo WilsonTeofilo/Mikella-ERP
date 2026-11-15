@@ -474,6 +474,20 @@ th.direita {
   margin-bottom: var(--espaco-4);
 }
 
+/* Cascata do DRE e aging (desenho em shared/ui/grafico.js) */
+.grafico-dre {
+  margin: var(--espaco-4) 0;
+  padding-top: var(--espaco-3);
+  border-top: 2px solid var(--preto);
+}
+
+.grafico-aging {
+  margin-bottom: var(--espaco-3);
+  border: 2px solid var(--preto);
+  background: var(--branco);
+  padding: var(--espaco-3);
+}
+
 .titulo-secao {
   font-family: var(--fonte-display);
   font-size: 1.1rem;

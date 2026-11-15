@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="../shared/ui/forms.css" />
   <link rel="stylesheet" href="../shared/ui/window-controls.css" />
   <link rel="stylesheet" href="../shared/ui/diagnostico.css" />
+  <link rel="stylesheet" href="../shared/ui/grafico.css" />
   <link rel="stylesheet" href="../features/finance/finance.css" />
   <link rel="stylesheet" href="../features/finance/resumo.css" />
   <link rel="stylesheet" href="../shared/design/utilitarios.css" />
@@ -195,14 +196,46 @@
             </div>
           </div>
 
-          <div class="area-grafico-svg">
-            <div class="u-c4ad4c9b">
-              <h3>Faturamento Diário (Últimos Dias)</h3>
-              <span class="u-a13e233d">Série em Azul Cobalto</span>
-            </div>
-            <div id="grafico-svg-container">
-              <div class="u-df7c6cae">Carregando gráfico...</div>
-            </div>
+          <div class="grade-graficos">
+            <section class="painel-grafico painel-largo">
+              <header class="painel-grafico-topo">
+                <h3>Fluxo de caixa</h3>
+                <span>Entradas x saídas dos últimos 30 dias</span>
+              </header>
+              <div id="grafico-fluxo" class="grafico-container">
+                <div class="grafico-vazio">Carregando gráfico...</div>
+              </div>
+            </section>
+
+            <section class="painel-grafico">
+              <header class="painel-grafico-topo">
+                <h3>Formas de pagamento</h3>
+                <span>Participação no faturamento</span>
+              </header>
+              <div id="grafico-pagamentos" class="grafico-container">
+                <div class="grafico-vazio">Carregando...</div>
+              </div>
+            </section>
+
+            <section class="painel-grafico">
+              <header class="painel-grafico-topo">
+                <h3>Vendas por hora</h3>
+                <span>Quando a loja fatura</span>
+              </header>
+              <div id="grafico-horas" class="grafico-container">
+                <div class="grafico-vazio">Carregando...</div>
+              </div>
+            </section>
+
+            <section class="painel-grafico painel-largo">
+              <header class="painel-grafico-topo">
+                <h3>Produtos que mais faturaram</h3>
+                <span>Faturamento e margem no período</span>
+              </header>
+              <div id="grafico-produtos" class="grafico-container">
+                <div class="grafico-vazio">Carregando...</div>
+              </div>
+            </section>
           </div>
 
           <div class="fita-do-dia-container">
@@ -455,6 +488,10 @@
         </div>
       </div>
 
+      <div id="grafico-aging" class="grafico-container grafico-aging">
+        <div class="grafico-vazio">Carregando envelhecimento das cobranças...</div>
+      </div>
+
       <div class="barra-filtros">
         <button type="button" id="filtro-receber-todas" class="botao primario">Todas as Contas</button>
         <button type="button" id="filtro-receber-hoje" class="botao">Vencendo Hoje</button>
@@ -496,11 +533,11 @@
               <td id="dre-receita-bruta" class="direita valor-positivo">R$ 0,00</td>
             </tr>
             <tr>
-              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Deduções e Devoluções de Vendas</td>
-              <td id="dre-deducoes" class="direita valor-negativo">R$ 0,00</td>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Descontos Concedidos</td>
+              <td id="dre-descontos" class="direita valor-negativo">R$ 0,00</td>
             </tr>
             <tr class="linha-subtotal">
-              <td><strong>3. (=) Receita Líquida</strong></td>
+              <td><strong>2. (=) Receita Líquida</strong></td>
               <td id="dre-receita-liquida" class="direita">R$ 0,00</td>
             </tr>
             <tr>
@@ -508,19 +545,43 @@
               <td id="dre-cmv" class="direita valor-negativo">R$ 0,00</td>
             </tr>
             <tr class="linha-subtotal">
-              <td><strong>5. (=) Lucro Bruto / Margem de Contribuição</strong></td>
+              <td><strong>3. (=) Lucro Bruto</strong></td>
               <td id="dre-lucro-bruto" class="direita">R$ 0,00</td>
             </tr>
             <tr>
-              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Despesas Operacionais e Administrativas</td>
-              <td id="dre-despesas" class="direita valor-negativo">R$ 0,00</td>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Custos Variáveis (comissões e taxas de cartão)</td>
+              <td id="dre-custos-variaveis" class="direita valor-negativo">R$ 0,00</td>
+            </tr>
+            <tr class="linha-subtotal">
+              <td><strong>4. (=) Margem de Contribuição</strong></td>
+              <td id="dre-margem-contribuicao" class="direita">R$ 0,00</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Despesas Fixas</td>
+              <td id="dre-despesas-fixas" class="direita valor-negativo">R$ 0,00</td>
+            </tr>
+            <tr class="linha-subtotal">
+              <td><strong>5. (=) Resultado Operacional</strong></td>
+              <td id="dre-resultado-operacional" class="direita">R$ 0,00</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Impostos Estimados</td>
+              <td id="dre-impostos" class="direita valor-negativo">R$ 0,00</td>
             </tr>
             <tr class="linha-resultado">
-              <td><strong>7. (=) Resultado Líquido do Exercício</strong></td>
+              <td><strong>6. (=) Resultado do Período</strong></td>
               <td id="dre-resultado-liquido" class="direita">R$ 0,00</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;&nbsp;&nbsp;(-) Retiradas do Dono (informativo, fora do resultado)</td>
+              <td id="dre-retiradas" class="direita">R$ 0,00</td>
             </tr>
           </tbody>
         </table>
+
+        <div id="dre-cascata" class="grafico-container grafico-dre">
+          <div class="grafico-vazio">Calcule o DRE para ver a cascata do resultado.</div>
+        </div>
 
         <div class="cards-kpi-grade u-a37575c8">
           <div class="card-kpi">

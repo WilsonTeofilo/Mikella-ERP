@@ -272,7 +272,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/sistema/cep/:cep", get(consultar_cep))
         .route("/v1/donation/prompt", get(donation_prompt))
         .route("/v1/donation/ack", post(donation_ack))
-        // Finance (RF-030 / DSH-001) — contas a pagar/receber e Dashboard.
+        // Finance (RF-030 / DSH-001) - contas a pagar/receber e Dashboard.
+        .route("/v1/analytics/vendas", get(obter_analytics_vendas_handler))
         .route("/v1/finance/resumo", get(obter_resumo_dashboard_handler))
         .route("/v1/finance/fluxo-caixa", get(obter_fluxo_caixa_handler))
         .route("/v1/finance/resultado", get(obter_resultado_dre_handler))

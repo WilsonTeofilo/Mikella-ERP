@@ -147,6 +147,10 @@ pub struct ResultadoDREView {
     pub impostos_estimados_centavos: i64,
     pub resultado_periodo_centavos: i64,
     pub retiradas_dono_centavos: i64,
+    /// Lucro bruto sobre a receita líquida (0 quando não houve receita).
+    pub margem_bruta_pct: f64,
+    /// Resultado do período sobre a receita líquida.
+    pub margem_liquida_pct: f64,
 }
 
 pub struct FinanceiroDashboardRepo<'a> {
@@ -576,7 +580,8 @@ impl<'a> FinanceiroDashboardRepo<'a> {
         let sql_crediario = "SELECT COALESCE(SUM(vp.valor_centavos), 0)
              FROM venda_pagamentos vp
              JOIN vendas v ON v.id = vp.venda_id
-             WHERE v.estado = 'FINALIZADA' AND vp.forma = 'CREDIARIO'
+             WHERE v.estado = 'FINALIZADA'
+               AND vp.forma = 'OUTRO' AND vp.forma_detalhe = 'CREDIARIO'
                AND v.created_at >= ?1
                AND v.created_at <= ?2";
         let total_crediario_centavos: i64 = self
@@ -672,9 +677,16 @@ impl<'a> FinanceiroDashboardRepo<'a> {
                     SUM(CASE WHEN tipo = 'ENTRADA' THEN valor_centavos ELSE 0 END) as entradas,
                     SUM(CASE WHEN tipo = 'SAIDA' THEN valor_centavos ELSE 0 END) as saidas
              FROM (
-                 SELECT created_at as data_hora, 'ENTRADA' as tipo, total_centavos as valor_centavos
-                 FROM vendas
-                 WHERE estado = 'FINALIZADA' AND forma_pagamento != 'CREDIARIO'
+                 -- Regime de caixa: só entra o que foi efetivamente recebido.
+                 -- A venda a crediário é gravada como OUTRO + detalhe CREDIARIO
+                 -- (migração 0006); excluir o detalhe evita contar a mesma venda
+                 -- duas vezes (na venda e no recebimento da parcela).
+                 SELECT v.created_at as data_hora, 'ENTRADA' as tipo,
+                        vp.valor_centavos as valor_centavos
+                 FROM venda_pagamentos vp
+                 JOIN vendas v ON v.id = vp.venda_id
+                 WHERE v.estado = 'FINALIZADA'
+                   AND COALESCE(vp.forma_detalhe, '') <> 'CREDIARIO'
                  UNION ALL
                  SELECT created_at as data_hora, 'ENTRADA' as tipo, valor_centavos
                  FROM livro_caixa
@@ -891,6 +903,16 @@ impl<'a> FinanceiroDashboardRepo<'a> {
             impostos_estimados_centavos,
             resultado_periodo_centavos,
             retiradas_dono_centavos,
+            margem_bruta_pct: if receita_liquida_centavos > 0 {
+                (lucro_bruto_centavos as f64 / receita_liquida_centavos as f64) * 100.0
+            } else {
+                0.0
+            },
+            margem_liquida_pct: if receita_liquida_centavos > 0 {
+                (resultado_periodo_centavos as f64 / receita_liquida_centavos as f64) * 100.0
+            } else {
+                0.0
+            },
         })
     }
 }
